@@ -617,7 +617,7 @@ class Spell:
 
     @property
     def total_points(self):
-        pts=len(self.secondary_schools)
+        pts=0
         for school,abs_ in self.school_abilities.items():
             ab_map=SCHOOLS.get(school,{}).get("abilities",{})
             for ab,cnt in abs_.items(): pts+=ab_map.get(ab,{}).get("cost",0)*cnt
@@ -649,11 +649,21 @@ class Spell:
 
     @property
     def active_connections(self):
-        schools=self.all_schools; res=[]
+        schools=self.all_schools; res=[]; seen=set()
         for i in range(len(schools)):
             for j in range(i+1,len(schools)):
                 p=school_pair(schools[i],schools[j])
-                if p: res.append((schools[i],schools[j],SCHOOL_CONNECTIONS[p]))
+                if p and p not in seen:
+                    res.append((schools[i],schools[j],SCHOOL_CONNECTIONS[p],False))
+                    seen.add(p)
+        for school in SCHOOLS:
+            if self.capstone_active(school):
+                for (s1,s2),name in SCHOOL_CONNECTIONS.items():
+                    if s1==school or s2==school:
+                        p=(s1,s2)
+                        if p not in seen:
+                            res.append((s1,s2,name,True))
+                            seen.add(p)
         return res
 
     def capstone_active(self,school):
@@ -832,7 +842,6 @@ class MagicCircleCanvas(tk.Canvas):
 
         R=self.OUTER_R
         self._draw_deep_bg(R)
-        self._draw_level_rings(R)
         pos=self._compute_node_positions(R)
         self._draw_outer_frame(R,pos)
         self._draw_main_geometry(R,pos)
@@ -953,15 +962,18 @@ class MagicCircleCanvas(tk.Canvas):
 
     def _draw_connection_lines(self,pos):
         s=self.spell
-        for s1,s2,_ in s.active_connections:
+        for s1,s2,_,cap in s.active_connections:
             if s1 not in pos or s2 not in pos: continue
             x1,y1=pos[s1]; x2,y2=pos[s2]
             mid=self._b(SCHOOLS[s1]["color"],SCHOOLS[s2]["color"],0.5)
-            self._line_w(x1,y1,x2,y2,fill=self._f(mid,0.30),width=2)
+            if cap:
+                self._line_w(x1,y1,x2,y2,fill=self._f("#FFD700",0.55),width=2,dash=(6,3))
+            else:
+                self._line_w(x1,y1,x2,y2,fill=self._f(mid,0.30),width=2)
             mx,my=(x1+x2)/2,(y1+y2)/2
             seed=sum(ord(c) for c in s1+s2)
             self._text_w(mx,my,text=RUNES_ALL[seed%len(RUNES_ALL)],
-                         fill=self._f(mid,0.70),font=("TkFixedFont",6))
+                         fill=self._f("#FFD700" if cap else mid,0.70),font=("TkFixedFont",6))
 
     def _draw_school_modules(self,pos):
         for school,(wx,wy) in pos.items():
@@ -1104,66 +1116,6 @@ class MagicCircleCanvas(tk.Canvas):
         self._ring_w(wx,wy,ri,self._f(c,0.35),w=1)
 
 
-    def _draw_level_rings(self,R):
-        """Full-circle level rings, behind everything.
-        One unique ring per LEVEL_TABLE threshold (15 total).
-        All 15 slots always drawn (unfilled = parchment dim), filled = level reached.
-        Rings span from R*0.97 to R*0.03, equidistant, each with border + glyph band."""
-        s=self.spell; lvl_idx,_,_=s.level_info
-        n_levels=len(LEVEL_TABLE)
-        # Full span of the circle interior
-        r_max=R*0.97; r_min=R*0.03
-        span=r_max-r_min
-        slice_h=span/n_levels          # equal slice for every level
-        ring_h=max(5, slice_h*0.68)   # ~68% filled, ~32% gap
-        parch_ink="#3a2a10"           # parchment ink colour for unfilled slots
-
-        for lv in range(n_levels):
-            _,_,lname,lcol=LEVEL_TABLE[lv]
-            reached=(lv < lvl_idx)   # True = player has attained this level
-            r_outer=r_max - lv*slice_h
-            r_inner=r_outer - ring_h
-            if r_inner < r_min: r_inner=r_min
-            mid_r=(r_inner+r_outer)/2
-
-            if reached:
-                # Filled: level colour with modest alpha, parchment-tinted
-                fill_c=self._b(lcol,"#c8a060",0.35)
-                band_alpha=0.22+lv*0.005
-                self._wedge_w(0,0,r_inner,r_outer,0,360,self._f(fill_c,band_alpha))
-                border_c=self._b(lcol,"#d4b080",0.50)
-                glyph_c=self._b(lcol,"#e8c890",0.65)
-            else:
-                # Unfilled: very faint parchment
-                self._wedge_w(0,0,r_inner,r_outer,0,360,self._f(parch_ink,0.05))
-                border_c=self._f(parch_ink,0.20)
-                glyph_c=self._f(parch_ink,0.25)
-
-            # Outer border ring (always present)
-            self._ring_w(0,0,r_outer,border_c,w=1)
-            # Inner border ring
-            self._ring_w(0,0,r_inner,self._f(border_c,0.55),w=1)
-
-            # Glyph / rune inscription along midline
-            seed=hash(lname)%9999
-            circumference=2*math.pi*mid_r
-            spacing=10; n_g=max(4,int(circumference/spacing))
-            fsize=max(4,int(ring_h*0.62))
-            for i in range(n_g):
-                a=i*(360/n_g); gx,gy=self._wpt(0,0,mid_r,a)
-                # Level name at cardinal points, runes elsewhere
-                if i%max(1,n_g//4)==0:
-                    self._text_w(gx,gy,text=lname[:3].upper(),fill=glyph_c,
-                                 font=("Georgia",fsize))
-                else:
-                    self._text_w(gx,gy,text=RUNES_ALL[(seed+i*7)%len(RUNES_ALL)],
-                                 fill=glyph_c,font=("TkFixedFont",fsize))
-
-            # Small diamond markers at 12 o'clock per ring (orientation marker)
-            tx,ty=self._wpt(0,0,mid_r,0)
-            self._text_w(tx,ty,text="◆" if reached else "◇",fill=border_c,
-                         font=("TkDefaultFont",max(4,int(ring_h*0.55))))
-
     def _draw_elem_node(self,wx,wy,symbol,color,r,bought=False,label="",rune=""):
         """Draw a single constellation node (element or sub-element upgrade)."""
         fc=self._f(color,0.55 if bought else 0.18)
@@ -1304,6 +1256,48 @@ class MagicCircleCanvas(tk.Canvas):
                                          bought=bought,
                                          label=nd["name"][:8])
 
+    # ── Level symbol helpers (world-space, drawn in hub centre) ──────────────
+    def _draw_fist_w(self,wx,wy,r,color):
+        """Golden fist: palm + 4 knuckle bumps."""
+        p0=r*0.18
+        pts=[(wx-r*0.55,wy+p0),(wx+r*0.55,wy+p0),(wx+r*0.55,wy+r*0.65),(wx-r*0.55,wy+r*0.65)]
+        self._poly_w(pts,fill=self._f(color,0.75),outline=color,width=1)
+        for i in range(4):
+            kx=wx+(-r*0.42+i*r*0.28); ky=wy-r*0.02
+            self._circle_w(kx,ky,r*0.20,fill=self._f(color,0.80),outline=color)
+
+    def _draw_crown_w(self,wx,wy,r,color):
+        """Golden crown: base band + 5 pointed peaks."""
+        by=r*0.12
+        base=[(wx-r*0.72,wy+by),(wx+r*0.72,wy+by),(wx+r*0.72,wy+r*0.55),(wx-r*0.72,wy+r*0.55)]
+        self._poly_w(base,fill=self._f(color,0.70),outline=color,width=1)
+        for px in [-0.68,-0.34,0,0.34,0.68]:
+            tip=[(wx+px*r-r*0.16,wy+by),(wx+px*r,wy-r*0.52),(wx+px*r+r*0.16,wy+by)]
+            self._poly_w(tip,fill=self._f(color,0.90),outline=color,width=1)
+
+    def _draw_wings_w(self,wx,wy,r,color):
+        """White wings: two sweeping arcs from centre."""
+        for side in [-1,1]:
+            pts=[(wx,wy)]
+            for i in range(10):
+                t=i/9; ang=180+side*(20+t*110); rad=r*(0.25+t*0.80)
+                pts.append(self._wpt(wx,wy,rad,ang))
+            pts.append((wx,wy))
+            self._poly_w(pts,fill=self._f(color,0.25),outline=color,width=1)
+
+    def _draw_sun_w(self,wx,wy,r,color):
+        """White sun: central disc + 12 radiating rays."""
+        self._circle_w(wx,wy,r*0.32,fill=self._f(color,0.70),outline=color)
+        for i in range(12):
+            a=i*30; x1,y1=self._wpt(wx,wy,r*0.42,a); x2,y2=self._wpt(wx,wy,r*0.88,a)
+            self._line_w(x1,y1,x2,y2,fill=color,width=2)
+
+    def _draw_stars_w(self,wx,wy,r,color):
+        """Circle of 7 white stars."""
+        for i in range(7):
+            a=i*(360/7); sx,sy=self._wpt(wx,wy,r*0.62,a)
+            self._star_w(sx,sy,r*0.25,r*0.12,5,fill=self._f(color,0.85),outline=color,width=1)
+
     def _draw_center_hub(self):
         """Central modifier hub circle — one section per category, runes for active mods."""
         r=self.CENTER_R
@@ -1364,11 +1358,21 @@ class MagicCircleCanvas(tk.Canvas):
         ring_txt="".join(RUNES_ALL[(seed+i*7)%len(RUNES_ALL)] for i in range(28))
         self._arc_text_w(0,0,r*0.70,ring_txt,10,self._f("#8899cc",0.55),fontsize=5,step_deg=5)
 
-        # Centre gem label
-        r_gem=r*0.22
-        self._circle_w(0,0,r_gem*1.4,fill=self._f("#6688aa",0.25),outline="")
-        self._circle_w(0,0,r_gem,fill=self._f("#aabbdd",0.55),outline="#aabbdd")
-        self._text_w(0,0,text="⊕",fill="white",font=("TkDefaultFont",max(8,int(r_gem*1.1))))
+        # Centre level display
+        lvl_idx,lvl_name,lvl_col=self.spell.level_info
+        r_gem=r*0.30
+        self._circle_w(0,0,r_gem*1.25,fill=self._f(lvl_col,0.22),outline="")
+        self._ring_w(0,0,r_gem*1.25,self._b(lvl_col,"#ffffff",0.35),w=1)
+        if lvl_idx<=9:
+            disp="C" if lvl_idx==0 else str(lvl_idx)
+            self._text_w(0,0,text=disp,fill=lvl_col,font=("Georgia",max(18,int(r_gem*1.5)),"bold"))
+        elif lvl_idx==10: self._draw_fist_w(0,0,r_gem,"#FFD700")
+        elif lvl_idx==11: self._draw_crown_w(0,0,r_gem,"#FFD700")
+        elif lvl_idx==12: self._draw_wings_w(0,0,r_gem,"#FFFFFF")
+        elif lvl_idx==13: self._draw_sun_w(0,0,r_gem,"#FFFFFF")
+        else:             self._draw_stars_w(0,0,r_gem,"#FFFFFF")
+        self._text_w(0,r_gem*1.75,text=lvl_name.upper(),
+                     fill=self._b(lvl_col,"#aabbdd",0.50),font=("TkFixedFont",5))
 
         # Outer label
         self._text_w(0,r+22,text="GLOBAL MODIFIERS",fill="#7799bb",font=("TkFixedFont",7))
@@ -1473,15 +1477,21 @@ class SchoolAbilityPanel(tk.Frame):
         ab_dict=self.spell.school_abilities.setdefault(self.school,{})
         for ab,abd in SCHOOLS[self.school].get("abilities",{}).items():
             self._arow(ab,abd,c,bg,ab_dict)
-        # Capstone info box with edit button
+        # Capstone info box — shows synergies unlocked when capstone achieved
         cap_data=CAPSTONES.get(self.school,{})
         if cap_data:
             cf=tk.Frame(self,bg="#0a0f0a",relief="solid",bd=1); cf.pack(fill=tk.X,padx=8,pady=(8,4))
             ch=tk.Frame(cf,bg="#0a0f0a"); ch.pack(fill=tk.X)
             tk.Label(ch,text=f"⚜ CAPSTONE: {cap_data['name']}",bg="#0a0f0a",fg="#FFD700",font=("Georgia",9,"bold"),wraplength=270,justify=tk.LEFT).pack(side=tk.LEFT,fill=tk.X,expand=True,padx=6,pady=(4,2))
             ttk.Button(ch,text="✎ Edit",command=lambda s=self.school:CapstoneEditor(self,s,self.on_change)).pack(side=tk.RIGHT,padx=4,pady=2)
-            tk.Label(cf,text=cap_data.get("desc",""),bg="#0a0f0a",fg="#8a9a5a",font=("Georgia",8),wraplength=340,justify=tk.LEFT).pack(fill=tk.X,padx=6,pady=(0,4))
-            tk.Label(cf,text="Unlock by filling all 4 ring modifier groups to 3/3.",bg="#0a0f0a",fg="#556644",font=("Georgia",8,"italic"),wraplength=340,justify=tk.LEFT).pack(fill=tk.X,padx=6,pady=(0,4))
+            tk.Label(cf,text="Fill all 4 ring groups to 3/3 to unlock these synergies:",bg="#0a0f0a",fg="#556644",font=("Georgia",8,"italic"),wraplength=340,justify=tk.LEFT).pack(fill=tk.X,padx=6,pady=(2,2))
+            for (s1,s2),sname in SCHOOL_CONNECTIONS.items():
+                if s1==self.school or s2==self.school:
+                    other=s2 if s1==self.school else s1
+                    oc=SCHOOLS[other]["color"]
+                    srow=tk.Frame(cf,bg="#0a0f0a"); srow.pack(fill=tk.X,padx=8,pady=1)
+                    tk.Label(srow,text=f"⊕ {other}:",bg="#0a0f0a",fg=oc,font=("Georgia",8,"bold")).pack(side=tk.LEFT)
+                    tk.Label(srow,text=sname.split("—")[0].strip(),bg="#0a0f0a",fg="#8a9a5a",font=("Georgia",8),wraplength=230,justify=tk.LEFT).pack(side=tk.LEFT,padx=4)
 
     def _arow(self,ab,abd,c,bg,ab_dict):
         outer=tk.Frame(self,bg=bg); outer.pack(fill=tk.X,padx=6,pady=1)
@@ -1505,9 +1515,9 @@ class SchoolAbilityPanel(tk.Frame):
     def _update_cap(self):
         if self._cap_lbl is None: return
         cap=self.spell.capstone_active(self.school)
-        c=SCHOOLS[self.school]["color"]
         if cap:
-            self._cap_lbl.configure(text=f"⚜ CAPSTONE UNLOCKED: {CAPSTONES.get(self.school,{}).get('name','')}",fg="#FFD700")
+            n_syn=sum(1 for (s1,s2) in SCHOOL_CONNECTIONS if s1==self.school or s2==self.school)
+            self._cap_lbl.configure(text=f"⚜ CAPSTONE ACTIVE — {n_syn} synergies unlocked!",fg="#FFD700")
         else:
             rd=self.spell.ring_mods.get(self.school,{}); filled=sum(1 for g in RING_GROUPS if rd.get(g,0)>=3)
             self._cap_lbl.configure(text=f"Capstone: {filled}/4 groups filled",fg="#445566")
@@ -1801,9 +1811,9 @@ class CalculatorPanel(tk.Frame):
         else: self.next_lbl.configure(text="Maximum level achieved")
         lines=[f"SPELL: {s.name or '(unnamed)'}",""]
         if s.secondary_schools:
-            lines.append("SECONDARY SCHOOLS (+1 pt each):")
-            for sc in s.secondary_schools: lines.append(f"  {sc:<22} +1")
-            lines.append(f"  {'subtotal':<22} +{len(s.secondary_schools)}"); lines.append("")
+            lines.append("ACTIVE SCHOOLS (auto-derived from spend):")
+            for sc in [s.primary_school]+s.secondary_schools: lines.append(f"  {sc}")
+            lines.append("")
         s_sub=0
         for school in s.all_schools:
             ab_dict=s.school_abilities.get(school,{}); active=[(k,v) for k,v in ab_dict.items() if v>0]
@@ -1935,20 +1945,6 @@ class SpellForgeApp(tk.Tk):
         self.desc_text=tk.Text(frm1,height=4,bg=self.EBG,fg=self.TXT,insertbackground=self.TXT,relief="solid",borderwidth=1,font=("Georgia",9),wrap=tk.WORD)
         self.desc_text.pack(fill=tk.X)
         self.desc_text.bind("<KeyRelease>",lambda _:setattr(self.spell,"description",self.desc_text.get("1.0",tk.END).strip()))
-        frm2=ttk.LabelFrame(f,text="  Primary School (free)  ",padding=8); frm2.pack(fill=tk.X,padx=6,pady=4)
-        self.pvar=tk.StringVar(value="Evocation")
-        cb=ttk.Combobox(frm2,textvariable=self.pvar,values=list(SCHOOLS.keys()),state="readonly"); cb.pack(fill=tk.X)
-        cb.bind("<<ComboboxSelected>>",lambda _:self._on_primary())
-        self.pshort=tk.Label(frm2,text=SCHOOLS["Evocation"]["short"],bg=pb,fg="#7788aa",font=("Georgia",8,"italic"),wraplength=320,justify=tk.LEFT); self.pshort.pack(fill=tk.X,pady=(4,0))
-        frm3=ttk.LabelFrame(f,text="  Secondary Schools (+1 pt each)  ",padding=8); frm3.pack(fill=tk.X,padx=6,pady=4)
-        self.svars:Dict[str,tk.BooleanVar]={}
-        for school in SCHOOLS:
-            var=tk.BooleanVar(); self.svars[school]=var
-            row=tk.Frame(frm3,bg=pb); row.pack(fill=tk.X)
-            tk.Checkbutton(row,text=f"{SCHOOLS[school]['symbol']} {school}",variable=var,command=self._on_school,
-                           bg=pb,fg=SCHOOLS[school]["color"],selectcolor=self.EBG,activebackground=pb,
-                           activeforeground=SCHOOLS[school]["color"],font=("Georgia",9),anchor="w",relief="flat",highlightthickness=0).pack(side=tk.LEFT)
-            tk.Label(row,text=SCHOOLS[school]["short"],bg=pb,fg="#2a3a4a",font=("Georgia",8,"italic"),anchor="w").pack(side=tk.LEFT,padx=4)
         frm4=ttk.LabelFrame(f,text="  Custom Effects (free)  ",padding=8); frm4.pack(fill=tk.X,padx=6,pady=4)
         self.ce=ttk.Entry(frm4); self.ce.pack(fill=tk.X,pady=2)
         ttk.Button(frm4,text="+ Add",command=self._addce).pack(anchor=tk.W,pady=2)
@@ -1991,17 +1987,21 @@ class SpellForgeApp(tk.Tk):
     def _on_name(self):
         self.spell.name=self.name_var.get()
         if hasattr(self,'circle'): self.circle.load(self.spell)
-    def _on_primary(self):
-        n=self.pvar.get(); self.spell.primary_school=n
-        if n in self.spell.secondary_schools: self.spell.secondary_schools.remove(n); self.svars[n].set(False)
-        self.spell.school_abilities.setdefault(n,{}); self.spell.ring_mods.setdefault(n,{})
-        self.pshort.configure(text=SCHOOLS[n]["short"]); self._refresh()
-    def _on_school(self):
-        sec=[s for s,v in self.svars.items() if bool(v.get()) and v.get()!="0"]; p=self.spell.primary_school
-        if p in sec: sec.remove(p); self.svars[p].set(False)
-        self.spell.secondary_schools=sec
-        for s in self.spell.all_schools: self.spell.school_abilities.setdefault(s,{}); self.spell.ring_mods.setdefault(s,{})
-        self._refresh()
+    def _auto_schools(self):
+        """Derive primary/secondary schools automatically from ring-mod + ability spend."""
+        spends={}
+        for school in SCHOOLS:
+            ab=sum(SCHOOLS[school]["abilities"].get(ab,{}).get("cost",0)*cnt
+                   for ab,cnt in self.spell.school_abilities.get(school,{}).items())
+            rm=sum(self.spell.ring_mods.get(school,{}).values())
+            spends[school]=ab+rm
+        active=[s for s,v in spends.items() if v>0]
+        if not active:
+            self.spell.primary_school="Evocation"; self.spell.secondary_schools=[]
+        else:
+            pri=max(active,key=lambda s:spends[s])
+            self.spell.primary_school=pri
+            self.spell.secondary_schools=[s for s in active if s!=pri]
     def _addce(self):
         t=self.ce.get().strip()
         if t: self.spell.custom_effects.append(t); self.ce.delete(0,tk.END); self._ref_ce()
@@ -2020,6 +2020,7 @@ class SpellForgeApp(tk.Tk):
     # ── Refresh ───────────────────────────────────────────────────
     def _refresh(self):
         if not hasattr(self,'circle') or not hasattr(self,'calc'): return
+        self._auto_schools()
         self.circle.load(self.spell); self.calc.spell=self.spell; self.calc.refresh()
         self._ref_conn(); self._ref_ce(); self._ref_lib()
         if hasattr(self,'_spanels'):
@@ -2029,11 +2030,14 @@ class SpellForgeApp(tk.Tk):
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
         conns=self.spell.active_connections; self.ct.configure(state="normal"); self.ct.delete("1.0",tk.END)
-        if not conns: self.ct.insert("1.0","No synergies active yet.\n\nAdd multiple schools to unlock combination effects.")
+        if not conns: self.ct.insert("1.0","No synergies active yet.\n\nBuy abilities/ring mods across schools, or complete a capstone to unlock synergies.")
         else:
-            for s1,s2,name in conns:
-                t=f"cs{s1}"; self.ct.insert("end",f"\n{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
-                self.ct.insert("end",f"→ {name}\n"); self.ct.tag_configure(t,foreground=SCHOOLS[s1]["color"],font=("Georgia",9,"bold"))
+            for s1,s2,name,cap in conns:
+                t=f"cs{s1}{s2}"; prefix="⚜ " if cap else ""
+                self.ct.insert("end",f"\n{prefix}{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
+                self.ct.insert("end",f"→ {name}\n")
+                fc="#FFD700" if cap else SCHOOLS[s1]["color"]
+                self.ct.tag_configure(t,foreground=fc,font=("Georgia",9,"bold"))
         self.ct.configure(state="disabled")
     def _ref_ce(self):
         if not hasattr(self,'cl'): return
@@ -2046,8 +2050,6 @@ class SpellForgeApp(tk.Tk):
     # ── Sync ──────────────────────────────────────────────────────
     def _sync(self):
         self.name_var.set(self.spell.name); self.desc_text.delete("1.0",tk.END); self.desc_text.insert("1.0",self.spell.description)
-        self.pvar.set(self.spell.primary_school); self.pshort.configure(text=SCHOOLS[self.spell.primary_school]["short"])
-        for s,v in self.svars.items(): v.set(True if s in self.spell.secondary_schools else False)
         for s,p in self._spanels.items():
             p.spell=self.spell; self.spell.school_abilities.setdefault(s,{}); self.spell.ring_mods.setdefault(s,{}); p.refresh()
         self.mp.spell=self.spell; self.mp.refresh()
