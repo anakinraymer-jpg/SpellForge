@@ -575,6 +575,31 @@ DEFAULT_GLOBAL_MODS: Dict[str,dict] = {
 }
 GLOBAL_MODS: Dict[str,dict] = deepcopy(DEFAULT_GLOBAL_MODS)
 
+# ── Negative Modifiers (drawback system) ─────────────────────────
+DEFAULT_NEGATIVE_MODS = [
+    {"name":"Unstable Casting",   "desc":"15% chance to misfire — spell targets a random creature in range."},
+    {"name":"Mana Burn",          "desc":"Caster takes 1d6 psychic damage each time this spell is cast."},
+    {"name":"Verbal Tell",        "desc":"Spell cannot be cast silently; the activation word is always audible."},
+    {"name":"Material Cost",      "desc":"Requires a 50gp material component that is consumed on casting."},
+    {"name":"Concentration Lock", "desc":"While this spell is active, no other concentration spell can be maintained."},
+    {"name":"Telegraphed",        "desc":"Targets receive one full round of warning before the spell activates."},
+    {"name":"Backlash",           "desc":"Caster is stunned for 1 round after casting this spell."},
+    {"name":"Soul Cost",          "desc":"Caster ages 1 year each time this spell is cast (magical aging)."},
+    {"name":"Brittle Focus",      "desc":"Any damage to the caster automatically breaks concentration."},
+    {"name":"Conspicuous Aura",   "desc":"Spell leaves a glowing magical residue visible for 1 hour after use."},
+    {"name":"Exhausting",         "desc":"Caster gains 1 level of exhaustion immediately after casting."},
+    {"name":"Wild Surge",         "desc":"Roll on the wild magic surge table in addition to normal effect."},
+    {"name":"Fragile Ward",       "desc":"Any physical hit against the caster ends the spell instantly."},
+    {"name":"Obvious Display",    "desc":"Casting requires a dramatic 6-second visible somatic performance."},
+    {"name":"Cooldown",           "desc":"This spell cannot be cast again for 1d4 rounds after use."},
+    {"name":"Mind Fog",           "desc":"Caster has disadvantage on all Intelligence checks until next rest."},
+    {"name":"Tethered Power",     "desc":"Spell ends if caster moves more than 30 ft from the point of casting."},
+    {"name":"Corrupting Touch",   "desc":"Caster suffers 1 point of permanent Constitution reduction."},
+    {"name":"Screaming Glyph",    "desc":"Caster's voice becomes magically amplified for 1 hour after casting."},
+    {"name":"Fate Debt",          "desc":"The caster's next saving throw is automatically failed, no roll."},
+]
+NEGATIVE_MODS = list(DEFAULT_NEGATIVE_MODS)   # runtime list; can be extended
+
 LEVEL_TABLE=[
     (0,2,"Cantrip","#888888"),(3,6,"1st Level","#aaaaff"),(7,10,"2nd Level","#88aaff"),
     (11,14,"3rd Level","#66aaff"),(15,20,"4th Level","#44aaee"),(21,26,"5th Level","#22aadd"),
@@ -607,6 +632,11 @@ class Spell:
     element_nodes:Dict[str,Dict[str,int]]=field(default_factory=dict)
     # Sub-element nodes bought: {("Fire","Water"):{"Steam Veil":1}, ...}
     subelement_nodes:Dict[str,Dict[str,int]]=field(default_factory=dict)
+    # Drawback purchases: key="ability/school/name" or "mod/name" or "ringmod/school/grp"
+    # value = name of negative modifier taken as drawback
+    drawback_buys: Dict[str,str] = field(default_factory=dict)
+    # Custom negative mods added by user (spell-level; also synced to NEGATIVE_MODS on load)
+    custom_neg_mods: List[dict] = field(default_factory=list)
 
     @property
     def all_schools(self):
@@ -642,6 +672,18 @@ class Spell:
                 for nname,cnt in nodes.items():
                     for nd in SUBELEMENT_NODES[pair]:
                         if nd["name"]==nname: pts+=nd["cost"]*cnt; break
+        # Subtract costs of drawback-purchased items (they cost 0 pts)
+        for key in self.drawback_buys:
+            if key.startswith("ability/"):
+                parts=key.split("/",2)
+                if len(parts)==3:
+                    sc,ab=parts[1],parts[2]
+                    pts-=SCHOOLS.get(sc,{}).get("abilities",{}).get(ab,{}).get("cost",0)
+            elif key.startswith("mod/"):
+                mname=key[4:]
+                pts-=GLOBAL_MODS.get(mname,{}).get("cost",0)
+            elif key.startswith("ringmod/"):
+                pts-=1  # each drawback ring-mod slot costs 1 normally
         return max(0,pts)
 
     @property
@@ -673,14 +715,14 @@ class Spell:
 class MagicCircleCanvas(tk.Canvas):
     BG="#1a1208"  # deep parchment-brown background
     # Fixed pixel sizes (independent of zoom)
-    OUTER_R     = 340   # overall circle radius in canvas pixels
-    NODE_R_PRI  = 44    # school module base radius (all schools same size)
+    OUTER_R     = 370   # overall circle radius in canvas pixels
+    NODE_R_PRI  = 50    # school module base radius (all schools same size)
     NODE_R_SEC  = 38    # used for necklace ring outer bound calculation
-    CENTER_R    = 88    # central modifier hub radius
+    CENTER_R    = 96    # central modifier hub radius
 
     # Radii for modifier category circles (inside the center hub)
-    _MOD_ORBIT = 57   # world units from hub center to mod-circle centre
-    _MOD_CR    = 17   # radius of each modifier category circle
+    _MOD_ORBIT = 62   # world units from hub center to mod-circle centre
+    _MOD_CR    = 19   # radius of each modifier category circle
 
     def __init__(self,master,**kw):
         kw.setdefault("bg",self.BG); kw.setdefault("highlightthickness",0)
@@ -696,14 +738,17 @@ class MagicCircleCanvas(tk.Canvas):
         self._tooltip_after=None
         self._tooltip_text=""
         self._tooltip_cx=0; self._tooltip_cy=0
+        self._rb3_start=None      # right-click start pos for drag-vs-click detection
+        self._rb3_dragged=False
         self.bind("<Configure>",lambda _:self._redraw())
         self.bind("<MouseWheel>",self._on_wheel)
         self.bind("<Button-4>",self._on_wheel)
         self.bind("<Button-5>",self._on_wheel)
         self.bind("<ButtonPress-2>",self._pan_start)
         self.bind("<B2-Motion>",self._pan_move)
-        self.bind("<ButtonPress-3>",self._pan_start)
-        self.bind("<B3-Motion>",self._pan_move)
+        self.bind("<ButtonPress-3>",self._rb3_press)
+        self.bind("<B3-Motion>",self._rb3_drag)
+        self.bind("<ButtonRelease-3>",self._rb3_release)
         self.bind("<Button-1>",self._on_click)
         self.bind("<Motion>",self._on_motion)
         self.bind("<Leave>",self._hide_tooltip)
@@ -734,6 +779,80 @@ class MagicCircleCanvas(tk.Canvas):
             self._ox+=e.x-self._drag_start[0]; self._oy+=e.y-self._drag_start[1]
             self._drag_start=(e.x,e.y); self._redraw()
 
+    def _rb3_press(self,e):
+        self._rb3_start=(e.x,e.y); self._rb3_dragged=False; self._drag_start=(e.x,e.y)
+    def _rb3_drag(self,e):
+        self._rb3_dragged=True; self._pan_move(e)
+    def _rb3_release(self,e):
+        if not self._rb3_dragged:
+            self._show_canvas_menu(e)
+        self._drag_start=None; self._rb3_start=None; self._rb3_dragged=False
+
+    def _show_canvas_menu(self,e):
+        hz=self._nearest_hz(e.x,e.y)
+        if not hz or len(hz)<3 or hz[2] is None: return
+        info=hz[2]
+        key=info.get("key",""); name=info.get("name",""); cost=info.get("cost",0)
+        already_drawback=(key in self.spell.drawback_buys)
+        menu=tk.Menu(self,tearoff=0,bg="#12121e",fg="#ccd8ff",
+                     activebackground="#2233aa",activeforeground="#ffffff",bd=0)
+        if already_drawback:
+            menu.add_command(label=f"Remove drawback on '{name}'",
+                             command=lambda:self._remove_drawback(key))
+        else:
+            if cost>0:
+                menu.add_command(label=f"Take as Drawback — FREE  (choose penalty)",
+                                 command=lambda:self._pick_drawback(key,name,cost,info))
+            menu.add_command(label="Remove purchase",
+                             command=lambda:self._canvas_remove(info))
+        try: menu.tk_popup(e.x_root,e.y_root)
+        finally: menu.grab_release()
+
+    def _pick_drawback(self,key,name,cost,info):
+        dlg=DrawbackPickerDialog(self,name,NEGATIVE_MODS,
+            on_confirm=lambda neg_name: self._apply_drawback(key,name,neg_name,info))
+
+    def _apply_drawback(self,key,name,neg_name,info):
+        # Make sure the item is purchased (count=1 if not already)
+        t=info.get("type","")
+        if t=="ability":
+            sc=info["school"]; ab=info["name"]
+            self.spell.school_abilities.setdefault(sc,{}).setdefault(ab,0)
+            if self.spell.school_abilities[sc].get(ab,0)<1:
+                self.spell.school_abilities[sc][ab]=1
+        elif t=="mod":
+            mn=info["name"]
+            if self.spell.global_mods.get(mn,0)<1:
+                self.spell.global_mods[mn]=1
+        elif t=="ringmod":
+            sc=info["school"]; g=info["grp"]
+            rm=self.spell.ring_mods.setdefault(sc,{})
+            if rm.get(g,0)<1: rm[g]=1
+        self.spell.drawback_buys[key]=neg_name
+        if self._on_change: self._on_change()
+        self._redraw()
+
+    def _remove_drawback(self,key):
+        self.spell.drawback_buys.pop(key,None)
+        if self._on_change: self._on_change()
+        self._redraw()
+
+    def _canvas_remove(self,info):
+        t=info.get("type","")
+        if t=="ability":
+            sc=info["school"]; ab=info["name"]
+            self.spell.school_abilities.get(sc,{}).pop(ab,None)
+            self.spell.drawback_buys.pop(info.get("key",""),None)
+        elif t=="mod":
+            mn=info["name"]; self.spell.global_mods.pop(mn,None)
+            self.spell.drawback_buys.pop(info.get("key",""),None)
+        elif t=="ringmod":
+            sc=info["school"]; g=info["grp"]
+            self.spell.ring_mods.setdefault(sc,{})[g]=0
+            self.spell.drawback_buys.pop(info.get("key",""),None)
+        if self._on_change: self._on_change()
+        self._redraw()
+
     # ── Hit-zone / tooltip / click ────────────────────────────────
     def _wx_wy(self,ex,ey):
         return (ex-self._ox)/self._zoom, (ey-self._oy)/self._zoom
@@ -741,9 +860,11 @@ class MagicCircleCanvas(tk.Canvas):
     def _nearest_hz(self,ex,ey):
         wx,wy=self._wx_wy(ex,ey)
         best=None; bd=float('inf')
-        for (hx,hy,hr,cb,tip) in self._hit_zones:
+        for hz in self._hit_zones:
+            hx,hy,hr,cb,tip=hz[:5]
+            info=hz[5] if len(hz)>5 else None
             d=math.hypot(wx-hx,wy-hy)
-            if d<hr and d<bd: best=(cb,tip); bd=d
+            if d<hr and d<bd: best=(cb,tip,info); bd=d
         return best
 
     def _on_click(self,e):
@@ -907,6 +1028,7 @@ class MagicCircleCanvas(tk.Canvas):
         self._draw_element_band(R)
         self._draw_school_modules(pos)
         self._draw_center_hub()
+        self._draw_drawback_rings()
         self._draw_status_bar(W,H)
 
     def _draw_deep_bg(self,R):
@@ -1074,13 +1196,13 @@ class MagicCircleCanvas(tk.Canvas):
             bought=(cnt>0)
             if bought:
                 self._circle_w(rx,ry,3,fill=self._f(c,0.65),outline="")
-                self._text_w(rx,ry,text=rune,fill=self._b(c,"#ffffff",0.65),
-                             font=("TkFixedFont",max(5,int(r*0.18))))
+                self._text_w(rx,ry,text=rune,fill=self._b(c,"#ffffff",0.82),
+                             font=("TkFixedFont",max(6,int(r*0.20))))
             else:
                 # Dim but visible
-                self._circle_w(rx,ry,2,fill=self._f(c,0.18*bright),outline="")
-                self._text_w(rx,ry,text=rune,fill=self._f(c,0.35*bright),
-                             font=("TkFixedFont",max(4,int(r*0.14))))
+                self._circle_w(rx,ry,2,fill=self._f(c,0.28*bright),outline="")
+                self._text_w(rx,ry,text=rune,fill=self._f(c,0.50*bright),
+                             font=("TkFixedFont",max(5,int(r*0.16))))
             # Hit zone — click cycles purchase count
             ab_info=ab_data.get(abn,{})
             tip=f"{abn}\nCost: {ab_info.get('cost',1)} pt/purchase\n{ab_info.get('desc','')}"
@@ -1089,7 +1211,12 @@ class MagicCircleCanvas(tk.Canvas):
                     self.spell.school_abilities.get(sc,{}).get(ab,0)+1)%4
                 if self._on_change: self._on_change()
                 self._redraw()
-            self._hit_zones.append((rx,ry,hz_r,_ab_cb,tip))
+            ab_info_d={"type":"ability","school":school,"name":abn,"cost":ab_info.get("cost",1),"key":f"ability/{school}/{abn}"}
+            is_drawback=f"ability/{school}/{abn}" in (self.spell.drawback_buys or {})
+            dot_col=self._f("#ffffff",0.45) if is_drawback else self._f(c,0.65)
+            if is_drawback:
+                self._ring_w(rx,ry,5,self._f("#ffffff",0.55),w=1)
+            self._hit_zones.append((rx,ry,hz_r,_ab_cb,tip,ab_info_d))
 
         # ── INNER RUNE RING — ring modifiers (ALL slots always visible) ──
         grp_c={"Range":"#ff8080","Duration":"#80ee88","Area":"#8088ff","Power":"#ffe080"}
@@ -1108,12 +1235,12 @@ class MagicCircleCanvas(tk.Canvas):
                 rune=rune_list[min(slot,len(rune_list)-1)]
                 if filled:
                     self._circle_w(rx2,ry2,3,fill=self._f(gc,0.55),outline="")
-                    self._text_w(rx2,ry2,text=rune,fill=self._b(gc,"#ffffff",0.55),
-                                 font=("TkFixedFont",max(4,int(r*0.18))))
+                    self._text_w(rx2,ry2,text=rune,fill=self._b(gc,"#ffffff",0.75),
+                                 font=("TkFixedFont",max(5,int(r*0.20))))
                 else:
-                    self._circle_w(rx2,ry2,2,fill=self._f(gc,0.12*bright),outline="")
-                    self._text_w(rx2,ry2,text=rune,fill=self._f(gc,0.28*bright),
-                                 font=("TkFixedFont",max(4,int(r*0.13))))
+                    self._circle_w(rx2,ry2,2,fill=self._f(gc,0.22*bright),outline="")
+                    self._text_w(rx2,ry2,text=rune,fill=self._f(gc,0.42*bright),
+                                 font=("TkFixedFont",max(5,int(r*0.15))))
                 lbl=school_rm_labels.get(grp,grp)
                 tip2=f"{school} — {grp} ({lbl})\nSlot {slot+1}/3  (click to advance)"
                 def _rm_cb(sc=school,g=grp,sl=slot):
@@ -1123,7 +1250,12 @@ class MagicCircleCanvas(tk.Canvas):
                     rm[g]=(sl+1) if cur<=sl else sl
                     if self._on_change: self._on_change()
                     self._redraw()
-                self._hit_zones.append((rx2,ry2,hz_r2,_rm_cb,tip2))
+                rm_key=f"ringmod/{school}/{grp}"
+                rm_info_d={"type":"ringmod","school":school,"grp":grp,"slot":slot,"name":f"{school} {grp} mod","cost":1,"key":rm_key}
+                is_drawback_rm=(rm_key in (self.spell.drawback_buys or {}))
+                if is_drawback_rm and slot==0:
+                    self._ring_w(rx2,ry2,5,self._f("#ffffff",0.55),w=1)
+                self._hit_zones.append((rx2,ry2,hz_r2,_rm_cb,tip2,rm_info_d))
 
         # Concentric inner rings
         self._ring_w(wx,wy,r*0.52,self._f(c,0.30*bright),w=1)
@@ -1429,14 +1561,14 @@ class MagicCircleCanvas(tk.Canvas):
                 if bought:
                     self._circle_w(rx,ry,3,fill=self._f(gc,0.65),outline=gc)
                     self._text_w(rx,ry,text=rune,fill=self._b(gc,"#ffffff",0.80),
-                                 font=("TkFixedFont",max(4,int(cr*0.26))))
+                                 font=("TkFixedFont",max(5,int(cr*0.30))))
                     if cnt>1:
                         nx2,ny2=self._wpt(rx,ry,5,315)
                         self._text_w(nx2,ny2,text=str(cnt),fill=gc,font=("TkFixedFont",4))
                 else:
                     self._circle_w(rx,ry,2,fill=self._f(gc,0.14),outline="")
                     self._text_w(rx,ry,text=rune,fill=self._f(gc,0.35),
-                                 font=("TkFixedFont",max(4,int(cr*0.22))))
+                                 font=("TkFixedFont",max(5,int(cr*0.26))))
                 cost=md.get("cost",0); mx=md.get("max",1)
                 tip=f"{mn}\nCategory: {cat}  Cost: {cost} pt  Max: {mx}\n{md.get('desc','')}"
                 def _mod_cb(mod_name=mn,max_v=mx):
@@ -1444,7 +1576,12 @@ class MagicCircleCanvas(tk.Canvas):
                     self.spell.global_mods[mod_name]=(cur+1)%(max_v+1)
                     if self._on_change: self._on_change()
                     self._redraw()
-                self._hit_zones.append((rx,ry,hz_r,_mod_cb,tip))
+                mod_key=f"mod/{mn}"
+                mod_info_d={"type":"mod","name":mn,"cost":cost,"max":mx,"key":mod_key}
+                is_drawback_mod=(mod_key in (self.spell.drawback_buys or {}))
+                if is_drawback_mod:
+                    self._ring_w(rx,ry,4,self._f("#ffffff",0.60),w=1)
+                self._hit_zones.append((rx,ry,hz_r,_mod_cb,tip,mod_info_d))
 
     def _draw_center_hub(self):
         """Central hub — 6 category mod circles inside, level display at centre.
@@ -1497,6 +1634,26 @@ class MagicCircleCanvas(tk.Canvas):
             mid_a=a_s+seg/2; lx,ly=self._wpt(0,0,r*0.87,mid_a)
             self._text_w(lx,ly,text=MOD_RUNES[cat][0],fill=self._f(gc,0.65),
                          font=("TkFixedFont",6),angle=-(mid_a-90))
+
+    def _draw_drawback_rings(self):
+        """Draw hollow white rings around the center hub for each active drawback."""
+        if not self.spell or not self.spell.drawback_buys: return
+        keys=list(self.spell.drawback_buys.keys())
+        n=len(keys); orbit=self.CENTER_R+18; ring_r=7
+        for i,key in enumerate(keys):
+            neg_name=self.spell.drawback_buys[key]
+            a=i*(360/max(n,1))
+            rx,ry=self._wpt(0,0,orbit,a)
+            # Hollow white ring — no fill, white outline
+            self._circle_w(rx,ry,ring_r,fill="",outline="")
+            self._ring_w(rx,ry,ring_r,"#ffffff",w=2)
+            self._ring_w(rx,ry,ring_r*0.5,self._f("#ffffff",0.25),w=1)
+            # Tooltip hit zone
+            tip=f"Drawback: {neg_name}"
+            nm_data=next((m for m in NEGATIVE_MODS if m["name"]==neg_name),None)
+            if nm_data: tip+=f"\n{nm_data['desc']}"
+            tip+=f"\n(from: {key.split('/',1)[-1]})"
+            self._hit_zones.append((rx,ry,ring_r+4,lambda:None,tip,None))
 
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
@@ -1981,6 +2138,124 @@ class CalculatorPanel(tk.Frame):
 
 
 # ═══════════════════════════════════════════════════════════════
+#  DRAWBACK PICKER DIALOG
+# ═══════════════════════════════════════════════════════════════
+class DrawbackPickerDialog(tk.Toplevel):
+    BG="#0a0a14"; PBG="#0d0d1a"; TXT="#c8d0e8"; ACC="#3355ff"; GOLD="#c8a840"
+    def __init__(self,master,item_name,neg_mods,on_confirm,**kw):
+        super().__init__(master,**kw)
+        self.title("Choose Drawback"); self.configure(bg=self.BG)
+        self.geometry("460x420"); self.resizable(False,False)
+        self.transient(master); self.grab_set()
+        self._on_confirm=on_confirm; self._sel=tk.StringVar()
+        tk.Label(self,text=f"Take '{item_name}' for FREE",bg=self.BG,fg=self.GOLD,
+                 font=("Georgia",11,"bold italic")).pack(pady=(12,2))
+        tk.Label(self,text="Choose a penalty drawback that will affect this spell:",
+                 bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(pady=(0,8))
+        frm=tk.Frame(self,bg=self.PBG,bd=1,relief="solid"); frm.pack(fill=tk.BOTH,expand=True,padx=12,pady=4)
+        sb=ttk.Scrollbar(frm,orient="vertical"); sb.pack(side=tk.RIGHT,fill=tk.Y)
+        self._lb=tk.Listbox(frm,bg=self.PBG,fg=self.TXT,selectbackground=self.ACC,
+                            font=("Georgia",9),relief="flat",activestyle="none",
+                            yscrollcommand=sb.set)
+        self._lb.pack(side=tk.LEFT,fill=tk.BOTH,expand=True)
+        sb.config(command=self._lb.yview)
+        for m in neg_mods: self._lb.insert(tk.END, m["name"])
+        self._desc=tk.Text(self,height=3,bg=self.PBG,fg="#8899bb",font=("Georgia",8),
+                           relief="flat",wrap=tk.WORD,state="disabled",bd=0)
+        self._desc.pack(fill=tk.X,padx=12,pady=4)
+        self._lb.bind("<<ListboxSelect>>",self._on_sel)
+        bf=tk.Frame(self,bg=self.BG); bf.pack(fill=tk.X,padx=12,pady=8)
+        ttk.Button(bf,text="✕ Cancel",command=self.destroy,style="D.TButton").pack(side=tk.RIGHT,padx=4)
+        ttk.Button(bf,text="✔ Apply Drawback",command=self._confirm).pack(side=tk.RIGHT,padx=4)
+        self._neg_mods=neg_mods
+    def _on_sel(self,_):
+        sel=self._lb.curselection()
+        if not sel: return
+        m=self._neg_mods[sel[0]]
+        self._desc.configure(state="normal"); self._desc.delete("1.0",tk.END)
+        self._desc.insert("1.0",m["desc"]); self._desc.configure(state="disabled")
+    def _confirm(self):
+        sel=self._lb.curselection()
+        if not sel: return
+        name=self._neg_mods[sel[0]]["name"]
+        self.destroy(); self._on_confirm(name)
+
+# ═══════════════════════════════════════════════════════════════
+#  NEGATIVE MOD EDITOR
+# ═══════════════════════════════════════════════════════════════
+class NegativeModEditor(tk.Toplevel):
+    BG="#0a0a14"; PBG="#0d0d1a"; TXT="#c8d0e8"; ACC="#3355ff"; GOLD="#c8a840"; EBG="#111120"
+    def __init__(self,master,**kw):
+        super().__init__(master,**kw)
+        self.title("Edit Negative Modifiers"); self.configure(bg=self.BG)
+        self.geometry("520x500"); self.transient(master); self.grab_set()
+        tk.Label(self,text="Negative Modifier Library",bg=self.BG,fg=self.GOLD,
+                 font=("Georgia",12,"bold italic")).pack(pady=(12,4))
+        tk.Label(self,text="Right-click or use buttons to add/edit/remove entries.",
+                 bg=self.BG,fg="#556677",font=("Georgia",8,"italic")).pack()
+        frm=tk.Frame(self,bg=self.PBG,bd=1,relief="solid"); frm.pack(fill=tk.BOTH,expand=True,padx=12,pady=6)
+        sb=ttk.Scrollbar(frm,orient="vertical"); sb.pack(side=tk.RIGHT,fill=tk.Y)
+        self._lb=tk.Listbox(frm,bg=self.PBG,fg=self.TXT,selectbackground=self.ACC,
+                            font=("Courier",9),relief="flat",activestyle="none",
+                            yscrollcommand=sb.set)
+        self._lb.pack(side=tk.LEFT,fill=tk.BOTH,expand=True)
+        sb.config(command=self._lb.yview)
+        self._desc=tk.Text(self,height=3,bg=self.PBG,fg="#8899bb",font=("Georgia",8),
+                           relief="flat",wrap=tk.WORD,state="disabled",bd=0)
+        self._desc.pack(fill=tk.X,padx=12,pady=2)
+        bf=tk.Frame(self,bg=self.BG); bf.pack(fill=tk.X,padx=12,pady=8)
+        ttk.Button(bf,text="+ Add",command=self._add).pack(side=tk.LEFT,padx=2)
+        ttk.Button(bf,text="✎ Edit",command=self._edit).pack(side=tk.LEFT,padx=2)
+        ttk.Button(bf,text="✕ Remove",command=self._remove,style="D.TButton").pack(side=tk.LEFT,padx=2)
+        ttk.Button(bf,text="Close",command=self.destroy).pack(side=tk.RIGHT,padx=2)
+        self._lb.bind("<<ListboxSelect>>",self._on_sel)
+        self._refresh()
+    def _refresh(self):
+        self._lb.delete(0,tk.END)
+        for m in NEGATIVE_MODS:
+            tag="[default]" if m in DEFAULT_NEGATIVE_MODS else "[custom] "
+            self._lb.insert(tk.END,f"{tag} {m['name']}")
+    def _on_sel(self,_):
+        sel=self._lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        self._desc.configure(state="normal"); self._desc.delete("1.0",tk.END)
+        self._desc.insert("1.0",m["desc"]); self._desc.configure(state="disabled")
+    def _add(self):
+        self._open_form("Add Negative Modifier","","",is_new=True)
+    def _edit(self):
+        sel=self._lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        self._open_form("Edit Negative Modifier",m["name"],m["desc"],idx=sel[0])
+    def _remove(self):
+        sel=self._lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        if m in DEFAULT_NEGATIVE_MODS:
+            messagebox.showinfo("Cannot Remove","Default negative modifiers cannot be removed."); return
+        NEGATIVE_MODS.remove(m); self._refresh()
+    def _open_form(self,title,name,desc,is_new=False,idx=None):
+        d=tk.Toplevel(self); d.title(title); d.configure(bg=self.BG)
+        d.geometry("400x240"); d.transient(self); d.grab_set()
+        tk.Label(d,text="Name:",bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W,padx=12,pady=(12,2))
+        nv=tk.StringVar(value=name)
+        ttk.Entry(d,textvariable=nv,width=40).pack(fill=tk.X,padx=12)
+        tk.Label(d,text="Description:",bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W,padx=12,pady=(8,2))
+        dt=tk.Text(d,height=4,bg=self.EBG,fg=self.TXT,insertbackground=self.TXT,
+                   relief="solid",bd=1,font=("Georgia",9),wrap=tk.WORD)
+        dt.pack(fill=tk.X,padx=12); dt.insert("1.0",desc)
+        def _save():
+            n2=nv.get().strip(); d2=dt.get("1.0",tk.END).strip()
+            if not n2: return
+            if is_new: NEGATIVE_MODS.append({"name":n2,"desc":d2})
+            elif idx is not None: NEGATIVE_MODS[idx]={"name":n2,"desc":d2}
+            d.destroy(); self._refresh()
+        bf=tk.Frame(d,bg=self.BG); bf.pack(fill=tk.X,padx=12,pady=8)
+        ttk.Button(bf,text="Save",command=_save).pack(side=tk.RIGHT,padx=4)
+        ttk.Button(bf,text="Cancel",command=d.destroy,style="D.TButton").pack(side=tk.RIGHT,padx=4)
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN APPLICATION
 # ═══════════════════════════════════════════════════════════════
 class SpellForgeApp(tk.Tk):
@@ -2104,6 +2379,38 @@ class SpellForgeApp(tk.Tk):
         ttk.Button(br,text="+ Add",command=self._ladd,style="G.TButton").pack(side=tk.LEFT,padx=2)
         ttk.Button(br,text="📖 Load",command=self._lload).pack(side=tk.LEFT,padx=2)
         ttk.Button(br,text="🗑",command=self._ldel,style="D.TButton").pack(side=tk.LEFT,padx=2)
+        dsc=self._sf(nb); nb.add(dsc["outer"],text="  Drawbacks  ")
+        self._build_drawbacks_tab(dsc["inner"])
+
+    def _build_drawbacks_tab(self,f):
+        pb=self.PBG
+        hf=tk.Frame(f,bg=self.BG); hf.pack(fill=tk.X,padx=6,pady=6)
+        tk.Label(hf,text="Active Drawbacks",bg=self.BG,fg=self.GOLD,
+                 font=("Georgia",10,"bold italic")).pack(side=tk.LEFT)
+        ttk.Button(hf,text="⚙ Edit Neg. Mods",
+                   command=lambda:NegativeModEditor(self),
+                   style="G.TButton").pack(side=tk.RIGHT,padx=4)
+        lf=ttk.LabelFrame(f,text="  Drawbacks Taken  ",padding=6)
+        lf.pack(fill=tk.BOTH,expand=True,padx=6,pady=4)
+        self._db_list=tk.Text(lf,bg=self.EBG,fg=self.TXT,relief="flat",
+                              font=("Courier",8),state="disabled",wrap=tk.WORD,padx=4,pady=4)
+        self._db_list.pack(fill=tk.BOTH,expand=True)
+        hf2=tk.Frame(f,bg=self.BG); hf2.pack(fill=tk.X,padx=6,pady=4)
+        tk.Label(hf2,text="Right-click any ability or modifier on the\nmagic circle to take it as a free drawback.",
+                 bg=self.BG,fg="#445566",font=("Georgia",8,"italic"),justify="left").pack(anchor=tk.W)
+
+    def _refresh_drawbacks(self):
+        if not hasattr(self,'_db_list'): return
+        self._db_list.configure(state="normal"); self._db_list.delete("1.0",tk.END)
+        db=self.spell.drawback_buys
+        if not db:
+            self._db_list.insert("1.0","No drawbacks taken yet.\n\nRight-click an ability or\nmodifier on the circle to\ntake it free with a penalty.")
+        else:
+            for key,neg_name in db.items():
+                parts=key.split("/",1); pretty=parts[1] if len(parts)>1 else key
+                self._db_list.insert(tk.END,f"◌  {pretty}\n")
+                self._db_list.insert(tk.END,f"   → {neg_name}\n\n")
+        self._db_list.configure(state="disabled")
 
     # ── Events ────────────────────────────────────────────────────
     @staticmethod
@@ -2155,6 +2462,7 @@ class SpellForgeApp(tk.Tk):
             for s,p in self._spanels.items(): p.spell=self.spell; p.refresh()
         if hasattr(self,'mp'): self.mp.spell=self.spell; self.mp.refresh()
         if hasattr(self,'el_panel'): self.el_panel.spell=self.spell
+        self._refresh_drawbacks()
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
         conns=self.spell.active_connections
