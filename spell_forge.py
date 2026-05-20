@@ -635,6 +635,8 @@ class Spell:
     drawback_buys: Dict[str,str] = field(default_factory=dict)
     # Custom negative mods added by user (spell-level; also synced to NEGATIVE_MODS on load)
     custom_neg_mods: List[dict] = field(default_factory=list)
+    ifthen_conditions: List[dict] = field(default_factory=list)
+    # Each condition: {"name": str, "if_schools": List[str], "then_text": str}
 
     @property
     def all_schools(self):
@@ -1053,6 +1055,7 @@ class MagicCircleCanvas(tk.Canvas):
         self._draw_outer_frame(R,pos)
         self._draw_main_geometry(R,pos)
         self._draw_element_band(R)
+        self._draw_ifthen_markers(pos)
         self._draw_school_modules(pos)
         self._draw_center_hub()
         self._draw_drawback_rings()
@@ -1099,6 +1102,86 @@ class MagicCircleCanvas(tk.Canvas):
         self._ring_w(0,0,R*0.88,ghost,w=1)
         self._ring_w(0,0,R*0.65,ghost,w=1)
         self._ring_w(0,0,R*0.40,ghost,w=1)
+
+    def _crescent_pts(self, wx, wy, a_deg, r_school=None):
+        """
+        World-space polygon points for a crescent moon on the outer side of (wx,wy).
+        The crescent wraps around the outer 180° of the school circle with the outer
+        tip reaching/touching the main outer ring.
+        """
+        import math
+        if r_school is None: r_school = self.NODE_R_PRI
+        D = math.hypot(wx, wy)
+        if D < 1: D = 1.0
+        a = math.radians(a_deg)
+        cos_a = wx / D; sin_a = wy / D
+
+        # Outer crescent arc: radius from school center such that outermost point ~= OUTER_R
+        r1 = max((self.OUTER_R - D) * 1.05, r_school * 1.65)
+
+        # Inner crescent arc: circle shifted inward (toward origin) from school center
+        # With shift = r1*0.5, the two tips (at ±90° on outer arc) lie exactly on inner circle
+        shift = r1 * 0.50
+        ic_x = wx - shift * cos_a
+        ic_y = wy - shift * sin_a
+        r2 = math.sqrt(r1 * r1 + shift * shift)  # inner arc radius
+
+        # Crescent tip positions (at ±90° from outward direction on outer circle)
+        tip1 = (wx - r1 * sin_a, wy + r1 * cos_a)   # +90°
+        tip2 = (wx + r1 * sin_a, wy - r1 * cos_a)   # -90°
+
+        n = 30
+        pts = []
+
+        # ── Outer arc: tip1 → outward direction → tip2  (180°, outward half of outer circle) ──
+        for i in range(n + 1):
+            ang = a + math.pi / 2 - i * math.pi / n
+            pts.append((wx + r1 * math.cos(ang), wy + r1 * math.sin(ang)))
+
+        # ── Inner arc: tip2 → inward direction → tip1  (concave inner edge of crescent) ──
+        a2_tip2 = math.atan2(tip2[1] - ic_y, tip2[0] - ic_x)
+        a2_tip1 = math.atan2(tip1[1] - ic_y, tip1[0] - ic_x)
+        # Go CW from tip2 to tip1 — this path passes through the inward direction (~233° span)
+        span_ccw = (a2_tip1 - a2_tip2) % (2 * math.pi)
+        span_cw  = 2 * math.pi - span_ccw
+        for i in range(n + 1):
+            ang = a2_tip2 - span_cw * i / n
+            pts.append((ic_x + r2 * math.cos(ang), ic_y + r2 * math.sin(ang)))
+
+        return pts
+
+    def _draw_ifthen_markers(self, pos):
+        """Draw crescent moon markers behind school circles for If-Then conditions."""
+        import math
+        s = self.spell
+        if not s: return
+        conds = getattr(s, 'ifthen_conditions', [])
+        if not conds: return
+        # Collect schools that appear in any condition
+        marked = {}  # school → [condition names]
+        for cond in conds:
+            for sc in cond.get('if_schools', []):
+                if sc in pos:
+                    marked.setdefault(sc, []).append(cond.get('name', '?'))
+        for school, cond_names in marked.items():
+            wx, wy = pos[school]
+            a_deg = math.degrees(math.atan2(wy, wx))
+            c = SCHOOLS[school]['color']
+            pts = self._crescent_pts(wx, wy, a_deg)
+            # Filled crescent (dim tint of school color)
+            self._poly_w(pts, fill=self._f(c, 0.22), outline='', smooth=True)
+            # Bright outline
+            self._poly_w(pts, fill='', outline=self._b(c, '#ffffff', 0.65),
+                         width=2, smooth=True)
+            # Small label: number of conditions
+            label = str(len(cond_names))
+            # Place label at the outer tip of the crescent
+            cos_a = math.cos(math.radians(a_deg)); sin_a = math.sin(math.radians(a_deg))
+            D = math.hypot(wx, wy)
+            r1 = max((self.OUTER_R - D) * 1.05, self.NODE_R_PRI * 1.65)
+            lx = wx + r1 * cos_a; ly = wy + r1 * sin_a
+            self._text_w(lx, ly, text=f"✦{label}", fill=self._b(c,'#ffffff',0.85),
+                         font=('TkDefaultFont', 7, 'bold'))
 
     def _draw_outer_frame(self,R,pos):
         s=self.spell; _,lvl,col=s.level_info
@@ -2288,6 +2371,73 @@ class NegativeModEditor(tk.Toplevel):
         ttk.Button(bf,text="Cancel",command=d.destroy,style="D.TButton").pack(side=tk.RIGHT,padx=4)
 
 # ═══════════════════════════════════════════════════════════════
+#  IF-THEN CONDITION EDITOR
+# ═══════════════════════════════════════════════════════════════
+class IfThenEditor(tk.Toplevel):
+    BG="#0a0a14"; PBG="#0d0d1a"; TXT="#c8d0e8"; ACC="#3355ff"; GOLD="#c8a840"; EBG="#111120"
+    def __init__(self,master,spell,cond=None,on_save=None,**kw):
+        super().__init__(master,**kw)
+        self._spell=spell; self._on_save=on_save; self._cond=cond
+        self.title("Edit If-Then Condition" if cond else "New If-Then Condition")
+        self.configure(bg=self.BG); self.geometry("480x480")
+        self.transient(master); self.grab_set()
+        tk.Label(self,text="If-Then Condition",bg=self.BG,fg=self.GOLD,
+                 font=("Georgia",12,"bold italic")).pack(pady=(10,4))
+        # Name
+        nf=tk.Frame(self,bg=self.BG); nf.pack(fill=tk.X,padx=12,pady=2)
+        tk.Label(nf,text="Name / Label:",bg=self.BG,fg=self.TXT,
+                 font=("Georgia",9)).pack(anchor=tk.W)
+        self._nv=tk.StringVar(value=cond.get("name","") if cond else "")
+        ttk.Entry(nf,textvariable=self._nv,width=46).pack(fill=tk.X)
+        # IF schools
+        sf=tk.Frame(self,bg=self.BG); sf.pack(fill=tk.X,padx=12,pady=4)
+        tk.Label(sf,text="IF  (select one or more active schools):",
+                 bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W)
+        tk.Label(sf,text="Hold Ctrl to select multiple. Only schools with spend are listed.",
+                 bg=self.BG,fg="#445566",font=("Georgia",7,"italic")).pack(anchor=tk.W)
+        sc_frame=tk.Frame(sf,bg=self.PBG); sc_frame.pack(fill=tk.X,pady=2)
+        sc_sb=ttk.Scrollbar(sc_frame,orient="vertical"); sc_sb.pack(side=tk.RIGHT,fill=tk.Y)
+        self._sc_lb=tk.Listbox(sc_frame,bg=self.PBG,fg=self.TXT,selectbackground=self.ACC,
+                               font=("Courier",9),relief="flat",activestyle="none",
+                               selectmode=tk.MULTIPLE,height=5,yscrollcommand=sc_sb.set)
+        self._sc_lb.pack(side=tk.LEFT,fill=tk.X,expand=True)
+        sc_sb.config(command=self._sc_lb.yview)
+        # Populate schools (active + all)
+        all_sc=list(SCHOOLS.keys()); active_sc=set(spell.all_schools)
+        self._sc_keys=[]
+        for sc in all_sc:
+            label=f"{'◉' if sc in active_sc else '○'}  {sc}"
+            self._sc_lb.insert(tk.END,label)
+            self._sc_keys.append(sc)
+        # Pre-select schools from existing condition
+        if cond:
+            for sc in cond.get("if_schools",[]):
+                if sc in self._sc_keys:
+                    self._sc_lb.selection_set(self._sc_keys.index(sc))
+        # THEN text
+        tf=tk.Frame(self,bg=self.BG); tf.pack(fill=tk.BOTH,expand=True,padx=12,pady=4)
+        tk.Label(tf,text="THEN  (effect description):",
+                 bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W)
+        self._then_t=tk.Text(tf,height=5,bg=self.EBG,fg=self.TXT,
+                             insertbackground=self.TXT,relief="solid",bd=1,
+                             font=("Georgia",9),wrap=tk.WORD)
+        self._then_t.pack(fill=tk.BOTH,expand=True)
+        if cond: self._then_t.insert("1.0",cond.get("then_text",""))
+        # Buttons
+        bf=tk.Frame(self,bg=self.BG); bf.pack(fill=tk.X,padx=12,pady=8)
+        ttk.Button(bf,text="Save",command=self._save).pack(side=tk.RIGHT,padx=4)
+        ttk.Button(bf,text="Cancel",command=self.destroy,
+                   style="D.TButton").pack(side=tk.RIGHT,padx=4)
+    def _save(self):
+        sel=self._sc_lb.curselection()
+        schools=[self._sc_keys[i] for i in sel]
+        cond={"name":self._nv.get().strip(),
+              "if_schools":schools,
+              "then_text":self._then_t.get("1.0",tk.END).strip()}
+        if self._on_save: self._on_save(cond)
+        self.destroy()
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN APPLICATION
 # ═══════════════════════════════════════════════════════════════
 class SpellForgeApp(tk.Tk):
@@ -2380,6 +2530,18 @@ class SpellForgeApp(tk.Tk):
         self.cl=tk.Listbox(frm4,height=4,bg=self.EBG,fg=self.TXT,selectbackground=self.ACC,relief="solid",borderwidth=1,font=("Georgia",9))
         self.cl.pack(fill=tk.X,pady=2)
         ttk.Button(frm4,text="✕ Remove",command=self._rmce,style="D.TButton").pack(anchor=tk.W)
+        # ── If-Then Conditions ───────────────────────────────────────
+        frm5=ttk.LabelFrame(f,text="  If-Then Conditions  ",padding=4)
+        frm5.pack(fill=tk.X,padx=6,pady=4)
+        self._ifthen_lb=tk.Listbox(frm5,height=3,bg=self.EBG,fg=self.TXT,
+                                   selectbackground=self.ACC,relief="flat",
+                                   font=("Courier",8),activestyle="none")
+        self._ifthen_lb.pack(fill=tk.X,pady=(0,2))
+        it_bf=tk.Frame(frm5,bg=self.BG); it_bf.pack(fill=tk.X)
+        ttk.Button(it_bf,text="+ Add",command=self._it_add).pack(side=tk.LEFT,padx=2)
+        ttk.Button(it_bf,text="✎ Edit",command=self._it_edit).pack(side=tk.LEFT,padx=2)
+        ttk.Button(it_bf,text="✕ Remove",command=self._it_remove,
+                   style="D.TButton").pack(side=tk.LEFT,padx=2)
         # ── Spell Effects (live output) ──────────────────────────────
         lfe=ttk.LabelFrame(f,text="  Spell Effects  ",padding=4)
         lfe.pack(fill=tk.BOTH,expand=True,padx=6,pady=(4,6))
@@ -2606,10 +2768,24 @@ class SpellForgeApp(tk.Tk):
                 blend="#{:02x}{:02x}{:02x}".format((r1+r2)//2,(g1+g2)//2,(b1+b2)//2)
                 stag=f"sy_{s1[:4]}{s2[:4]}"
                 t.tag_configure(stag,foreground="#FFD700" if is_cap else blend,font=("Georgia",9,"bold"))
-                cap_mk="  ⚜" if is_cap else ""
+                cap_mk="  ⚜" if is_cap else "  ○"
                 t.insert("end",f"  {sym1} {s1} + {sym2} {s2}{cap_mk}\n",stag)
                 t.insert("end",f"    → {name}\n","eff")
             t.insert("end","\n")
+        # ── if-then conditions ────────────────────────────────────────
+        ifthen = getattr(s,'ifthen_conditions',[])
+        if ifthen:
+            any_content=True
+            t.insert("end","IF-THEN CONDITIONS\n","hdr")
+            for cond in ifthen:
+                schools=', '.join(cond.get('if_schools',[]) or ['—'])
+                t.insert("end",f"  IF  {schools}\n","ifthen_if")
+                t.insert("end",f"  THEN  {cond.get('then_text','(no effect)')}\n","ifthen_then")
+                if cond.get('name'):
+                    t.insert("end",f"  [{cond['name']}]\n","eff")
+                t.insert("end","\n")
+        t.tag_configure("ifthen_if",foreground="#aaddff",font=("Courier",8,"bold"))
+        t.tag_configure("ifthen_then",foreground="#88ccaa",font=("Courier",8))
         # ── drawbacks ─────────────────────────────────────────────────
         if s.drawback_buys:
             any_content=True
@@ -2633,6 +2809,40 @@ class SpellForgeApp(tk.Tk):
         if not any_content:
             t.insert("end","\nNo spell components selected yet.\n\nBuy abilities, ring mods, modifiers,\nor elements to see effects here.","empty")
         t.configure(state="disabled")
+
+    def _refresh_ifthen(self):
+        if not hasattr(self,'_ifthen_lb'): return
+        self._ifthen_lb.delete(0,tk.END)
+        for cond in getattr(self.spell,'ifthen_conditions',[]):
+            schools=', '.join(cond.get('if_schools',[]) or ['—'])
+            name=cond.get('name','')
+            self._ifthen_lb.insert(tk.END,f"IF {schools}  →  {name}" if name else f"IF {schools}")
+    def _it_add(self):
+        IfThenEditor(self,self.spell,on_save=self._it_save_new)
+    def _it_edit(self):
+        if not hasattr(self,'_ifthen_lb'): return
+        sel=self._ifthen_lb.curselection()
+        if not sel: return
+        conds=getattr(self.spell,'ifthen_conditions',[])
+        if sel[0]>=len(conds): return
+        IfThenEditor(self,self.spell,cond=conds[sel[0]],
+                     on_save=lambda c,i=sel[0]:self._it_save_edit(c,i))
+    def _it_remove(self):
+        if not hasattr(self,'_ifthen_lb'): return
+        sel=self._ifthen_lb.curselection()
+        if not sel: return
+        conds=getattr(self.spell,'ifthen_conditions',[])
+        if sel[0]<len(conds):
+            del conds[sel[0]]
+            self._refresh_ifthen(); self._refresh()
+    def _it_save_new(self,cond):
+        if not hasattr(self.spell,'ifthen_conditions'): self.spell.ifthen_conditions=[]
+        self.spell.ifthen_conditions.append(cond)
+        self._refresh_ifthen(); self._refresh()
+    def _it_save_edit(self,cond,idx):
+        conds=getattr(self.spell,'ifthen_conditions',[])
+        if idx<len(conds): conds[idx]=cond
+        self._refresh_ifthen(); self._refresh()
 
     def _refresh_neg_mods(self):
         if not hasattr(self,'_nm_lb'): return
@@ -2718,6 +2928,7 @@ class SpellForgeApp(tk.Tk):
         if hasattr(self,'mp'): self.mp.spell=self.spell; self.mp.refresh()
         if hasattr(self,'el_panel'): self.el_panel.spell=self.spell
         self._refresh_drawbacks()
+        self._refresh_ifthen()
         self._refresh_effects()
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
@@ -2738,8 +2949,8 @@ class SpellForgeApp(tk.Tk):
                     self.ct.tag_configure(t,foreground="#FFD700",font=("Georgia",9,"bold"))
             if dormant:
                 sep="\n" if golden else ""
-                self.ct.insert("end",f"{sep}─  ACTIVE SYNERGIES  ─\n","hd")
-                self.ct.tag_configure("hd",foreground="#8899bb",font=("Georgia",9,"italic"))
+                self.ct.insert("end",f"{sep}○  INACTIVE SYNERGIES  ○\n","hd")
+                self.ct.tag_configure("hd",foreground="#445566",font=("Georgia",9,"italic"))
                 for s1,s2,name,_ in dormant:
                     t=f"cd{s1}{s2}"; fc=self._blend(SCHOOLS[s1]["color"],SCHOOLS[s2]["color"])
                     self.ct.insert("end",f"\n{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
