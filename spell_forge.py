@@ -656,14 +656,12 @@ class Spell:
                 if p and p not in seen:
                     res.append((schools[i],schools[j],SCHOOL_CONNECTIONS[p],False))
                     seen.add(p)
-        for school in SCHOOLS:
-            if self.capstone_active(school):
-                for (s1,s2),name in SCHOOL_CONNECTIONS.items():
-                    if s1==school or s2==school:
-                        p=(s1,s2)
-                        if p not in seen:
-                            res.append((s1,s2,name,True))
-                            seen.add(p)
+        for (s1,s2),name in SCHOOL_CONNECTIONS.items():
+            if self.capstone_active(s1) and self.capstone_active(s2):
+                p=(s1,s2)
+                if p not in seen:
+                    res.append((s1,s2,name,True))
+                    seen.add(p)
         return res
 
     def capstone_active(self,school):
