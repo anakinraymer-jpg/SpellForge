@@ -1,0 +1,8 @@
+# SpellForge dependencies
+#
+# The application runs entirely on the Python standard library.
+# tkinter is included with most Python distributions.
+# On Ubuntu/Debian if tkinter is missing: sudo apt install python3-tk
+#
+# OPTIONAL — only needed for PNG export via File → Export PNG:
+Pillow>=9.0.0
