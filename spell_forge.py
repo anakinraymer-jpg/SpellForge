@@ -619,8 +619,6 @@ def pts_to_level(pts):
 class Spell:
     name:str="Unnamed Spell"
     description:str=""
-    primary_school:str="Evocation"
-    secondary_schools:List[str]=field(default_factory=list)
     school_abilities:Dict[str,Dict[str,int]]=field(default_factory=dict)
     global_mods:Dict[str,int]=field(default_factory=dict)
     ring_mods:Dict[str,Dict[str,int]]=field(default_factory=dict)
@@ -640,10 +638,37 @@ class Spell:
 
     @property
     def all_schools(self):
-        seen,res=[],[]
-        for s in [self.primary_school]+self.secondary_schools:
-            if s not in seen: seen.append(s); res.append(s)
-        return res
+        """Schools that have any spend (abilities or ring mods > 0). Order matches SCHOOLS dict."""
+        result=[]
+        for school in SCHOOLS:
+            if (any(v>0 for v in self.school_abilities.get(school,{}).values()) or
+                    any(v>0 for v in self.ring_mods.get(school,{}).values())):
+                result.append(school)
+        return result
+
+    @property
+    def normal_item_count(self):
+        """Count of distinct purchased items (each ability/ring-group/mod/element counts as 1)."""
+        n=0
+        for abs_ in self.school_abilities.values():
+            n+=sum(1 for c in abs_.values() if c>0)
+        for cnt in self.global_mods.values():
+            if cnt>0: n+=1
+        for groups in self.ring_mods.values():
+            for cnt in groups.values():
+                if cnt>0: n+=1
+        for val in self.elements.values():
+            if val: n+=1
+        for nodes in self.element_nodes.values():
+            n+=sum(1 for c in nodes.values() if c>0)
+        return n
+
+    @property
+    def is_complete(self):
+        """Spell is valid when normally-purchased items outnumber drawback items."""
+        db=len(self.drawback_buys)
+        if db==0: return True
+        return (self.normal_item_count-db)>db
 
     @property
     def total_points(self):
@@ -707,7 +732,9 @@ class Spell:
 
     def to_dict(self): return asdict(self)
     @classmethod
-    def from_dict(cls,d): return cls(**d)
+    def from_dict(cls,d):
+        valid={k:v for k,v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**valid)
 
 # ═══════════════════════════════════════════════════════════════
 #  MAGIC CIRCLE CANVAS
@@ -1075,7 +1102,7 @@ class MagicCircleCanvas(tk.Canvas):
 
     def _draw_outer_frame(self,R,pos):
         s=self.spell; _,lvl,col=s.level_info
-        primary_c=SCHOOLS.get(s.primary_school,list(SCHOOLS.values())[0])["color"]
+        active_sc=set(s.all_schools)
         ink=self._b("#e8d8a0","#ffffff",0.55); ink2=self._b("#c8a060","#aa8844",0.45)
         # Double outer border
         self._ring_w(0,0,R,ink,w=3)
@@ -1096,10 +1123,10 @@ class MagicCircleCanvas(tk.Canvas):
         for i in range(n):
             for j in range(i+2,n-1):
                 x1,y1=spts[i]; x2,y2=spts[j]
-                self._line_w(x1,y1,x2,y2,fill=self._f(primary_c,0.07),width=1)
+                self._line_w(x1,y1,x2,y2,fill=self._f(ink2,0.07),width=1)
         # School symbol accent between outer ring and school circle
         for i,sch in enumerate(school_list):
-            a=i*(360/n); active=(sch==s.primary_school or sch in s.secondary_schools)
+            a=i*(360/n); active=(sch in active_sc)
             c2=SCHOOLS[sch]["color"]
             dx,dy=self._wpt(0,0,R*0.950,a)
             self._text_w(dx,dy,text="◆",fill=c2 if active else self._f(c2,0.30),
@@ -1122,8 +1149,8 @@ class MagicCircleCanvas(tk.Canvas):
 
     def _draw_main_geometry(self,R,pos):
         """Inner sacred geometry web confined within element band (R*0.50)."""
-        s=self.spell
-        c=SCHOOLS.get(s.primary_school,list(SCHOOLS.values())[0])["color"]
+        s=self.spell; _asc=s.all_schools
+        c=SCHOOLS[_asc[0]]["color"] if _asc else "#8899bb"
         web_r=R*0.48; n=10
         self._ring_w(0,0,R*0.50,self._f(c,0.18),w=1)
         pts=[self._wpt(0,0,web_r,i*(360/n)) for i in range(n)]
@@ -1165,8 +1192,7 @@ class MagicCircleCanvas(tk.Canvas):
         All 10 schools always visible. All abilities/mods shown (dim=unselected, bright=selected).
         Hit zones registered for click-to-toggle and hover tooltip."""
         s=self.spell; c=SCHOOLS[school]["color"]
-        is_p=(school==s.primary_school)
-        active=(is_p or school in s.secondary_schools)
+        active=(school in s.all_schools)
         r=self.NODE_R_PRI*s.circle_sizes.get(school,1.0)
         cap=s.capstone_active(school)
         bright=1.0 if active else 0.20
@@ -1661,6 +1687,10 @@ class MagicCircleCanvas(tk.Canvas):
         self.create_text(cx,cy,
                          text=f"{lvl}  ·  {pts} pts  ·  {self._zoom:.2f}×  [scroll=zoom  R-drag=pan]",
                          fill=self._b("#445566",col,0.7),font=("Georgia",9,"italic"))
+        if s.drawback_buys and not s.is_complete:
+            wx,wy=self._tc(0,self.OUTER_R+26)
+            self.create_text(wx,wy,text="⚠ more drawbacks than purchases — add normal items",
+                             fill="#ff5555",font=("TkDefaultFont",7,"bold"),anchor="center")
 
     def export_png(self,fp):
         try:
@@ -2088,9 +2118,9 @@ class CalculatorPanel(tk.Frame):
         if lvl_idx<len(LEVEL_TABLE)-1: self.next_lbl.configure(text=f"{LEVEL_TABLE[lvl_idx+1][0]-pts} pts until {LEVEL_TABLE[lvl_idx+1][2]}")
         else: self.next_lbl.configure(text="Maximum level achieved")
         lines=[f"SPELL: {s.name or '(unnamed)'}",""]
-        if s.secondary_schools:
-            lines.append("ACTIVE SCHOOLS (auto-derived from spend):")
-            for sc in [s.primary_school]+s.secondary_schools: lines.append(f"  {sc}")
+        if s.all_schools:
+            lines.append("ACTIVE SCHOOLS:")
+            for sc in s.all_schools: lines.append(f"  {sc}")
             lines.append("")
         s_sub=0
         for school in s.all_schools:
@@ -2123,8 +2153,10 @@ class CalculatorPanel(tk.Frame):
                 sym=ELEMENTS[el]["symbol"]; sub_txt=f" ({val})" if isinstance(val,str) else ""
                 lines.append(f"  {sym} {el}{sub_txt:<12} +{ep}")
             lines.append(f"  {'element subtotal':<26} +{e_sub}"); lines.append("")
+        db_cnt=len(s.drawback_buys); norm_cnt=s.normal_item_count-db_cnt
+        compl_txt="" if s.is_complete else f"  ⚠ INCOMPLETE ({db_cnt} drawbacks vs {norm_cnt} normal)\n"
         lines+=["─"*40,f"  TOTAL                              = {pts}","",
-                f"  Primary: {s.primary_school}",f"  Schools: {len(s.all_schools)}",
+                compl_txt+f"  Schools: {len(s.all_schools)}",
                 f"  Synergies: {len(s.active_connections)}",
                 f"  Capstones: {sum(1 for sc in s.all_schools if s.capstone_active(sc))}",
                 f"  Elements: {sum(1 for v in s.elements.values() if v)}"]
@@ -2383,21 +2415,37 @@ class SpellForgeApp(tk.Tk):
         self._build_drawbacks_tab(dsc["inner"])
 
     def _build_drawbacks_tab(self,f):
-        pb=self.PBG
-        hf=tk.Frame(f,bg=self.BG); hf.pack(fill=tk.X,padx=6,pady=6)
+        # ── Drawbacks Taken ──
+        hf=tk.Frame(f,bg=self.BG); hf.pack(fill=tk.X,padx=6,pady=(6,2))
         tk.Label(hf,text="Active Drawbacks",bg=self.BG,fg=self.GOLD,
                  font=("Georgia",10,"bold italic")).pack(side=tk.LEFT)
-        ttk.Button(hf,text="⚙ Edit Neg. Mods",
-                   command=lambda:NegativeModEditor(self),
-                   style="G.TButton").pack(side=tk.RIGHT,padx=4)
-        lf=ttk.LabelFrame(f,text="  Drawbacks Taken  ",padding=6)
-        lf.pack(fill=tk.BOTH,expand=True,padx=6,pady=4)
+        lf=ttk.LabelFrame(f,text="  Drawbacks Taken  ",padding=4)
+        lf.pack(fill=tk.X,padx=6,pady=2)
         self._db_list=tk.Text(lf,bg=self.EBG,fg=self.TXT,relief="flat",
-                              font=("Courier",8),state="disabled",wrap=tk.WORD,padx=4,pady=4)
+                              font=("Courier",8),state="disabled",wrap=tk.WORD,
+                              padx=4,pady=4,height=5)
         self._db_list.pack(fill=tk.BOTH,expand=True)
-        hf2=tk.Frame(f,bg=self.BG); hf2.pack(fill=tk.X,padx=6,pady=4)
-        tk.Label(hf2,text="Right-click any ability or modifier on the\nmagic circle to take it as a free drawback.",
-                 bg=self.BG,fg="#445566",font=("Georgia",8,"italic"),justify="left").pack(anchor=tk.W)
+        tk.Label(f,text="Right-click any ability/modifier on the circle to take it free with a penalty.",
+                 bg=self.BG,fg="#445566",font=("Georgia",7,"italic"),justify="left").pack(anchor=tk.W,padx=8,pady=(0,4))
+        # ── Negative Modifier Library ──
+        lf2=ttk.LabelFrame(f,text="  Negative Modifier Library  ",padding=4)
+        lf2.pack(fill=tk.BOTH,expand=True,padx=6,pady=(2,4))
+        nmf=tk.Frame(lf2,bg=self.PBG); nmf.pack(fill=tk.BOTH,expand=True)
+        nm_sb=ttk.Scrollbar(nmf,orient="vertical"); nm_sb.pack(side=tk.RIGHT,fill=tk.Y)
+        self._nm_lb=tk.Listbox(nmf,bg=self.PBG,fg=self.TXT,selectbackground=self.ACC,
+                               font=("Courier",8),relief="flat",activestyle="none",
+                               height=8,yscrollcommand=nm_sb.set)
+        self._nm_lb.pack(side=tk.LEFT,fill=tk.BOTH,expand=True)
+        nm_sb.config(command=self._nm_lb.yview)
+        self._nm_lb.bind("<<ListboxSelect>>",self._nm_on_sel)
+        self._nm_desc=tk.Text(lf2,height=2,bg=self.PBG,fg="#8899bb",font=("Georgia",8),
+                              relief="flat",wrap=tk.WORD,state="disabled",bd=0)
+        self._nm_desc.pack(fill=tk.X,pady=(2,0))
+        nbf=tk.Frame(lf2,bg=self.BG); nbf.pack(fill=tk.X,pady=(4,0))
+        ttk.Button(nbf,text="+ Add",command=self._nm_add).pack(side=tk.LEFT,padx=2)
+        ttk.Button(nbf,text="✎ Edit",command=self._nm_edit).pack(side=tk.LEFT,padx=2)
+        ttk.Button(nbf,text="✕ Remove",command=self._nm_remove,style="D.TButton").pack(side=tk.LEFT,padx=2)
+        self._refresh_neg_mods()
 
     def _refresh_drawbacks(self):
         if not hasattr(self,'_db_list'): return
@@ -2412,6 +2460,55 @@ class SpellForgeApp(tk.Tk):
                 self._db_list.insert(tk.END,f"   → {neg_name}\n\n")
         self._db_list.configure(state="disabled")
 
+    def _refresh_neg_mods(self):
+        if not hasattr(self,'_nm_lb'): return
+        self._nm_lb.delete(0,tk.END)
+        for m in NEGATIVE_MODS:
+            tag="[def]" if m in DEFAULT_NEGATIVE_MODS else "[usr]"
+            self._nm_lb.insert(tk.END,f"{tag} {m['name']}")
+    def _nm_on_sel(self,_=None):
+        if not hasattr(self,'_nm_lb') or not hasattr(self,'_nm_desc'): return
+        sel=self._nm_lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        self._nm_desc.configure(state="normal"); self._nm_desc.delete("1.0",tk.END)
+        self._nm_desc.insert("1.0",m["desc"]); self._nm_desc.configure(state="disabled")
+    def _nm_add(self):
+        self._nm_open_form("Add Negative Modifier","","",is_new=True)
+    def _nm_edit(self):
+        if not hasattr(self,'_nm_lb'): return
+        sel=self._nm_lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        self._nm_open_form("Edit Negative Modifier",m["name"],m["desc"],idx=sel[0])
+    def _nm_remove(self):
+        if not hasattr(self,'_nm_lb'): return
+        sel=self._nm_lb.curselection()
+        if not sel: return
+        m=NEGATIVE_MODS[sel[0]]
+        if m in DEFAULT_NEGATIVE_MODS:
+            messagebox.showinfo("Cannot Remove","Default negative modifiers cannot be removed.",parent=self); return
+        NEGATIVE_MODS.remove(m); self._refresh_neg_mods()
+    def _nm_open_form(self,title,name,desc,is_new=False,idx=None):
+        d=tk.Toplevel(self); d.title(title); d.configure(bg=self.BG)
+        d.geometry("400x240"); d.transient(self); d.grab_set()
+        tk.Label(d,text="Name:",bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W,padx=12,pady=(12,2))
+        nv=tk.StringVar(value=name)
+        ttk.Entry(d,textvariable=nv,width=40).pack(fill=tk.X,padx=12)
+        tk.Label(d,text="Description:",bg=self.BG,fg=self.TXT,font=("Georgia",9)).pack(anchor=tk.W,padx=12,pady=(8,2))
+        dt=tk.Text(d,height=4,bg=self.EBG,fg=self.TXT,insertbackground=self.TXT,
+                   relief="solid",bd=1,font=("Georgia",9),wrap=tk.WORD)
+        dt.pack(fill=tk.X,padx=12); dt.insert("1.0",desc)
+        def _save():
+            n2=nv.get().strip(); d2=dt.get("1.0",tk.END).strip()
+            if not n2: return
+            if is_new: NEGATIVE_MODS.append({"name":n2,"desc":d2})
+            elif idx is not None: NEGATIVE_MODS[idx]={"name":n2,"desc":d2}
+            d.destroy(); self._refresh_neg_mods()
+        bf=tk.Frame(d,bg=self.BG); bf.pack(fill=tk.X,padx=12,pady=8)
+        ttk.Button(bf,text="Save",command=_save).pack(side=tk.RIGHT,padx=4)
+        ttk.Button(bf,text="Cancel",command=d.destroy,style="D.TButton").pack(side=tk.RIGHT,padx=4)
+
     # ── Events ────────────────────────────────────────────────────
     @staticmethod
     def _blend(c1,c2):
@@ -2422,21 +2519,6 @@ class SpellForgeApp(tk.Tk):
     def _on_name(self):
         self.spell.name=self.name_var.get()
         if hasattr(self,'circle'): self.circle.load(self.spell)
-    def _auto_schools(self):
-        """Derive primary/secondary schools automatically from ring-mod + ability spend."""
-        spends={}
-        for school in SCHOOLS:
-            ab=sum(SCHOOLS[school]["abilities"].get(ab,{}).get("cost",0)*cnt
-                   for ab,cnt in self.spell.school_abilities.get(school,{}).items())
-            rm=sum(self.spell.ring_mods.get(school,{}).values())
-            spends[school]=ab+rm
-        active=[s for s,v in spends.items() if v>0]
-        if not active:
-            self.spell.primary_school="Evocation"; self.spell.secondary_schools=[]
-        else:
-            pri=max(active,key=lambda s:spends[s])
-            self.spell.primary_school=pri
-            self.spell.secondary_schools=[s for s in active if s!=pri]
     def _addce(self):
         t=self.ce.get().strip()
         if t: self.spell.custom_effects.append(t); self.ce.delete(0,tk.END); self._ref_ce()
@@ -2455,7 +2537,6 @@ class SpellForgeApp(tk.Tk):
     # ── Refresh ───────────────────────────────────────────────────
     def _refresh(self):
         if not hasattr(self,'circle') or not hasattr(self,'calc'): return
-        self._auto_schools()
         self.circle.load(self.spell); self.calc.spell=self.spell; self.calc.refresh()
         self._ref_conn(); self._ref_ce(); self._ref_lib()
         if hasattr(self,'_spanels'):
@@ -2527,8 +2608,8 @@ class SpellForgeApp(tk.Tk):
         lines=["╔═══════════════════════════════════════════════════╗",
                f"║  {s.name:<48}║",f"║  {lvl+' · '+str(s.total_points)+' points':<48}║",
                "╚═══════════════════════════════════════════════════╝","",
-               f"Description: {s.description or '(none)'}","","SCHOOLS:",f"  Primary: {s.primary_school}"]
-        for sc in s.secondary_schools: lines.append(f"  Secondary: {sc}")
+               f"Description: {s.description or '(none)'}","","SCHOOLS:"]
+        for sc in s.all_schools: lines.append(f"  {sc}")
         for school in s.all_schools:
             ab_dict=s.school_abilities.get(school,{}); active=[(k,v) for k,v in ab_dict.items() if v>0]
             rd=s.ring_mods.get(school,{}); cap=s.capstone_active(school)
