@@ -674,8 +674,8 @@ class MagicCircleCanvas(tk.Canvas):
     BG="#1a1208"  # deep parchment-brown background
     # Fixed pixel sizes (independent of zoom)
     OUTER_R     = 340   # overall circle radius in canvas pixels
-    NODE_R_PRI  = 52    # primary school module base radius
-    NODE_R_SEC  = 38    # secondary school module base radius
+    NODE_R_PRI  = 44    # school module base radius (all schools same size)
+    NODE_R_SEC  = 38    # used for necklace ring outer bound calculation
     CENTER_R    = 88    # central modifier hub radius
 
     # Radii for modifier satellite circles
@@ -1046,7 +1046,7 @@ class MagicCircleCanvas(tk.Canvas):
         s=self.spell; c=SCHOOLS[school]["color"]
         is_p=(school==s.primary_school)
         active=(is_p or school in s.secondary_schools)
-        r=(self.NODE_R_PRI if is_p else self.NODE_R_SEC)*s.circle_sizes.get(school,1.0)
+        r=self.NODE_R_PRI*s.circle_sizes.get(school,1.0)
         cap=s.capstone_active(school)
         bright=1.0 if active else 0.20
         ink=self._b("#e8d8a0","#ffffff",0.55)
@@ -2117,6 +2117,12 @@ class SpellForgeApp(tk.Tk):
         ttk.Button(br,text="🗑",command=self._ldel,style="D.TButton").pack(side=tk.LEFT,padx=2)
 
     # ── Events ────────────────────────────────────────────────────
+    @staticmethod
+    def _blend(c1,c2):
+        def p(c): c=c.lstrip("#"); return int(c[:2],16),int(c[2:4],16),int(c[4:6],16)
+        r1,g1,b1=p(c1); r2,g2,b2=p(c2)
+        return "#{:02x}{:02x}{:02x}".format((r1+r2)//2,(g1+g2)//2,(b1+b2)//2)
+
     def _on_name(self):
         self.spell.name=self.name_var.get()
         if hasattr(self,'circle'): self.circle.load(self.spell)
@@ -2162,15 +2168,30 @@ class SpellForgeApp(tk.Tk):
         if hasattr(self,'el_panel'): self.el_panel.spell=self.spell
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
-        conns=self.spell.active_connections; self.ct.configure(state="normal"); self.ct.delete("1.0",tk.END)
-        if not conns: self.ct.insert("1.0","No synergies active yet.\n\nBuy abilities/ring mods across schools, or complete a capstone to unlock synergies.")
+        conns=self.spell.active_connections
+        self.ct.configure(state="normal"); self.ct.delete("1.0",tk.END)
+        if not conns:
+            self.ct.insert("1.0","No synergies active yet.\n\nBuy abilities or ring mods across multiple schools to activate synergies.")
         else:
-            for s1,s2,name,cap in conns:
-                t=f"cs{s1}{s2}"; prefix="⚜ " if cap else ""
-                self.ct.insert("end",f"\n{prefix}{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
-                self.ct.insert("end",f"→ {name}\n")
-                fc="#FFD700" if cap else SCHOOLS[s1]["color"]
-                self.ct.tag_configure(t,foreground=fc,font=("Georgia",9,"bold"))
+            golden=[c for c in conns if c[3]]
+            dormant=[c for c in conns if not c[3]]
+            if golden:
+                self.ct.insert("end","⚜  CAPSTONE SYNERGIES  ⚜\n","hg")
+                self.ct.tag_configure("hg",foreground="#FFD700",font=("Georgia",9,"bold italic"))
+                for s1,s2,name,_ in golden:
+                    t=f"cg{s1}{s2}"
+                    self.ct.insert("end",f"\n{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
+                    self.ct.insert("end",f"→ {name}\n")
+                    self.ct.tag_configure(t,foreground="#FFD700",font=("Georgia",9,"bold"))
+            if dormant:
+                sep="\n" if golden else ""
+                self.ct.insert("end",f"{sep}─  ACTIVE SYNERGIES  ─\n","hd")
+                self.ct.tag_configure("hd",foreground="#8899bb",font=("Georgia",9,"italic"))
+                for s1,s2,name,_ in dormant:
+                    t=f"cd{s1}{s2}"; fc=self._blend(SCHOOLS[s1]["color"],SCHOOLS[s2]["color"])
+                    self.ct.insert("end",f"\n{SCHOOLS[s1]['symbol']} {s1}  ⊕  {SCHOOLS[s2]['symbol']} {s2}\n",t)
+                    self.ct.insert("end",f"→ {name}\n")
+                    self.ct.tag_configure(t,foreground=fc,font=("Georgia",9,"bold"))
         self.ct.configure(state="disabled")
     def _ref_ce(self):
         if not hasattr(self,'cl'): return
