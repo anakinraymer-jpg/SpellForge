@@ -20,13 +20,15 @@ LAYOUT (three resizable panes):
 
 MAGIC CIRCLE LAYERS (bottom → top):
   1. Parchment background  (_draw_deep_bg)
-  2. Spell-level rings     (_draw_level_rings)   ← behind everything
-  3. Outer frame           (_draw_outer_frame)   ← double border + connector ring
-  4. Inner sacred geometry (_draw_main_geometry) ← chord web, confined to R*0.50
-  5. Element band          (_draw_element_band)  ← constellation nodes at R*0.55
-  6. School modules × 10  (_draw_school_modules) ← always visible on outer ring
+  2. Spell-level rings     (_draw_level_rings)    ← behind everything
+  3. Outer frame           (_draw_outer_frame)    ← double border + connector ring
+  4. Inner sacred geometry (_draw_main_geometry)  ← chord web, confined to R*0.50
+  5. Element ring          (_draw_element_ring)   ← annular arc sectors R*0.545→R*0.725
+  6. School modules × 10  (_draw_school_modules)  ← always visible on outer ring
   7. Center modifier hub   (_draw_center_hub)
-  8. Status bar text
+  8. Drawback rings        (_draw_drawback_rings) ← hollow rings around hub
+  9. Conditions ring       (_draw_conditions_ring)← If-Then + When-Then rune ring
+ 10. Status bar text
 
 SCHOOL MODULES (all 10 always rendered):
   • Outer rune ring (r*0.84): one rune per school ability — bright if purchased
@@ -636,7 +638,7 @@ class Spell:
     # Custom negative mods added by user (spell-level; also synced to NEGATIVE_MODS on load)
     custom_neg_mods: List[dict] = field(default_factory=list)
     ifthen_conditions: List[dict] = field(default_factory=list)
-    # Each condition: {"name": str, "if_schools": List[str], "then_text": str}
+    # Each: {"if_text": str, "then_text": str}
     when_then_conditions: List[dict] = field(default_factory=list)
     # Each: {"when_text": str, "then_text": str}
 
@@ -1056,12 +1058,11 @@ class MagicCircleCanvas(tk.Canvas):
         pos=self._compute_node_positions(R)
         self._draw_outer_frame(R,pos)
         self._draw_main_geometry(R,pos)
-        self._draw_element_band(R)
-        self._draw_ifthen_markers(pos)
+        self._draw_element_ring(R)
         self._draw_school_modules(pos)
         self._draw_center_hub()
         self._draw_drawback_rings()
-        self._draw_when_then_ring()
+        self._draw_conditions_ring()
         self._draw_status_bar(W,H)
 
     def _draw_deep_bg(self,R):
@@ -1105,68 +1106,6 @@ class MagicCircleCanvas(tk.Canvas):
         self._ring_w(0,0,R*0.88,ghost,w=1)
         self._ring_w(0,0,R*0.65,ghost,w=1)
         self._ring_w(0,0,R*0.40,ghost,w=1)
-
-    def _crescent_pts(self, a_deg, span_out=26, span_in=13, n=32):
-        """
-        Crescent moon polygon curving ALONG the outer ring at the school's angular position.
-        Outer arc lies just outside the main ring; inner arc is concave, making tapered tips.
-        span_out > span_in produces the crescent's pointed horns.
-        """
-        import math
-        R_out = self.OUTER_R + 14   # just beyond the outer ring
-        R_in  = self.OUTER_R - 20   # inside the outer ring
-        a  = math.radians(a_deg)
-        ho = math.radians(span_out)
-        hi = math.radians(span_in)
-        pts = []
-        # Outer arc CCW from a-ho to a+ho (wider span)
-        for i in range(n + 1):
-            ang = a - ho + i * 2 * ho / n
-            pts.append((R_out * math.cos(ang), R_out * math.sin(ang)))
-        # Inner arc CW from a+hi to a-hi (narrower span → tapers to crescent tips)
-        for i in range(n + 1):
-            ang = a + hi - i * 2 * hi / n
-            pts.append((R_in * math.cos(ang), R_in * math.sin(ang)))
-        return pts
-
-    def _draw_ifthen_markers(self, pos):
-        """Draw ring-curving crescent markers for If-Then conditions (behind school circles)."""
-        import math
-        s = self.spell
-        if not s: return
-        conds = getattr(s, 'ifthen_conditions', [])
-        if not conds: return
-
-        # Recursively collect all IF schools from conditions and their chains
-        def _collect(cond_list, depth=0):
-            result = {}
-            for cond in cond_list:
-                for sc in cond.get('if_schools', []):
-                    if sc in pos:
-                        result.setdefault(sc, []).append((cond.get('name','?'), depth))
-                for sub in cond.get('chain', []):
-                    for sc, entries in _collect([sub], depth+1).items():
-                        result.setdefault(sc, []).extend(entries)
-            return result
-
-        marked = _collect(conds)
-        school_list = list(SCHOOLS.keys())
-        n_sc = len(school_list)
-        for idx, school in enumerate(school_list):
-            if school not in marked: continue
-            a_deg = idx * (360 / n_sc)
-            c = SCHOOLS[school]['color']
-            entries = marked[school]
-            pts = self._crescent_pts(a_deg)
-            self._poly_w(pts, fill=self._f(c, 0.22), outline='', smooth=True)
-            self._poly_w(pts, fill='', outline=self._b(c, '#ffffff', 0.65),
-                         width=2, smooth=True)
-            # Label at outer tip
-            ca = math.cos(math.radians(a_deg)); sa = math.sin(math.radians(a_deg))
-            R_lbl = self.OUTER_R + 14
-            self._text_w(R_lbl * ca, R_lbl * sa, text=f"✦{len(entries)}",
-                         fill=self._b(c, '#ffffff', 0.85),
-                         font=('TkDefaultFont', 7, 'bold'))
 
     def _draw_outer_frame(self,R,pos):
         s=self.spell; _,lvl,col=s.level_info
@@ -1444,128 +1383,177 @@ class MagicCircleCanvas(tk.Canvas):
             rx,ry=self._wpt(wx,wy,r+8,0)
             self._text_w(rx,ry,text=rune,fill=self._f(color,0.60),font=("TkFixedFont",6))
 
-    def _draw_element_band(self,R):
-        """Draw active elements as constellations: centre node + satellite upgrade nodes.
-        Sub-elements appear between their two parent nodes when both are active."""
-        s=self.spell
-        active_elems=[(el,val) for el,val in s.elements.items() if val]
+    def _draw_element_ring(self, R):
+        """Active elements rendered as a large annular runic ring around the inner geometry.
+        Each element gets a colored arc sector with symbol, runes, and upgrade nodes.
+        Sub-element junction markers appear at the boundary between adjacent element sectors.
+        Max 3 elements enforced in the UI."""
+        s = self.spell
+        active_elems = [(el, val) for el, val in s.elements.items() if val]
         if not active_elems: return
 
-        # Centre nodes sit on an orbital ring; satellite nodes fan outward
-        orbit_r=R*0.55
-        centre_nr=14          # centre node radius — middle band
-        sat_nr=8              # satellite node radius
-        sat_offset=32         # distance from centre to satellite
+        R_in  = R * 0.545   # inner border of the element ring
+        R_out = R * 0.725   # outer border of the element ring
+        R_mid = (R_in + R_out) * 0.5
+        R_sym = R_mid       # element symbol placement radius
+        R_name = R_out - 8  # arc-text name radius (near outer edge)
+        R_rune = R_in + 10  # rune constellation radius (near inner edge)
+        R_node = R_mid - 6  # upgrade-node radius (inner half)
 
-        n=len(active_elems)
-        elem_pos={}  # el -> world (wx,wy) of centre node
+        n = len(active_elems)
+        sector = 360.0 / n
+        GAP = 1.5 if n > 1 else 0.0  # angular gap between adjacent sectors
 
-        # ── Sub-element connection lines (draw first, behind everything) ────
-        for i,(el1,_) in enumerate(active_elems):
-            for j,(el2,_) in enumerate(active_elems):
-                if i>=j: continue
-                pair=((el1,el2) if (el1,el2) in ELEMENT_CONNECTIONS
-                      else ((el2,el1) if (el2,el1) in ELEMENT_CONNECTIONS else None))
-                if not pair: continue
-                a1=i*(360/n); a2=j*(360/n)
-                x1,y1=self._wpt(0,0,orbit_r,a1)
-                x2,y2=self._wpt(0,0,orbit_r,a2)
-                c1=ELEMENTS[el1]["color"]; c2=ELEMENTS[el2]["color"]
-                mc=self._b(c1,c2,0.5)
-                self._line_w(x1,y1,x2,y2,fill=self._f(mc,0.28),width=1,dash=(5,4))
+        border_c = self._b("#e8d8a0", "#ffffff", 0.50)
 
-        # ── Element centre nodes and their constellations ────────────────────
-        for i,(el,val) in enumerate(active_elems):
-            a=i*(360/n)
-            cx,cy=self._wpt(0,0,orbit_r,a)
-            elem_pos[el]=(cx,cy)
-            edata=ELEMENTS[el]
+        # Draw ring borders
+        self._ring_w(0, 0, R_in,  border_c, w=2)
+        self._ring_w(0, 0, R_out, border_c, w=2)
 
-            # Colour: subtype override for Celestial
-            if el=="Celestial" and isinstance(val,str) and val in edata.get("subtypes",{}):
-                ec=edata["subtypes"][val]["color"]
-                sub_rune=edata["subtypes"][val]["rune"]
-                elabel=f"{el}:{val}"
+        elem_angles = {}  # el -> (a_start, a_end, a_mid)
+
+        for i, (el, val) in enumerate(active_elems):
+            a_start = i * sector + GAP / 2
+            a_end   = (i + 1) * sector - GAP / 2
+            a_mid   = (a_start + a_end) * 0.5
+            elem_angles[el] = (a_start, a_end, a_mid)
+
+            edata = ELEMENTS[el]
+            if el == "Celestial" and isinstance(val, str) and val in edata.get("subtypes", {}):
+                ec = edata["subtypes"][val]["color"]
             else:
-                ec=edata["color"]; elabel=el; sub_rune=edata.get("rune","")
+                ec = edata["color"]
 
-            # Spoke line from hub to centre node
-            hx,hy=self._wpt(0,0,self.CENTER_R+4,a)
-            self._line_w(hx,hy,cx,cy,fill=self._f(ec,0.25),width=1,dash=(4,4))
+            # Filled sector
+            self._wedge_w(0, 0, R_in, R_out, a_start, a_end, self._f(ec, 0.20))
 
-            # Centre node
-            self._draw_elem_node(cx,cy,edata["symbol"],ec,centre_nr,
-                                 label=elabel,rune=sub_rune)
+            # Arc outlines along both radii
+            span = a_end - a_start
+            self._arc_ring_w(0, 0, R_in,  a_start, span, outline=self._f(ec, 0.50), width=2)
+            self._arc_ring_w(0, 0, R_out, a_start, span, outline=self._f(ec, 0.50), width=2)
 
-            # Constellation satellite nodes (upgrades)
-            nodes=edata.get("nodes",[])
-            bought_nodes=s.element_nodes.get(el,{})
-            nsat=len(nodes)
-            # Fan the satellites outward from the spoke direction
-            # Spread ±60° around outward direction (away from centre hub)
-            fan_angles=[a+d for d in ([-60,-30,0,30,60] if nsat>=5 else
-                                       [-45,0,45] if nsat>=3 else [0])]
-            for k,nd in enumerate(nodes):
-                if k>=len(fan_angles): break
-                ang=fan_angles[k]
-                sx,sy=self._wpt(cx,cy,sat_offset,ang)
-                bought=bought_nodes.get(nd["name"],0)>0
-                # Line from centre node to satellite
-                self._line_w(cx,cy,sx,sy,fill=self._f(ec,0.30 if bought else 0.15),
-                             width=1,dash=None if bought else (3,4))
-                self._draw_elem_node(sx,sy,nd["glyph"],ec,sat_nr,
-                                     bought=bought,
-                                     label=nd["name"][:8],
-                                     rune=nd["rune"])
-                # If bought, show cost label
-                if bought:
-                    self._text_w(sx,sy+sat_nr+8,text=nd["effect"][:14],
-                                 fill=self._f(ec,0.70),font=("TkFixedFont",5))
+            # Radial separator lines
+            if n > 1:
+                for a_sep in (a_start, a_end):
+                    x1, y1 = self._wpt(0, 0, R_in,  a_sep)
+                    x2, y2 = self._wpt(0, 0, R_out, a_sep)
+                    self._line_w(x1, y1, x2, y2,
+                                 fill=self._b(border_c, ec, 0.45), width=2)
 
-        # ── Sub-element mini-constellations ──────────────────────────────────
-        for i,(el1,_) in enumerate(active_elems):
-            for j,(el2,_) in enumerate(active_elems):
-                if i>=j: continue
-                pair=((el1,el2) if (el1,el2) in SUBELEMENT_NODES
-                      else ((el2,el1) if (el2,el1) in SUBELEMENT_NODES else None))
+            # Element symbol at centre of sector
+            sx, sy = self._wpt(0, 0, R_sym, a_mid)
+            self._circle_w(sx, sy, 11, fill=self._f(ec, 0.35), outline='')
+            self._ring_w(sx, sy, 11, self._b(ec, '#ffffff', 0.55), w=1)
+            self._text_w(sx, sy, text=edata["symbol"],
+                         fill=self._b(ec, "#ffffff", 0.90),
+                         font=("TkDefaultFont", 10, "bold"))
+
+            # Element name arc text near outer edge
+            step = min(4.5, max(1.8, (span - 6) / max(len(el), 1)))
+            self._arc_text_w(0, 0, R_name, el.upper(), a_mid, ec,
+                             fontsize=6, step_deg=step)
+
+            # Rune decoration along inner ring
+            n_runes = max(1, min(10, int(span / 10)))
+            for j in range(n_runes):
+                if n_runes == 1:
+                    ra = a_mid
+                else:
+                    ra = a_start + GAP + j * (span - 2 * GAP) / (n_runes - 1)
+                rrx, rry = self._wpt(0, 0, R_rune, ra)
+                seed = (sum(ord(c) for c in el) + j * 13) % len(RUNES_ALL)
+                self._text_w(rrx, rry, text=RUNES_ALL[seed],
+                             fill=self._f(ec, 0.40), font=("TkFixedFont", 5))
+
+            # Upgrade nodes along inner-half arc
+            nodes = edata.get("nodes", [])
+            bought_nodes = s.element_nodes.get(el, {})
+            nn = len(nodes)
+            if nn > 0:
+                # spread across sector minus a centre gap for the symbol
+                half = span * 0.35
+                for k, nd in enumerate(nodes):
+                    offset = -half + k * (2 * half / max(nn - 1, 1)) if nn > 1 else 0
+                    na = a_mid + offset
+                    nwx, nwy = self._wpt(0, 0, R_node, na)
+                    bought = bought_nodes.get(nd["name"], 0) > 0
+                    nr = 6 if bought else 4
+                    self._draw_elem_node(nwx, nwy, nd["glyph"], ec, nr,
+                                         bought=bought, label="", rune="")
+                    tip = f"{nd['name']}  ({el})\nCost: {nd['cost']} pt\n{nd['desc']}\nEffect: {nd.get('effect','')}"
+                    def _nd_cb(e=el, nm=nd["name"], cur_v=bought):
+                        old = s.element_nodes.get(e, {}).get(nm, 0)
+                        s.element_nodes.setdefault(e, {})[nm] = 0 if old > 0 else 1
+                        if self._on_change: self._on_change()
+                        self._redraw()
+                    self._hit_zones.append((nwx, nwy, nr + 3, _nd_cb, tip, None))
+
+            # Hit zone on the symbol for element info
+            tip_el = (f"{edata['symbol']} {el}\n{edata['modification']}\n{edata['desc']}"
+                      + (f"\n[{val}]" if isinstance(val, str) else ""))
+            self._hit_zones.append((sx, sy, 14, lambda: None, tip_el, None))
+
+        # ── Sub-element junction markers ─────────────────────────────────────────
+        if n > 1:
+            for i in range(n):
+                el1, _ = active_elems[i]
+                el2, _ = active_elems[(i + 1) % n]
+                pair = ((el1, el2) if (el1, el2) in ELEMENT_CONNECTIONS
+                        else ((el2, el1) if (el2, el1) in ELEMENT_CONNECTIONS else None))
                 if not pair: continue
-                if pair not in SUBELEMENT_NODES: continue
-                nodes=SUBELEMENT_NODES[pair]
-                # Sub-constellation centre = midpoint between parent nodes
-                p1x,p1y=elem_pos.get(el1,(0,0))
-                p2x,p2y=elem_pos.get(el2,(0,0))
-                scx=(p1x+p2x)/2; scy=(p1y+p2y)/2
-                # Shift slightly outward from origin so it doesn't sit dead centre
-                dist=max(1,math.hypot(scx,scy))
-                scx+=scx/dist*10; scy+=scy/dist*10
 
-                c1=ELEMENTS[el1]["color"]; c2=ELEMENTS[el2]["color"]
-                mc=self._b(c1,c2,0.5)
+                _, a_end1, _ = elem_angles[el1]
+                a_start2, _, _ = elem_angles[el2]
+                j_ang = (a_end1 + a_start2) * 0.5  # boundary midpoint
 
-                # Sub-element label diamond
-                self._poly_w([(scx,scy-5),(scx+5,scy),(scx,scy+5),(scx-5,scy)],
-                             fill=self._f(mc,0.45),outline="")
-                effect_name=ELEMENT_CONNECTIONS.get(pair,ELEMENT_CONNECTIONS.get((pair[1],pair[0]),""))
-                self._text_w(scx,scy,text=RUNES_ALL[hash(pair[0]+pair[1])%len(RUNES_ALL)],
-                             fill=mc,font=("TkFixedFont",7))
+                c1 = ELEMENTS[el1]["color"]; c2 = ELEMENTS[el2]["color"]
+                mc = self._b(c1, c2, 0.5)
 
-                # Three satellite upgrade nodes fanning from sub-centre
-                key_str=f"{pair[0]},{pair[1]}"
-                bought_sub=s.subelement_nodes.get(key_str,
-                           s.subelement_nodes.get(f"{pair[1]},{pair[0]}",{}))
-                # Direction: perpendicular to line between parents
-                dx,dy=p2x-p1x,p2y-p1y
-                perp_a=math.degrees(math.atan2(dy,dx))+90
-                for k,nd in enumerate(nodes):
-                    d_off=perp_a + (k-1)*40
-                    nx,ny=self._wpt(scx,scy,28,d_off)
-                    bought=bought_sub.get(nd["name"],0)>0
-                    self._line_w(scx,scy,nx,ny,
-                                 fill=self._f(mc,0.35 if bought else 0.15),width=1,
-                                 dash=None if bought else (3,4))
-                    self._draw_elem_node(nx,ny,nd["glyph"],mc,7,
-                                         bought=bought,
-                                         label=nd["name"][:8])
+                # Blended wedge strip at junction
+                self._wedge_w(0, 0, R_in, R_out, j_ang - 4, j_ang + 4, self._f(mc, 0.35))
+                # Radial separator override with blended colour
+                x1, y1 = self._wpt(0, 0, R_in,  j_ang)
+                x2, y2 = self._wpt(0, 0, R_out, j_ang)
+                self._line_w(x1, y1, x2, y2, fill=self._b(border_c, mc, 0.60), width=3)
+
+                # Junction rune node at mid-radius
+                jx, jy = self._wpt(0, 0, R_mid, j_ang)
+                seed = abs(hash(el1 + el2)) % len(RUNES_ALL)
+                conn_name = ELEMENT_CONNECTIONS.get(pair, ELEMENT_CONNECTIONS.get((pair[1], pair[0]), ""))
+                short = conn_name.split(" — ")[0] if " — " in conn_name else conn_name[:12]
+
+                self._circle_w(jx, jy, 9, fill=self._f(mc, 0.45), outline='')
+                self._ring_w(jx, jy, 9, self._b(mc, '#ffffff', 0.70), w=2)
+                self._text_w(jx, jy, text=RUNES_ALL[seed],
+                             fill=self._b(mc, '#ffffff', 0.95), font=('TkFixedFont', 8))
+
+                # Sub-element name label outside the ring
+                lx, ly = self._wpt(0, 0, R_out + 12, j_ang)
+                self._text_w(lx, ly, text=short,
+                             fill=self._b(mc, '#ffffff', 0.75), font=('TkFixedFont', 5))
+
+                # Sub-element upgrade nodes (if any)
+                if pair in SUBELEMENT_NODES:
+                    se_nodes = SUBELEMENT_NODES[pair]
+                    key_str = f"{pair[0]},{pair[1]}"
+                    bought_sub = s.subelement_nodes.get(
+                        key_str, s.subelement_nodes.get(f"{pair[1]},{pair[0]}", {}))
+                    for k, nd in enumerate(se_nodes):
+                        # Place alternating inner/outer within the junction strip
+                        sna = j_ang + (k - 1) * 10
+                        snr = R_in + 14 if k % 2 == 0 else R_out - 14
+                        snx, sny = self._wpt(0, 0, snr, sna)
+                        bought = bought_sub.get(nd["name"], 0) > 0
+                        self._draw_elem_node(snx, sny, nd["glyph"], mc, 5,
+                                             bought=bought, label="", rune="")
+                        se_tip = (f"{nd['name']}  ({el1}+{el2})\nCost: {nd['cost']} pt\n"
+                                  f"{nd['desc']}\nEffect: {nd.get('effect','')}")
+                        def _se_cb(p=pair, nm=nd["name"], ks=key_str):
+                            old = s.subelement_nodes.get(ks, {}).get(nm, 0)
+                            s.subelement_nodes.setdefault(ks, {})[nm] = 0 if old > 0 else 1
+                            if self._on_change: self._on_change()
+                            self._redraw()
+                        self._hit_zones.append((snx, sny, 7, _se_cb, se_tip, None))
 
     # ── Level symbol helpers (world-space, drawn in hub centre) ──────────────
     def _draw_fist_w(self,wx,wy,r,color):
@@ -1749,34 +1737,56 @@ class MagicCircleCanvas(tk.Canvas):
             tip+=f"\n(from: {key.split('/',1)[-1]})"
             self._hit_zones.append((rx,ry,ring_r+4,lambda:None,tip,None))
 
-    def _draw_when_then_ring(self):
-        """Draw a decorative rune ring around the hub for When-Then conditions."""
+    def _draw_conditions_ring(self):
+        """Combined rune ring for If-Then and When-Then conditions, around the hub."""
         s = self.spell
         if not s: return
-        conds = getattr(s, 'when_then_conditions', [])
-        if not conds: return
-        orbit = self.CENTER_R + 30
-        n = len(conds)
-        palette = ["#ff9960","#60dd88","#6080ff","#ffdd60","#ff88ff",
-                   "#88ffff","#ff6080","#88ddff","#ddff88","#ffaa88"]
-        # Draw the ring track
-        self._ring_w(0, 0, orbit, self._f("#8899bb", 0.20), w=1, dash=(3, 4))
-        for i, cond in enumerate(conds):
-            a = i * (360 / n)
+        ifthen   = getattr(s, 'ifthen_conditions',   [])
+        whenthen = getattr(s, 'when_then_conditions', [])
+        all_conds = [("if", c) for c in ifthen] + [("wt", c) for c in whenthen]
+        if not all_conds: return
+
+        orbit = self.CENTER_R + 50   # further out so it clears drawback rings
+        n = len(all_conds)
+        if_palette = ["#6080ff","#8899ff","#aabbff","#99aaee","#7788dd",
+                      "#5566cc","#8899ee","#aaccff","#6677bb","#9999dd"]
+        wt_palette = ["#ff9960","#60dd88","#ffdd60","#ff88ff","#88ffff",
+                      "#ff6080","#88ddff","#ddff88","#ffaa88","#aaffaa"]
+
+        # Ring track
+        self._ring_w(0, 0, orbit, self._f("#8899bb", 0.22), w=1, dash=(3, 4))
+
+        for i, (kind, cond) in enumerate(all_conds):
+            a = i * (360.0 / n)
             rx, ry = self._wpt(0, 0, orbit, a)
-            c = palette[i % len(palette)]
-            when_t = cond.get('when_text', '')
-            then_t = cond.get('then_text', '')
-            seed = (sum(ord(ch) for ch in (when_t + then_t)) + i * 37) % len(RUNES_ALL)
+            if kind == "if":
+                c      = if_palette[i % len(if_palette)]
+                label1 = cond.get('if_text',   '')
+                label2 = cond.get('then_text', '')
+                tip    = f"IF: {label1 or '(none)'}\nTHEN: {label2 or '(none)'}"
+            else:
+                c      = wt_palette[i % len(wt_palette)]
+                label1 = cond.get('when_text', '')
+                label2 = cond.get('then_text', '')
+                tip    = f"WHEN: {label1 or '(none)'}\nTHEN: {label2 or '(none)'}"
+
+            seed = (sum(ord(ch) for ch in (label1 + label2)) + i * 37) % len(RUNES_ALL)
             rune = RUNES_ALL[seed]
-            # Node circle
-            self._circle_w(rx, ry, 7, fill=self._f(c, 0.28), outline='')
-            self._ring_w(rx, ry, 7, self._b(c, '#ffffff', 0.60), w=1)
+
+            if kind == "if":
+                # Diamond shape for If-Then
+                d = 8
+                self._poly_w([(rx, ry-d),(rx+d, ry),(rx, ry+d),(rx-d, ry)],
+                             fill=self._f(c, 0.30), outline=self._b(c, '#ffffff', 0.60),
+                             width=1)
+            else:
+                # Circle for When-Then
+                self._circle_w(rx, ry, 7, fill=self._f(c, 0.28), outline='')
+                self._ring_w(rx, ry, 7, self._b(c, '#ffffff', 0.60), w=1)
+
             self._text_w(rx, ry, text=rune,
                          fill=self._b(c, '#ffffff', 0.88), font=('TkFixedFont', 8))
-            # Hit zone with tooltip
-            tip = f"WHEN: {when_t or '(none)'}\nTHEN: {then_t or '(none)'}"
-            self._hit_zones.append((rx, ry, 9, lambda: None, tip, None))
+            self._hit_zones.append((rx, ry, 10, lambda: None, tip, None))
 
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
@@ -2005,7 +2015,15 @@ class ElementPanel(tk.Frame):
                          wraplength=330,justify=tk.LEFT,anchor="w").pack(fill=tk.X,padx=12)
 
     def _toggle(self,el,var):
-        if var.get(): self.spell.elements[el]=True
+        if var.get():
+            active_count = sum(1 for v in self.spell.elements.values() if v)
+            if active_count >= 3:
+                var.set(False)
+                messagebox.showinfo("Limit Reached",
+                    "Maximum 3 Elemental Affinities can be active at once.",
+                    parent=self)
+                return
+            self.spell.elements[el]=True
         else:
             self.spell.elements.pop(el,None)
             self.spell.element_nodes.pop(el,None)
@@ -2390,197 +2408,48 @@ class NegativeModEditor(tk.Toplevel):
 class IfThenEditor(tk.Toplevel):
     BG="#0a0a14"; PBG="#0d0d1a"; TXT="#c8d0e8"; ACC="#3355ff"; GOLD="#c8a840"; EBG="#111120"
 
-    def __init__(self, master, spell, cond=None, on_save=None, depth=0, **kw):
+    def __init__(self, master, spell=None, cond=None, on_save=None, **kw):
         super().__init__(master, **kw)
-        self._spell = spell; self._on_save = on_save; self._depth = depth
-        self._cond = cond or {}
-        title = ("Chain: " if depth > 0 else "") + ("Edit" if cond else "New") + " If-Then Condition"
-        self.title(title); self.configure(bg=self.BG)
-        self.geometry("560x600"); self.transient(master); self.grab_set()
+        self._on_save = on_save
+        self.title("Edit If-Then" if cond else "New If-Then")
+        self.configure(bg=self.BG); self.geometry("440x360")
+        self.transient(master); self.grab_set()
 
         tk.Label(self, text="If-Then Condition",
                  bg=self.BG, fg=self.GOLD,
-                 font=("Georgia", 11, "bold italic")).pack(pady=(8, 2))
+                 font=("Georgia", 11, "bold italic")).pack(pady=(10, 4))
+        tk.Label(self, text="Free-form condition and effect. Displayed as a rune on the conditions ring.",
+                 bg=self.BG, fg="#445566", font=("Georgia", 8, "italic")).pack()
 
-        # Name
-        nf = tk.Frame(self, bg=self.BG); nf.pack(fill=tk.X, padx=10, pady=2)
-        tk.Label(nf, text="Name / Label:", bg=self.BG, fg=self.TXT,
-                 font=("Georgia", 9)).pack(anchor=tk.W)
-        self._nv = tk.StringVar(value=self._cond.get("name", ""))
-        ttk.Entry(nf, textvariable=self._nv, width=50).pack(fill=tk.X)
+        # IF
+        wf = tk.Frame(self, bg=self.BG); wf.pack(fill=tk.X, padx=12, pady=(8, 2))
+        tk.Label(wf, text="IF  (condition / trigger):",
+                 bg=self.BG, fg="#aaddff", font=("Georgia", 9, "bold")).pack(anchor=tk.W)
+        self._if_t = tk.Text(wf, height=4, bg=self.EBG, fg=self.TXT,
+                              insertbackground=self.TXT, relief="solid", bd=1,
+                              font=("Georgia", 9), wrap=tk.WORD)
+        self._if_t.pack(fill=tk.X)
+        if cond: self._if_t.insert("1.0", cond.get("if_text", ""))
 
-        # ── Notebook ──────────────────────────────────────────────
-        nb = ttk.Notebook(self); nb.pack(fill=tk.BOTH, expand=True, padx=10, pady=4)
-
-        # Tab 1: IF + THEN schools
-        t1 = tk.Frame(nb, bg=self.PBG); nb.add(t1, text="  IF / THEN  ")
-        self._build_if_then_tab(t1)
-
-        # Tab 2: THEN Mods & Abilities
-        t2 = tk.Frame(nb, bg=self.PBG); nb.add(t2, text="  Mods & Abilities  ")
-        self._build_mods_tab(t2)
-
-        # Tab 3: Chain
-        t3 = tk.Frame(nb, bg=self.PBG); nb.add(t3, text="  Chain  ")
-        self._build_chain_tab(t3)
+        # THEN
+        tf = tk.Frame(self, bg=self.BG); tf.pack(fill=tk.BOTH, expand=True, padx=12, pady=(8, 2))
+        tk.Label(tf, text="THEN  (effect / result):",
+                 bg=self.BG, fg="#60dd88", font=("Georgia", 9, "bold")).pack(anchor=tk.W)
+        self._then_t = tk.Text(tf, height=4, bg=self.EBG, fg=self.TXT,
+                                insertbackground=self.TXT, relief="solid", bd=1,
+                                font=("Georgia", 9), wrap=tk.WORD)
+        self._then_t.pack(fill=tk.BOTH, expand=True)
+        if cond: self._then_t.insert("1.0", cond.get("then_text", ""))
 
         # Buttons
-        bf = tk.Frame(self, bg=self.BG); bf.pack(fill=tk.X, padx=10, pady=6)
+        bf = tk.Frame(self, bg=self.BG); bf.pack(fill=tk.X, padx=12, pady=8)
         ttk.Button(bf, text="Save", command=self._save).pack(side=tk.RIGHT, padx=4)
         ttk.Button(bf, text="Cancel", command=self.destroy,
                    style="D.TButton").pack(side=tk.RIGHT, padx=4)
 
-    def _build_if_then_tab(self, f):
-        # IF schools
-        tk.Label(f, text="IF  — schools that must be active:",
-                 bg=self.PBG, fg=self.GOLD, font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        tk.Label(f, text="Hold Ctrl to select multiple.",
-                 bg=self.PBG, fg="#445566", font=("Georgia", 7, "italic")).pack(anchor=tk.W, padx=8)
-        if_frm = tk.Frame(f, bg=self.EBG); if_frm.pack(fill=tk.X, padx=8, pady=4)
-        if_sb = ttk.Scrollbar(if_frm, orient="vertical"); if_sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._if_lb = tk.Listbox(if_frm, bg=self.EBG, fg=self.TXT, selectbackground=self.ACC,
-                                  font=("Courier", 9), relief="flat", activestyle="none",
-                                  selectmode=tk.MULTIPLE, height=5, yscrollcommand=if_sb.set)
-        self._if_lb.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        if_sb.config(command=self._if_lb.yview)
-        self._sc_keys = list(SCHOOLS.keys())
-        active_sc = set(self._spell.all_schools)
-        for sc in self._sc_keys:
-            self._if_lb.insert(tk.END, f"{'◉' if sc in active_sc else '○'}  {sc}")
-        for sc in self._cond.get("if_schools", []):
-            if sc in self._sc_keys:
-                self._if_lb.selection_set(self._sc_keys.index(sc))
-
-        # THEN schools
-        tk.Label(f, text="THEN  — resulting schools / effects:",
-                 bg=self.PBG, fg="#60dd88", font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        then_frm = tk.Frame(f, bg=self.EBG); then_frm.pack(fill=tk.X, padx=8, pady=4)
-        then_sb = ttk.Scrollbar(then_frm, orient="vertical"); then_sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._then_sc_lb = tk.Listbox(then_frm, bg=self.EBG, fg=self.TXT, selectbackground="#226644",
-                                      font=("Courier", 9), relief="flat", activestyle="none",
-                                      selectmode=tk.MULTIPLE, height=5, yscrollcommand=then_sb.set)
-        self._then_sc_lb.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        then_sb.config(command=self._then_sc_lb.yview)
-        for sc in self._sc_keys:
-            self._then_sc_lb.insert(tk.END, f"{'◉' if sc in active_sc else '○'}  {sc}")
-        for sc in self._cond.get("then_schools", []):
-            if sc in self._sc_keys:
-                self._then_sc_lb.selection_set(self._sc_keys.index(sc))
-
-        # THEN free text
-        tk.Label(f, text="THEN  — effect description (optional):",
-                 bg=self.PBG, fg="#60dd88", font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        self._then_t = tk.Text(f, height=3, bg=self.EBG, fg=self.TXT,
-                               insertbackground=self.TXT, relief="solid", bd=1,
-                               font=("Georgia", 9), wrap=tk.WORD)
-        self._then_t.pack(fill=tk.X, padx=8, pady=(0,4))
-        self._then_t.insert("1.0", self._cond.get("then_text", ""))
-
-    def _build_mods_tab(self, f):
-        # THEN modifiers
-        tk.Label(f, text="THEN  — global modifiers associated with this condition:",
-                 bg=self.PBG, fg="#60dd88", font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        mf = tk.Frame(f, bg=self.EBG); mf.pack(fill=tk.X, padx=8, pady=4)
-        m_sb = ttk.Scrollbar(mf, orient="vertical"); m_sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._mod_lb = tk.Listbox(mf, bg=self.EBG, fg=self.TXT, selectbackground="#226644",
-                                   font=("Courier", 8), relief="flat", activestyle="none",
-                                   selectmode=tk.MULTIPLE, height=6, yscrollcommand=m_sb.set)
-        self._mod_lb.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        m_sb.config(command=self._mod_lb.yview)
-        self._mod_keys = list(GLOBAL_MODS.keys())
-        then_mods = set(self._cond.get("then_modifiers", []))
-        for mn in self._mod_keys:
-            cat = GLOBAL_MODS[mn].get("cat","")
-            self._mod_lb.insert(tk.END, f"[{cat[:4]}] {mn}")
-            if mn in then_mods:
-                self._mod_lb.selection_set(self._mod_keys.index(mn))
-
-        # THEN abilities
-        tk.Label(f, text="THEN  — school abilities associated with this condition:",
-                 bg=self.PBG, fg="#60dd88", font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        af = tk.Frame(f, bg=self.EBG); af.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
-        a_sb = ttk.Scrollbar(af, orient="vertical"); a_sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._ab_lb = tk.Listbox(af, bg=self.EBG, fg=self.TXT, selectbackground="#226644",
-                                   font=("Courier", 8), relief="flat", activestyle="none",
-                                   selectmode=tk.MULTIPLE, height=8, yscrollcommand=a_sb.set)
-        self._ab_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        a_sb.config(command=self._ab_lb.yview)
-        self._ab_keys = []  # list of (school, ability_name)
-        then_abs = self._cond.get("then_abilities", {})
-        for sc in SCHOOLS:
-            for abn in SCHOOLS[sc].get("abilities", {}):
-                self._ab_keys.append((sc, abn))
-                self._ab_lb.insert(tk.END, f"{SCHOOLS[sc]['symbol']} {sc[:8]}: {abn}")
-                if abn in then_abs.get(sc, []):
-                    self._ab_lb.selection_set(len(self._ab_keys) - 1)
-        a_sb.config(command=self._ab_lb.yview)
-
-    def _build_chain_tab(self, f):
-        tk.Label(f, text="Chained conditions — fire after this one resolves:",
-                 bg=self.PBG, fg="#aaddff", font=("Georgia", 9, "bold")).pack(anchor=tk.W, padx=8, pady=(8,0))
-        tk.Label(f, text="Chains inherit the context of the parent condition.",
-                 bg=self.PBG, fg="#445566", font=("Georgia", 7, "italic")).pack(anchor=tk.W, padx=8)
-        cf = tk.Frame(f, bg=self.EBG); cf.pack(fill=tk.BOTH, expand=True, padx=8, pady=4)
-        c_sb = ttk.Scrollbar(cf, orient="vertical"); c_sb.pack(side=tk.RIGHT, fill=tk.Y)
-        self._chain_lb = tk.Listbox(cf, bg=self.EBG, fg=self.TXT, selectbackground=self.ACC,
-                                     font=("Courier", 9), relief="flat", activestyle="none",
-                                     height=8, yscrollcommand=c_sb.set)
-        self._chain_lb.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        c_sb.config(command=self._chain_lb.yview)
-        self._chain_data = list(self._cond.get("chain", []))
-        self._refresh_chain_lb()
-        bf = tk.Frame(f, bg=self.PBG); bf.pack(fill=tk.X, padx=8, pady=4)
-        ttk.Button(bf, text="+ Add Chain", command=self._chain_add).pack(side=tk.LEFT, padx=2)
-        ttk.Button(bf, text="✎ Edit", command=self._chain_edit).pack(side=tk.LEFT, padx=2)
-        ttk.Button(bf, text="✕ Remove", command=self._chain_remove,
-                   style="D.TButton").pack(side=tk.LEFT, padx=2)
-
-    def _refresh_chain_lb(self):
-        self._chain_lb.delete(0, tk.END)
-        for c in self._chain_data:
-            ifs = ', '.join(c.get('if_schools', []) or ['—'])
-            thens = ', '.join(c.get('then_schools', []) or [])
-            nm = c.get('name', '')
-            label = f"IF {ifs}"
-            if thens: label += f"  → {thens}"
-            if nm:    label += f"  [{nm}]"
-            self._chain_lb.insert(tk.END, label)
-
-    def _chain_add(self):
-        IfThenEditor(self, self._spell, depth=self._depth + 1,
-                     on_save=lambda c: (self._chain_data.append(c), self._refresh_chain_lb()))
-
-    def _chain_edit(self):
-        sel = self._chain_lb.curselection()
-        if not sel or sel[0] >= len(self._chain_data): return
-        idx = sel[0]; existing = self._chain_data[idx]
-        def _upd(c, i=idx):
-            self._chain_data[i] = c; self._refresh_chain_lb()
-        IfThenEditor(self, self._spell, cond=existing, depth=self._depth + 1, on_save=_upd)
-
-    def _chain_remove(self):
-        sel = self._chain_lb.curselection()
-        if not sel or sel[0] >= len(self._chain_data): return
-        del self._chain_data[sel[0]]; self._refresh_chain_lb()
-
     def _save(self):
-        if_schools  = [self._sc_keys[i] for i in self._if_lb.curselection()]
-        then_schools = [self._sc_keys[i] for i in self._then_sc_lb.curselection()]
-        then_mods   = [self._mod_keys[i] for i in self._mod_lb.curselection()]
-        # Build then_abilities dict
-        then_abs = {}
-        for i in self._ab_lb.curselection():
-            sc, abn = self._ab_keys[i]
-            then_abs.setdefault(sc, []).append(abn)
-        cond = {
-            "name":           self._nv.get().strip(),
-            "if_schools":     if_schools,
-            "then_schools":   then_schools,
-            "then_modifiers": then_mods,
-            "then_abilities": then_abs,
-            "then_text":      self._then_t.get("1.0", tk.END).strip(),
-            "chain":          self._chain_data,
-        }
+        cond = {"if_text":   self._if_t.get("1.0", tk.END).strip(),
+                "then_text": self._then_t.get("1.0", tk.END).strip()}
         if self._on_save: self._on_save(cond)
         self.destroy()
 
@@ -2987,29 +2856,10 @@ class SpellForgeApp(tk.Tk):
         if ifthen:
             any_content=True
             t.insert("end","IF-THEN CONDITIONS\n","hdr")
-            def _render_cond(cond, indent="  "):
-                ifs=', '.join(cond.get('if_schools',[]) or ['—'])
-                thens=', '.join(cond.get('then_schools',[]) or [])
-                t.insert("end",f"{indent}IF  {ifs}\n","ifthen_if")
-                if thens:
-                    t.insert("end",f"{indent}THEN  schools: {thens}\n","ifthen_then")
-                then_mods=cond.get('then_modifiers',[])
-                if then_mods:
-                    t.insert("end",f"{indent}THEN  mods: {', '.join(then_mods)}\n","ifthen_then")
-                then_abs=cond.get('then_abilities',{})
-                for sc,abs_ in then_abs.items():
-                    if abs_:
-                        t.insert("end",f"{indent}THEN  {sc}: {', '.join(abs_)}\n","ifthen_then")
-                txt=cond.get('then_text','')
-                if txt:
-                    t.insert("end",f"{indent}THEN  {txt}\n","ifthen_then")
-                nm=cond.get('name','')
-                if nm: t.insert("end",f"{indent}[{nm}]\n","eff")
-                for sub in cond.get('chain',[]):
-                    _render_cond(sub, indent+"    ↳ ")
-                t.insert("end","\n")
             for cond in ifthen:
-                _render_cond(cond)
+                t.insert("end",f"  IF    {cond.get('if_text','') or '(any)'}\n","ifthen_if")
+                t.insert("end",f"  THEN  {cond.get('then_text','') or '(none)'}\n","ifthen_then")
+                t.insert("end","\n")
         t.tag_configure("ifthen_if",foreground="#aaddff",font=("Courier",8,"bold"))
         t.tag_configure("ifthen_then",foreground="#88ccaa",font=("Courier",8))
         # ── when-then conditions ─────────────────────────────────────
@@ -3046,29 +2896,21 @@ class SpellForgeApp(tk.Tk):
         t.configure(state="disabled")
 
     def _refresh_ifthen(self):
-        if not hasattr(self,'_ifthen_lb'): return
-        self._ifthen_lb.delete(0,tk.END)
-        def _add(cond,prefix=""):
-            ifs=', '.join(cond.get('if_schools',[]) or ['—'])
-            thens=', '.join(cond.get('then_schools',[]) or [])
-            nm=cond.get('name','')
-            label=f"{prefix}IF {ifs}"
-            if thens: label+=f"  → {thens}"
-            if nm:    label+=f"  [{nm}]"
-            self._ifthen_lb.insert(tk.END,label)
-            for sub in cond.get('chain',[]):
-                _add(sub,prefix+"  ↳ ")
-        for cond in getattr(self.spell,'ifthen_conditions',[]):
-            _add(cond)
+        if not hasattr(self, '_ifthen_lb'): return
+        self._ifthen_lb.delete(0, tk.END)
+        for cond in getattr(self.spell, 'ifthen_conditions', []):
+            if_t  = cond.get('if_text', '')[:35]
+            then_t = cond.get('then_text', '')[:35]
+            self._ifthen_lb.insert(tk.END, f"IF {if_t}…  →  {then_t}…")
     def _it_add(self):
-        IfThenEditor(self,self.spell,on_save=self._it_save_new)
+        IfThenEditor(self,spell=self.spell,on_save=self._it_save_new)
     def _it_edit(self):
         if not hasattr(self,'_ifthen_lb'): return
         sel=self._ifthen_lb.curselection()
         if not sel: return
         conds=getattr(self.spell,'ifthen_conditions',[])
         if sel[0]>=len(conds): return
-        IfThenEditor(self,self.spell,cond=conds[sel[0]],
+        IfThenEditor(self,spell=self.spell,cond=conds[sel[0]],
                      on_save=lambda c,i=sel[0]:self._it_save_edit(c,i))
     def _it_remove(self):
         if not hasattr(self,'_ifthen_lb'): return
