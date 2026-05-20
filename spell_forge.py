@@ -678,9 +678,9 @@ class MagicCircleCanvas(tk.Canvas):
     NODE_R_SEC  = 38    # used for necklace ring outer bound calculation
     CENTER_R    = 88    # central modifier hub radius
 
-    # Radii for modifier satellite circles
-    _MOD_ORBIT = 140  # world units from center to mod-circle centre
-    _MOD_CR    = 28   # radius of each modifier category circle
+    # Radii for modifier category circles (inside the center hub)
+    _MOD_ORBIT = 57   # world units from hub center to mod-circle centre
+    _MOD_CR    = 17   # radius of each modifier category circle
 
     def __init__(self,master,**kw):
         kw.setdefault("bg",self.BG); kw.setdefault("highlightthickness",0)
@@ -906,7 +906,6 @@ class MagicCircleCanvas(tk.Canvas):
         self._draw_main_geometry(R,pos)
         self._draw_element_band(R)
         self._draw_school_modules(pos)
-        self._draw_mod_circles()
         self._draw_center_hub()
         self._draw_status_bar(W,H)
 
@@ -1385,43 +1384,41 @@ class MagicCircleCanvas(tk.Canvas):
             self._star_w(sx,sy,r*0.25,r*0.12,5,fill=self._f(color,0.85),outline=color,width=1)
 
     def _draw_mod_circles(self):
-        """6 modifier-category mini-circles arrayed around the center hub.
-        All mods in each category shown as rune nodes — dim=inactive, bright=active.
+        """6 modifier-category mini-circles placed inside the center hub.
+        Aligned with the hub's 6 category arc sections.
+        All mods shown as rune nodes — dim=inactive, bright=active.
         Click to toggle; hover for tooltip."""
         orbit=self._MOD_ORBIT; cr=self._MOD_CR
         cats=list(CAT_COLORS.keys()); n=len(cats)
-        s=self.spell
+        seg=360/n; s=self.spell
         for i,cat in enumerate(cats):
-            angle=i*(360/n)
+            # Centre angle aligns with mid-point of the category arc section
+            angle=i*seg + seg/2
             cx,cy=self._wpt(0,0,orbit,angle)
             gc=CAT_COLORS[cat]
             cat_mods=[(mn,md) for mn,md in GLOBAL_MODS.items() if md["cat"]==cat]
             has_active=any(s.global_mods.get(mn,0)>0 for mn,_ in cat_mods)
 
-            # Spoke from hub edge to circle
-            hx,hy=self._wpt(0,0,self.CENTER_R+2,angle)
-            ex,ey=self._wpt(0,0,orbit-cr-2,angle)
-            self._line_w(hx,hy,ex,ey,fill=self._f(gc,0.22),width=1,dash=(3,4))
-
             # Circle body
-            self._circle_w(cx,cy,cr,fill=self._f(gc,0.10 if has_active else 0.04),outline="")
-            self._ring_w(cx,cy,cr,self._f(gc,0.55 if has_active else 0.28),w=2 if has_active else 1)
-            self._ring_w(cx,cy,cr*0.72,self._f(gc,0.20),w=1)
-            # 8 radial spokes inside circle
-            for k in range(8):
-                a2=k*45; p1=self._wpt(cx,cy,cr*0.10,a2); p2=self._wpt(cx,cy,cr*0.68,a2)
-                self._line_w(p1[0],p1[1],p2[0],p2[1],fill=self._f(gc,0.14),width=1)
+            self._circle_w(cx,cy,cr,fill=self._f(gc,0.12 if has_active else 0.05),outline="")
+            self._ring_w(cx,cy,cr,self._f(gc,0.60 if has_active else 0.30),w=2 if has_active else 1)
+            self._ring_w(cx,cy,cr*0.68,self._f(gc,0.18),w=1)
+            # 4 radial spokes inside circle
+            for k in range(4):
+                a2=angle+k*90
+                p1=self._wpt(cx,cy,cr*0.12,a2); p2=self._wpt(cx,cy,cr*0.62,a2)
+                self._line_w(p1[0],p1[1],p2[0],p2[1],fill=self._f(gc,0.18),width=1)
 
-            # Category rune label at centre
+            # Category rune at centre
             base_rune=MOD_RUNES[cat][0]
             self._text_w(cx,cy,text=base_rune,
-                         fill=self._b(gc,"#ffffff",0.70) if has_active else self._f(gc,0.45),
-                         font=("TkFixedFont",max(7,int(cr*0.52))))
+                         fill=self._b(gc,"#ffffff",0.75) if has_active else self._f(gc,0.45),
+                         font=("TkFixedFont",max(6,int(cr*0.50))))
 
             # Mod rune nodes on outer ring
             nm=len(cat_mods)
             if nm==0: continue
-            node_r=cr*0.83; hz_r=max(5,cr*0.22)
+            node_r=cr*0.82; hz_r=max(5,cr*0.30)
             for j,(mn,md) in enumerate(cat_mods):
                 node_a=j*(360/nm)
                 rx,ry=self._wpt(cx,cy,node_r,node_a)
@@ -1430,16 +1427,16 @@ class MagicCircleCanvas(tk.Canvas):
                 seed=sum(ord(ch) for ch in mn)
                 rune=RUNES_ALL[seed%len(RUNES_ALL)]
                 if bought:
-                    self._circle_w(rx,ry,3,fill=self._f(gc,0.60),outline=gc)
+                    self._circle_w(rx,ry,3,fill=self._f(gc,0.65),outline=gc)
                     self._text_w(rx,ry,text=rune,fill=self._b(gc,"#ffffff",0.80),
-                                 font=("TkFixedFont",max(4,int(cr*0.25))))
+                                 font=("TkFixedFont",max(4,int(cr*0.26))))
                     if cnt>1:
-                        nx2,ny2=self._wpt(rx,ry,6,315)
+                        nx2,ny2=self._wpt(rx,ry,5,315)
                         self._text_w(nx2,ny2,text=str(cnt),fill=gc,font=("TkFixedFont",4))
                 else:
-                    self._circle_w(rx,ry,2,fill=self._f(gc,0.15),outline="")
-                    self._text_w(rx,ry,text=rune,fill=self._f(gc,0.38),
-                                 font=("TkFixedFont",max(4,int(cr*0.20))))
+                    self._circle_w(rx,ry,2,fill=self._f(gc,0.14),outline="")
+                    self._text_w(rx,ry,text=rune,fill=self._f(gc,0.35),
+                                 font=("TkFixedFont",max(4,int(cr*0.22))))
                 cost=md.get("cost",0); mx=md.get("max",1)
                 tip=f"{mn}\nCategory: {cat}  Cost: {cost} pt  Max: {mx}\n{md.get('desc','')}"
                 def _mod_cb(mod_name=mn,max_v=mx):
@@ -1449,55 +1446,32 @@ class MagicCircleCanvas(tk.Canvas):
                     self._redraw()
                 self._hit_zones.append((rx,ry,hz_r,_mod_cb,tip))
 
-            # Category label below circle
-            self._text_w(cx,cy+cr+7,text=cat,fill=self._f(gc,0.55),font=("TkFixedFont",5))
-
     def _draw_center_hub(self):
-        """Central hub — sacred geometry + level display. Mod details now in satellite circles."""
+        """Central hub — 6 category mod circles inside, level display at centre.
+        Draw order: background → dividers → mod circles → level display → borders."""
         r=self.CENTER_R
-
-        # Outer border
-        self._ring_w(0,0,r,self._b("#e8d8a0","#ffffff",0.55),w=2)
-        self._ring_w(0,0,r*0.94,self._f("#6688aa",0.22),w=1)
-
-        # Inner concentric rings
-        for i,frac in enumerate([0.84,0.72,0.58,0.44,0.30]):
-            col2=self._f("#6688aa",0.30-i*0.04)
-            self._ring_w(0,0,r*frac,col2,w=1,dash=((4,3) if i%2==1 else None))
-
-        # Small dots around border
-        for i in range(16):
-            a=i*(360/16); dx,dy=self._wpt(0,0,r*0.91,a)
-            self._circle_w(dx,dy,2 if i%4==0 else 1,fill=self._f("#aabbdd",0.45),outline="")
-
-        # Category arc markers (thin color arcs around outer ring — decorative only)
         CATS=list(CAT_COLORS.keys()); nc=len(CATS); seg=360/nc
-        for i,cat in enumerate(CATS):
-            gc=CAT_COLORS[cat]; a_s=i*seg
-            self._arc_ring_w(0,0,r,a_s,seg-3,outline=self._f(gc,0.45),width=2)
-            mid_a=a_s+seg/2; lx,ly=self._wpt(0,0,r*0.88,mid_a)
-            self._text_w(lx,ly,text=MOD_RUNES[cat][0],fill=self._f(gc,0.55),
-                         font=("TkFixedFont",6),angle=-(mid_a-90))
 
-        # Radial dividers
+        # ── Background fill ──────────────────────────────────────
+        self._circle_w(0,0,r,fill=self._f("#1a1208",0.60),outline="")
+
+        # ── Faint single inner ring (behind mod circles) ─────────
+        self._ring_w(0,0,r*0.42,self._f("#6688aa",0.18),w=1)
+
+        # ── Category section radial dividers ─────────────────────
         for i in range(nc):
-            a=i*seg; x1,y1=self._wpt(0,0,r*0.42,a); x2,y2=self._wpt(0,0,r*0.90,a)
-            self._line_w(x1,y1,x2,y2,fill=self._f("#aaaacc",0.30),width=1)
+            a=i*seg
+            x1,y1=self._wpt(0,0,r*0.30,a); x2,y2=self._wpt(0,0,r*0.92,a)
+            self._line_w(x1,y1,x2,y2,fill=self._f("#aaaacc",0.22),width=1)
 
-        # Sacred geometry
-        self._star_w(0,0,r*0.68,r*0.32,6,fill=self._f("#6688aa",0.05),outline=self._f("#6688aa",0.25),width=1)
-        self._poly_n_w(0,0,r*0.50,6,fill=self._f("#6688aa",0.03),outline=self._f("#6688aa",0.18),width=1)
+        # ── 6 modifier category circles (drawn here, inside hub) ──
+        self._draw_mod_circles()
 
-        # Decorative rune ring
-        seed=hash("modifiers")%10000
-        ring_txt="".join(RUNES_ALL[(seed+i*7)%len(RUNES_ALL)] for i in range(24))
-        self._arc_text_w(0,0,r*0.68,ring_txt,10,self._f("#8899cc",0.45),fontsize=5,step_deg=5.5)
-
-        # Centre level display
+        # ── Centre level gem (drawn on top of mod circles) ───────
         lvl_idx,lvl_name,lvl_col=self.spell.level_info
         r_gem=r*0.28
-        self._circle_w(0,0,r_gem*1.3,fill=self._f(lvl_col,0.22),outline="")
-        self._ring_w(0,0,r_gem*1.3,self._b(lvl_col,"#ffffff",0.35),w=1)
+        self._circle_w(0,0,r_gem*1.35,fill=self._f(lvl_col,0.25),outline="")
+        self._ring_w(0,0,r_gem*1.35,self._b(lvl_col,"#ffffff",0.40),w=2)
         if lvl_idx<=9:
             disp="C" if lvl_idx==0 else str(lvl_idx)
             self._text_w(0,0,text=disp,fill=lvl_col,font=("Georgia",max(18,int(r_gem*1.5)),"bold"))
@@ -1506,8 +1480,23 @@ class MagicCircleCanvas(tk.Canvas):
         elif lvl_idx==12: self._draw_wings_w(0,0,r_gem,"#FFFFFF")
         elif lvl_idx==13: self._draw_sun_w(0,0,r_gem,"#FFFFFF")
         else:             self._draw_stars_w(0,0,r_gem,"#FFFFFF")
-        self._text_w(0,r_gem*1.85,text=lvl_name.upper(),
+        self._text_w(0,r_gem*1.92,text=lvl_name.upper(),
                      fill=self._b(lvl_col,"#aabbdd",0.50),font=("TkFixedFont",5))
+
+        # ── Outer border + category colour arcs (drawn last = on top) ──
+        self._ring_w(0,0,r,self._b("#e8d8a0","#ffffff",0.55),w=2)
+        self._ring_w(0,0,r*0.94,self._f("#6688aa",0.20),w=1)
+        # Dot ring just inside outer border
+        for i in range(16):
+            a=i*(360/16); dx,dy=self._wpt(0,0,r*0.91,a)
+            self._circle_w(dx,dy,2 if i%4==0 else 1,fill=self._f("#aabbdd",0.40),outline="")
+        # Category colour arcs with rune labels
+        for i,cat in enumerate(CATS):
+            gc=CAT_COLORS[cat]; a_s=i*seg
+            self._arc_ring_w(0,0,r,a_s,seg-3,outline=self._f(gc,0.50),width=3)
+            mid_a=a_s+seg/2; lx,ly=self._wpt(0,0,r*0.87,mid_a)
+            self._text_w(lx,ly,text=MOD_RUNES[cat][0],fill=self._f(gc,0.65),
+                         font=("TkFixedFont",6),angle=-(mid_a-90))
 
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
