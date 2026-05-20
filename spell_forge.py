@@ -2380,6 +2380,15 @@ class SpellForgeApp(tk.Tk):
         self.cl=tk.Listbox(frm4,height=4,bg=self.EBG,fg=self.TXT,selectbackground=self.ACC,relief="solid",borderwidth=1,font=("Georgia",9))
         self.cl.pack(fill=tk.X,pady=2)
         ttk.Button(frm4,text="✕ Remove",command=self._rmce,style="D.TButton").pack(anchor=tk.W)
+        # ── Spell Effects (live output) ──────────────────────────────
+        lfe=ttk.LabelFrame(f,text="  Spell Effects  ",padding=4)
+        lfe.pack(fill=tk.BOTH,expand=True,padx=6,pady=(4,6))
+        eff_sb=ttk.Scrollbar(lfe,orient="vertical"); eff_sb.pack(side=tk.RIGHT,fill=tk.Y)
+        self._effects_box=tk.Text(lfe,bg=self.EBG,fg=self.TXT,relief="flat",
+                                  font=("Courier",8),state="disabled",wrap=tk.WORD,
+                                  padx=6,pady=4,yscrollcommand=eff_sb.set)
+        self._effects_box.pack(fill=tk.BOTH,expand=True)
+        eff_sb.config(command=self._effects_box.yview)
 
     def _build_right(self,parent):
         nb=ttk.Notebook(parent); nb.pack(fill=tk.BOTH,expand=True)
@@ -2459,6 +2468,171 @@ class SpellForgeApp(tk.Tk):
                 self._db_list.insert(tk.END,f"◌  {pretty}\n")
                 self._db_list.insert(tk.END,f"   → {neg_name}\n\n")
         self._db_list.configure(state="disabled")
+
+    def _refresh_effects(self):
+        if not hasattr(self,'_effects_box'): return
+        s=self.spell; t=self._effects_box
+        t.configure(state="normal"); t.delete("1.0",tk.END)
+        # ── configure tags (done first so they exist before any insert) ──
+        _,lvl_name,lvl_col=s.level_info
+        t.tag_configure("title",foreground="#e8d8a0",font=("Georgia",10,"bold italic"))
+        t.tag_configure("lvl",foreground=lvl_col,font=("Georgia",9,"italic"))
+        t.tag_configure("hdr",foreground="#c8a840",font=("Georgia",9,"bold"))
+        t.tag_configure("ability",foreground="#aabbcc",font=("Courier",8))
+        t.tag_configure("ringmod",foreground="#99aacc",font=("Courier",8))
+        t.tag_configure("db_item",foreground="#cc8888",font=("Courier",8))
+        t.tag_configure("db_key",foreground="#cc8888",font=("Courier",8))
+        t.tag_configure("db_name",foreground="#ff9999",font=("Courier",8,"bold"))
+        t.tag_configure("db_desc",foreground="#aa6666",font=("Courier",8,"italic"))
+        t.tag_configure("capstone",foreground="#FFD700",font=("Georgia",8,"bold"))
+        t.tag_configure("cap_desc",foreground="#ccaa44",font=("Georgia",8,"italic"))
+        t.tag_configure("eff",foreground="#778899",font=("Georgia",8,"italic"))
+        t.tag_configure("node",foreground="#88aacc",font=("Courier",8))
+        t.tag_configure("sub_el",foreground="#88bbaa",font=("Courier",8))
+        t.tag_configure("special",foreground="#88ffff",font=("Courier",8))
+        t.tag_configure("custom",foreground="#aaddbb",font=("Georgia",8,"italic"))
+        t.tag_configure("empty",foreground="#445566",font=("Georgia",9,"italic"))
+        for cat,col in [("range","#ff6060"),("duration","#60ee88"),("area","#6088ff"),
+                         ("power","#ffd060"),("casting","#ff88ff")]:
+            t.tag_configure(f"c_{cat}",foreground=col,font=("Courier",8))
+        # ── title ─────────────────────────────────────────────────────
+        t.insert("end",f"  {s.name or 'Unnamed Spell'}\n","title")
+        t.insert("end",f"  {lvl_name}  ·  {s.total_points} pts\n\n","lvl")
+        any_content=False
+        # ── casting params (Range/Duration/Area/Power/Casting mods) ──
+        cast_cats=["Range","Duration","Area","Power","Casting"]
+        cast_rows=[(mn,cnt) for mn,cnt in s.global_mods.items()
+                   if GLOBAL_MODS.get(mn,{}).get("cat") in cast_cats and cnt>0]
+        if cast_rows:
+            any_content=True
+            t.insert("end","CASTING\n","hdr")
+            for mn,cnt in cast_rows:
+                m=GLOBAL_MODS.get(mn,{}); cat=m.get("cat","").lower()
+                sx=f" ×{cnt}" if cnt>1 else ""
+                t.insert("end",f"  {mn}{sx}\n",f"c_{cat}")
+                t.insert("end",f"    {m.get('desc','')}\n","eff")
+            t.insert("end","\n")
+        # ── special mods ──────────────────────────────────────────────
+        spec_rows=[(mn,cnt) for mn,cnt in s.global_mods.items()
+                   if GLOBAL_MODS.get(mn,{}).get("cat")=="Special" and cnt>0]
+        if spec_rows:
+            any_content=True
+            t.insert("end","SPECIAL MODIFIERS\n","hdr")
+            for mn,cnt in spec_rows:
+                m=GLOBAL_MODS.get(mn,{})
+                sx=f" ×{cnt}" if cnt>1 else ""
+                is_db=f"mod/{mn}" in s.drawback_buys
+                db_mk=" ◌" if is_db else ""
+                t.insert("end",f"  {mn}{sx}{db_mk}\n","db_item" if is_db else "special")
+                t.insert("end",f"    {m.get('desc','')}\n","eff")
+            t.insert("end","\n")
+        # ── schools ───────────────────────────────────────────────────
+        active_sc=s.all_schools
+        if active_sc:
+            any_content=True
+            t.insert("end","SCHOOLS\n","hdr")
+            for school in active_sc:
+                sd=SCHOOLS[school]; sym=sd["symbol"]; sc_col=sd["color"]
+                cap=s.capstone_active(school)
+                stag=f"st_{id(school)}"
+                t.tag_configure(stag,foreground=sc_col,font=("Georgia",9,"bold"))
+                cap_mark="  ⚜ CAPSTONE" if cap else ""
+                t.insert("end",f"  {sym} {school}{cap_mark}\n",stag)
+                # abilities
+                ab_dict=s.school_abilities.get(school,{})
+                for abn,cnt in ab_dict.items():
+                    if cnt>0:
+                        ab_info=sd.get("abilities",{}).get(abn,{})
+                        sx=f" ×{cnt}" if cnt>1 else ""
+                        is_db=f"ability/{school}/{abn}" in s.drawback_buys
+                        db_mk=" ◌" if is_db else ""
+                        t.insert("end",f"    • {abn}{sx}{db_mk}\n","db_item" if is_db else "ability")
+                        t.insert("end",f"      {ab_info.get('desc','')}\n","eff")
+                # ring mods
+                rd=s.ring_mods.get(school,{})
+                rm_labels=sd.get("ring_mods",{})
+                for grp in RING_GROUPS:
+                    cnt=rd.get(grp,0)
+                    if cnt>0:
+                        label=rm_labels.get(grp,grp)
+                        is_db=f"ringmod/{school}/{grp}" in s.drawback_buys
+                        db_mk=" ◌" if is_db else ""
+                        t.insert("end",f"    ◦ {label} ×{cnt}{db_mk}\n","db_item" if is_db else "ringmod")
+                # capstone desc
+                if cap:
+                    cd=CAPSTONES.get(school,{})
+                    t.insert("end",f"    ⚜ {cd.get('name','')}\n","capstone")
+                    t.insert("end",f"      {cd.get('desc','')}\n","cap_desc")
+            t.insert("end","\n")
+        # ── elements ──────────────────────────────────────────────────
+        active_els=[(el,val) for el,val in s.elements.items() if val]
+        if active_els:
+            any_content=True
+            t.insert("end","ELEMENTS\n","hdr")
+            for el,val in active_els:
+                ed=ELEMENTS[el]; el_tag=f"et_{el}"
+                t.tag_configure(el_tag,foreground=ed["color"],font=("Georgia",9,"bold"))
+                sub_txt=f"  [{val}]" if isinstance(val,str) else ""
+                t.insert("end",f"  {ed['symbol']} {el}{sub_txt}\n",el_tag)
+                t.insert("end",f"    {ed['modification']}\n","eff")
+                # subtype extra
+                if isinstance(val,str):
+                    st_eff=ed.get("subtypes",{}).get(val,{}).get("modification","")
+                    if st_eff: t.insert("end",f"    ({val}) {st_eff}\n","eff")
+                # element nodes
+                for nname,cnt in s.element_nodes.get(el,{}).items():
+                    if cnt>0:
+                        for nd in ed.get("nodes",[]):
+                            if nd["name"]==nname:
+                                sx=f" ×{cnt}" if cnt>1 else ""
+                                t.insert("end",f"    + {nname}{sx}: {nd.get('effect',nd.get('desc',''))}\n","node")
+                                break
+            # sub-element combos
+            for (el1,el2),conn_desc in ELEMENT_CONNECTIONS.items():
+                if s.elements.get(el1) and s.elements.get(el2):
+                    t.insert("end",f"  ⊕ {el1} + {el2}:\n","sub_el")
+                    t.insert("end",f"    {conn_desc}\n","eff")
+            t.insert("end","\n")
+        # ── synergies ─────────────────────────────────────────────────
+        conns=s.active_connections
+        if conns:
+            any_content=True
+            t.insert("end","SYNERGIES\n","hdr")
+            for s1,s2,name,is_cap in conns:
+                c1=SCHOOLS[s1]["color"]; c2=SCHOOLS[s2]["color"]
+                sym1=SCHOOLS[s1]["symbol"]; sym2=SCHOOLS[s2]["symbol"]
+                def _hx(c): c=c.lstrip("#"); return int(c[:2],16),int(c[2:4],16),int(c[4:6],16)
+                r1,g1,b1=_hx(c1); r2,g2,b2=_hx(c2)
+                blend="#{:02x}{:02x}{:02x}".format((r1+r2)//2,(g1+g2)//2,(b1+b2)//2)
+                stag=f"sy_{s1[:4]}{s2[:4]}"
+                t.tag_configure(stag,foreground="#FFD700" if is_cap else blend,font=("Georgia",9,"bold"))
+                cap_mk="  ⚜" if is_cap else ""
+                t.insert("end",f"  {sym1} {s1} + {sym2} {s2}{cap_mk}\n",stag)
+                t.insert("end",f"    → {name}\n","eff")
+            t.insert("end","\n")
+        # ── drawbacks ─────────────────────────────────────────────────
+        if s.drawback_buys:
+            any_content=True
+            t.insert("end","DRAWBACKS\n","hdr")
+            for key,neg_name in s.drawback_buys.items():
+                parts=key.split("/",1); pretty=parts[1] if len(parts)>1 else key
+                t.insert("end",f"  ◌ {pretty}\n","db_key")
+                neg_desc=next((m["desc"] for m in NEGATIVE_MODS if m["name"]==neg_name),"")
+                t.insert("end",f"    Penalty: {neg_name}","db_name")
+                if neg_desc: t.insert("end",f" — {neg_desc}","db_desc")
+                t.insert("end","\n")
+            t.insert("end","\n")
+        # ── custom effects ────────────────────────────────────────────
+        if s.custom_effects:
+            any_content=True
+            t.insert("end","CUSTOM EFFECTS\n","hdr")
+            for e in s.custom_effects:
+                t.insert("end",f"  • {e}\n","custom")
+            t.insert("end","\n")
+        # ── empty state ───────────────────────────────────────────────
+        if not any_content:
+            t.insert("end","\nNo spell components selected yet.\n\nBuy abilities, ring mods, modifiers,\nor elements to see effects here.","empty")
+        t.configure(state="disabled")
 
     def _refresh_neg_mods(self):
         if not hasattr(self,'_nm_lb'): return
@@ -2544,6 +2718,7 @@ class SpellForgeApp(tk.Tk):
         if hasattr(self,'mp'): self.mp.spell=self.spell; self.mp.refresh()
         if hasattr(self,'el_panel'): self.el_panel.spell=self.spell
         self._refresh_drawbacks()
+        self._refresh_effects()
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
         conns=self.spell.active_connections
