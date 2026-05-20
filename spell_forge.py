@@ -654,13 +654,8 @@ class Spell:
             for j in range(i+1,len(schools)):
                 p=school_pair(schools[i],schools[j])
                 if p and p not in seen:
-                    res.append((schools[i],schools[j],SCHOOL_CONNECTIONS[p],False))
-                    seen.add(p)
-        for (s1,s2),name in SCHOOL_CONNECTIONS.items():
-            if self.capstone_active(s1) and self.capstone_active(s2):
-                p=(s1,s2)
-                if p not in seen:
-                    res.append((s1,s2,name,True))
+                    cap=self.capstone_active(schools[i]) and self.capstone_active(schools[j])
+                    res.append((schools[i],schools[j],SCHOOL_CONNECTIONS[p],cap))
                     seen.add(p)
         return res
 
@@ -683,14 +678,24 @@ class MagicCircleCanvas(tk.Canvas):
     NODE_R_SEC  = 38    # secondary school module base radius
     CENTER_R    = 88    # central modifier hub radius
 
+    # Radii for modifier satellite circles
+    _MOD_ORBIT = 140  # world units from center to mod-circle centre
+    _MOD_CR    = 28   # radius of each modifier category circle
+
     def __init__(self,master,**kw):
         kw.setdefault("bg",self.BG); kw.setdefault("highlightthickness",0)
         super().__init__(master,**kw)
         self.spell:Optional[Spell]=None
         self._zoom=1.0
-        self._ox=0.0; self._oy=0.0   # origin offset (pan + zoom centre)
+        self._ox=0.0; self._oy=0.0
         self._drag_start=None
-        self._centered=False  # True once we have a real canvas size
+        self._centered=False
+        self._on_change=None          # callback → app._refresh()
+        self._hit_zones=[]            # [(wx,wy,wr,callback,tooltip_text), ...]
+        self._tooltip_win=None
+        self._tooltip_after=None
+        self._tooltip_text=""
+        self._tooltip_cx=0; self._tooltip_cy=0
         self.bind("<Configure>",lambda _:self._redraw())
         self.bind("<MouseWheel>",self._on_wheel)
         self.bind("<Button-4>",self._on_wheel)
@@ -699,6 +704,9 @@ class MagicCircleCanvas(tk.Canvas):
         self.bind("<B2-Motion>",self._pan_move)
         self.bind("<ButtonPress-3>",self._pan_start)
         self.bind("<B3-Motion>",self._pan_move)
+        self.bind("<Button-1>",self._on_click)
+        self.bind("<Motion>",self._on_motion)
+        self.bind("<Leave>",self._hide_tooltip)
 
     def load(self,spell): self.spell=spell; self._redraw()
     def zoom_in(self,x=None,y=None):  self._apply_zoom(1.15,x,y)
@@ -725,6 +733,57 @@ class MagicCircleCanvas(tk.Canvas):
         if self._drag_start:
             self._ox+=e.x-self._drag_start[0]; self._oy+=e.y-self._drag_start[1]
             self._drag_start=(e.x,e.y); self._redraw()
+
+    # ── Hit-zone / tooltip / click ────────────────────────────────
+    def _wx_wy(self,ex,ey):
+        return (ex-self._ox)/self._zoom, (ey-self._oy)/self._zoom
+
+    def _nearest_hz(self,ex,ey):
+        wx,wy=self._wx_wy(ex,ey)
+        best=None; bd=float('inf')
+        for (hx,hy,hr,cb,tip) in self._hit_zones:
+            d=math.hypot(wx-hx,wy-hy)
+            if d<hr and d<bd: best=(cb,tip); bd=d
+        return best
+
+    def _on_click(self,e):
+        self._hide_tooltip()
+        hz=self._nearest_hz(e.x,e.y)
+        if hz:
+            hz[0]()  # call the action callback
+
+    def _on_motion(self,e):
+        if self._tooltip_after:
+            self.after_cancel(self._tooltip_after); self._tooltip_after=None
+        hz=self._nearest_hz(e.x,e.y)
+        if hz:
+            self._tooltip_text=hz[1]
+            self._tooltip_cx=e.x; self._tooltip_cy=e.y
+            self._tooltip_after=self.after(350,self._show_tooltip)
+        else:
+            self._hide_tooltip()
+
+    def _show_tooltip(self):
+        self._tooltip_after=None
+        if self._tooltip_win:
+            try: self._tooltip_win.destroy()
+            except: pass
+        tw=tk.Toplevel(self); tw.wm_overrideredirect(True)
+        sx=self.winfo_rootx()+self._tooltip_cx+16
+        sy=self.winfo_rooty()+self._tooltip_cy+10
+        tw.wm_geometry(f"+{sx}+{sy}")
+        tk.Label(tw,text=self._tooltip_text,justify="left",
+                 bg="#12121e",fg="#ccd8ff",font=("TkFixedFont",8),
+                 relief="solid",bd=1,padx=6,pady=4).pack()
+        self._tooltip_win=tw
+
+    def _hide_tooltip(self,event=None):
+        if self._tooltip_after:
+            self.after_cancel(self._tooltip_after); self._tooltip_after=None
+        if self._tooltip_win:
+            try: self._tooltip_win.destroy()
+            except: pass
+            self._tooltip_win=None
 
     # world → canvas coordinate
     def _tc(self,wx,wy):
@@ -814,6 +873,8 @@ class MagicCircleCanvas(tk.Canvas):
 
     # ── MAIN REDRAW ───────────────────────────────────────────────
     def _redraw(self):
+        self._hit_zones=[]
+        self._hide_tooltip()
         self.delete("all")
         W,H=self.winfo_width(),self.winfo_height()
         if W<10 or H<10:
@@ -845,6 +906,7 @@ class MagicCircleCanvas(tk.Canvas):
         self._draw_main_geometry(R,pos)
         self._draw_element_band(R)
         self._draw_school_modules(pos)
+        self._draw_mod_circles()
         self._draw_center_hub()
         self._draw_status_bar(W,H)
 
@@ -979,7 +1041,8 @@ class MagicCircleCanvas(tk.Canvas):
 
     def _draw_module(self,wx,wy,school):
         """School circle: outer ring = ability runes, inner ring = ring mod runes.
-        Active schools (primary/secondary) are bright. All 10 always visible."""
+        All 10 schools always visible. All abilities/mods shown (dim=unselected, bright=selected).
+        Hit zones registered for click-to-toggle and hover tooltip."""
         s=self.spell; c=SCHOOLS[school]["color"]
         is_p=(school==s.primary_school)
         active=(is_p or school in s.secondary_schools)
@@ -987,6 +1050,7 @@ class MagicCircleCanvas(tk.Canvas):
         cap=s.capstone_active(school)
         bright=1.0 if active else 0.20
         ink=self._b("#e8d8a0","#ffffff",0.55)
+        ab_data=SCHOOLS[school].get("abilities",{})
 
         # Capstone gold outer pulse
         if cap and active:
@@ -998,29 +1062,42 @@ class MagicCircleCanvas(tk.Canvas):
         self._ring_w(wx,wy,r,oc,w=2 if active else 1)
         self._ring_w(wx,wy,r*0.92,self._f(c,0.30*bright),w=1)
 
-        # ── OUTER RUNE RING — school abilities ────────────────────
-        ab_names=list(SCHOOLS[school].get("abilities",{}).keys())
+        # ── OUTER RUNE RING — school abilities (ALL always visible) ──
+        ab_names=list(ab_data.keys())
         ab_dict=s.school_abilities.get(school,{})
-        n_ab=len(ab_names); ab_r=r*0.84
+        n_ab=len(ab_names); ab_r=r*0.84; hz_r=max(7,r*0.18)
         for i,abn in enumerate(ab_names[:12]):
             a=i*(360/max(12,n_ab))
             rx,ry=self._wpt(wx,wy,ab_r,a)
             cnt=ab_dict.get(abn,0)
             seed=sum(ord(ch) for ch in abn)
             rune=RUNES_ALL[seed%len(RUNES_ALL)]
-            if cnt>0 and active:
+            bought=(cnt>0)
+            if bought:
                 self._circle_w(rx,ry,3,fill=self._f(c,0.65),outline="")
                 self._text_w(rx,ry,text=rune,fill=self._b(c,"#ffffff",0.65),
                              font=("TkFixedFont",max(5,int(r*0.18))))
             else:
-                self._text_w(rx,ry,text=rune,fill=self._f(c,0.25*bright),
+                # Dim but visible
+                self._circle_w(rx,ry,2,fill=self._f(c,0.18*bright),outline="")
+                self._text_w(rx,ry,text=rune,fill=self._f(c,0.35*bright),
                              font=("TkFixedFont",max(4,int(r*0.14))))
+            # Hit zone — click cycles purchase count
+            ab_info=ab_data.get(abn,{})
+            tip=f"{abn}\nCost: {ab_info.get('cost',1)} pt/purchase\n{ab_info.get('desc','')}"
+            def _ab_cb(sc=school,ab=abn):
+                self.spell.school_abilities.setdefault(sc,{})[ab]=(
+                    self.spell.school_abilities.get(sc,{}).get(ab,0)+1)%4
+                if self._on_change: self._on_change()
+                self._redraw()
+            self._hit_zones.append((rx,ry,hz_r,_ab_cb,tip))
 
-        # ── INNER RUNE RING — ring modifiers ─────────────────────
+        # ── INNER RUNE RING — ring modifiers (ALL slots always visible) ──
         grp_c={"Range":"#ff8080","Duration":"#80ee88","Area":"#8088ff","Power":"#ffe080"}
         grp_names=["Range","Duration","Area","Power"]
         ring_data=s.ring_mods.get(school,{})
-        mod_r=r*0.64
+        mod_r=r*0.64; hz_r2=max(6,r*0.14)
+        school_rm_labels=SCHOOLS[school].get("ring_mods",{})
         for gi,grp in enumerate(grp_names):
             fill_cnt=ring_data.get(grp,0)
             gc=grp_c[grp]
@@ -1030,13 +1107,24 @@ class MagicCircleCanvas(tk.Canvas):
                 filled=(slot<fill_cnt)
                 rune_list=MOD_RUNES.get(grp,["?"])
                 rune=rune_list[min(slot,len(rune_list)-1)]
-                if filled and active:
+                if filled:
                     self._circle_w(rx2,ry2,3,fill=self._f(gc,0.55),outline="")
                     self._text_w(rx2,ry2,text=rune,fill=self._b(gc,"#ffffff",0.55),
                                  font=("TkFixedFont",max(4,int(r*0.18))))
                 else:
-                    self._text_w(rx2,ry2,text=rune,fill=self._f(gc,0.18*bright),
-                                 font=("TkFixedFont",max(4,int(r*0.14))))
+                    self._circle_w(rx2,ry2,2,fill=self._f(gc,0.12*bright),outline="")
+                    self._text_w(rx2,ry2,text=rune,fill=self._f(gc,0.28*bright),
+                                 font=("TkFixedFont",max(4,int(r*0.13))))
+                lbl=school_rm_labels.get(grp,grp)
+                tip2=f"{school} — {grp} ({lbl})\nSlot {slot+1}/3  (click to advance)"
+                def _rm_cb(sc=school,g=grp,sl=slot):
+                    rm=self.spell.ring_mods.setdefault(sc,{})
+                    cur=rm.get(g,0)
+                    # Click slot: fill up to this slot+1, or unfill if already at this slot
+                    rm[g]=(sl+1) if cur<=sl else sl
+                    if self._on_change: self._on_change()
+                    self._redraw()
+                self._hit_zones.append((rx2,ry2,hz_r2,_rm_cb,tip2))
 
         # Concentric inner rings
         self._ring_w(wx,wy,r*0.52,self._f(c,0.30*bright),w=1)
@@ -1296,71 +1384,120 @@ class MagicCircleCanvas(tk.Canvas):
             a=i*(360/7); sx,sy=self._wpt(wx,wy,r*0.62,a)
             self._star_w(sx,sy,r*0.25,r*0.12,5,fill=self._f(color,0.85),outline=color,width=1)
 
+    def _draw_mod_circles(self):
+        """6 modifier-category mini-circles arrayed around the center hub.
+        All mods in each category shown as rune nodes — dim=inactive, bright=active.
+        Click to toggle; hover for tooltip."""
+        orbit=self._MOD_ORBIT; cr=self._MOD_CR
+        cats=list(CAT_COLORS.keys()); n=len(cats)
+        s=self.spell
+        for i,cat in enumerate(cats):
+            angle=i*(360/n)
+            cx,cy=self._wpt(0,0,orbit,angle)
+            gc=CAT_COLORS[cat]
+            cat_mods=[(mn,md) for mn,md in GLOBAL_MODS.items() if md["cat"]==cat]
+            has_active=any(s.global_mods.get(mn,0)>0 for mn,_ in cat_mods)
+
+            # Spoke from hub edge to circle
+            hx,hy=self._wpt(0,0,self.CENTER_R+2,angle)
+            ex,ey=self._wpt(0,0,orbit-cr-2,angle)
+            self._line_w(hx,hy,ex,ey,fill=self._f(gc,0.22),width=1,dash=(3,4))
+
+            # Circle body
+            self._circle_w(cx,cy,cr,fill=self._f(gc,0.10 if has_active else 0.04),outline="")
+            self._ring_w(cx,cy,cr,self._f(gc,0.55 if has_active else 0.28),w=2 if has_active else 1)
+            self._ring_w(cx,cy,cr*0.72,self._f(gc,0.20),w=1)
+            # 8 radial spokes inside circle
+            for k in range(8):
+                a2=k*45; p1=self._wpt(cx,cy,cr*0.10,a2); p2=self._wpt(cx,cy,cr*0.68,a2)
+                self._line_w(p1[0],p1[1],p2[0],p2[1],fill=self._f(gc,0.14),width=1)
+
+            # Category rune label at centre
+            base_rune=MOD_RUNES[cat][0]
+            self._text_w(cx,cy,text=base_rune,
+                         fill=self._b(gc,"#ffffff",0.70) if has_active else self._f(gc,0.45),
+                         font=("TkFixedFont",max(7,int(cr*0.52))))
+
+            # Mod rune nodes on outer ring
+            nm=len(cat_mods)
+            if nm==0: continue
+            node_r=cr*0.83; hz_r=max(5,cr*0.22)
+            for j,(mn,md) in enumerate(cat_mods):
+                node_a=j*(360/nm)
+                rx,ry=self._wpt(cx,cy,node_r,node_a)
+                cnt=s.global_mods.get(mn,0)
+                bought=(cnt>0)
+                seed=sum(ord(ch) for ch in mn)
+                rune=RUNES_ALL[seed%len(RUNES_ALL)]
+                if bought:
+                    self._circle_w(rx,ry,3,fill=self._f(gc,0.60),outline=gc)
+                    self._text_w(rx,ry,text=rune,fill=self._b(gc,"#ffffff",0.80),
+                                 font=("TkFixedFont",max(4,int(cr*0.25))))
+                    if cnt>1:
+                        nx2,ny2=self._wpt(rx,ry,6,315)
+                        self._text_w(nx2,ny2,text=str(cnt),fill=gc,font=("TkFixedFont",4))
+                else:
+                    self._circle_w(rx,ry,2,fill=self._f(gc,0.15),outline="")
+                    self._text_w(rx,ry,text=rune,fill=self._f(gc,0.38),
+                                 font=("TkFixedFont",max(4,int(cr*0.20))))
+                cost=md.get("cost",0); mx=md.get("max",1)
+                tip=f"{mn}\nCategory: {cat}  Cost: {cost} pt  Max: {mx}\n{md.get('desc','')}"
+                def _mod_cb(mod_name=mn,max_v=mx):
+                    cur=self.spell.global_mods.get(mod_name,0)
+                    self.spell.global_mods[mod_name]=(cur+1)%(max_v+1)
+                    if self._on_change: self._on_change()
+                    self._redraw()
+                self._hit_zones.append((rx,ry,hz_r,_mod_cb,tip))
+
+            # Category label below circle
+            self._text_w(cx,cy+cr+7,text=cat,fill=self._f(gc,0.55),font=("TkFixedFont",5))
+
     def _draw_center_hub(self):
-        """Central modifier hub circle — one section per category, runes for active mods."""
+        """Central hub — sacred geometry + level display. Mod details now in satellite circles."""
         r=self.CENTER_R
-        CATS=list(CAT_COLORS.keys()); nc=len(CATS); seg=360/nc
 
-        # Single clean outer border
+        # Outer border
         self._ring_w(0,0,r,self._b("#e8d8a0","#ffffff",0.55),w=2)
+        self._ring_w(0,0,r*0.94,self._f("#6688aa",0.22),w=1)
 
-        # Inner concentric rings with alternating colors
-        for i,frac in enumerate([0.88,0.78,0.64,0.50,0.36]):
-            col2=self._f("#6688aa",0.35-i*0.04)
+        # Inner concentric rings
+        for i,frac in enumerate([0.84,0.72,0.58,0.44,0.30]):
+            col2=self._f("#6688aa",0.30-i*0.04)
             self._ring_w(0,0,r*frac,col2,w=1,dash=((4,3) if i%2==1 else None))
-        # Small dot ring inside outer border
+
+        # Small dots around border
         for i in range(16):
             a=i*(360/16); dx,dy=self._wpt(0,0,r*0.91,a)
-            self._circle_w(dx,dy,2 if i%4==0 else 1,fill=self._f("#aabbdd",0.50),outline="")
+            self._circle_w(dx,dy,2 if i%4==0 else 1,fill=self._f("#aabbdd",0.45),outline="")
 
-        # Radial dividers between category sections
-        for i in range(nc):
-            a=i*seg; x1,y1=self._wpt(0,0,r*0.42,a); x2,y2=self._wpt(0,0,r,a)
-            self._line_w(x1,y1,x2,y2,fill="#aaaacc",width=2)
-
-        # Star polygon inside
-        self._star_w(0,0,r*0.72,r*0.35,6,fill=self._f("#6688aa",0.06),outline=self._f("#6688aa",0.30),width=1)
-        self._poly_n_w(0,0,r*0.55,6,fill=self._f("#6688aa",0.04),outline=self._f("#6688aa",0.20),width=1)
-
-        # Per-category sections
+        # Category arc markers (thin color arcs around outer ring — decorative only)
+        CATS=list(CAT_COLORS.keys()); nc=len(CATS); seg=360/nc
         for i,cat in enumerate(CATS):
-            a_start=i*seg; gc=CAT_COLORS[cat]
-            # Filled arc for category
-            self._arc_ring_w(0,0,r,a_start,seg-2,outline=gc,width=3)
-            # Section label (rune + name)
-            mid_a=a_start+seg/2
-            lx,ly=self._wpt(0,0,r*0.87,mid_a)
-            base_rune=MOD_RUNES[cat][0]
-            self._text_w(lx,ly,text=base_rune,fill=gc,font=("TkFixedFont",8),angle=-(mid_a-90))
+            gc=CAT_COLORS[cat]; a_s=i*seg
+            self._arc_ring_w(0,0,r,a_s,seg-3,outline=self._f(gc,0.45),width=2)
+            mid_a=a_s+seg/2; lx,ly=self._wpt(0,0,r*0.88,mid_a)
+            self._text_w(lx,ly,text=MOD_RUNES[cat][0],fill=self._f(gc,0.55),
+                         font=("TkFixedFont",6),angle=-(mid_a-90))
 
-            # Active mods in this category
-            cat_mods=[(mn,cnt) for mn,cnt in self.spell.global_mods.items()
-                      if cnt>0 and GLOBAL_MODS.get(mn,{}).get("cat","")==cat]
-            if cat_mods:
-                # Place dots and runes on inner ring for each active mod
-                nm2=len(cat_mods); sub_seg=seg/max(nm2,1)
-                for j,(mn,cnt) in enumerate(cat_mods):
-                    sa=a_start+j*sub_seg+sub_seg/2
-                    # Filled wedge highlight
-                    self._wedge_w(0,0,r*0.42,r*0.60,a_start+j*sub_seg,a_start+(j+1)*sub_seg-1,self._f(gc,0.35))
-                    # Rune dot
-                    rx2,ry2=self._wpt(0,0,r*0.51,sa)
-                    rune=MOD_RUNES.get(cat,["?"])[min(cnt-1,5)]
-                    self._circle_w(rx2,ry2,5+min(cnt,3),fill=self._f(gc,0.20),outline=gc)
-                    self._text_w(rx2,ry2,text=rune,fill=gc,font=("TkFixedFont",7))
-                    if cnt>1:
-                        self._text_w(rx2+7,ry2-7,text=str(cnt),fill=gc,font=("TkFixedFont",6))
+        # Radial dividers
+        for i in range(nc):
+            a=i*seg; x1,y1=self._wpt(0,0,r*0.42,a); x2,y2=self._wpt(0,0,r*0.90,a)
+            self._line_w(x1,y1,x2,y2,fill=self._f("#aaaacc",0.30),width=1)
 
-        # Ring text
+        # Sacred geometry
+        self._star_w(0,0,r*0.68,r*0.32,6,fill=self._f("#6688aa",0.05),outline=self._f("#6688aa",0.25),width=1)
+        self._poly_n_w(0,0,r*0.50,6,fill=self._f("#6688aa",0.03),outline=self._f("#6688aa",0.18),width=1)
+
+        # Decorative rune ring
         seed=hash("modifiers")%10000
-        ring_txt="".join(RUNES_ALL[(seed+i*7)%len(RUNES_ALL)] for i in range(28))
-        self._arc_text_w(0,0,r*0.70,ring_txt,10,self._f("#8899cc",0.55),fontsize=5,step_deg=5)
+        ring_txt="".join(RUNES_ALL[(seed+i*7)%len(RUNES_ALL)] for i in range(24))
+        self._arc_text_w(0,0,r*0.68,ring_txt,10,self._f("#8899cc",0.45),fontsize=5,step_deg=5.5)
 
         # Centre level display
         lvl_idx,lvl_name,lvl_col=self.spell.level_info
-        r_gem=r*0.30
-        self._circle_w(0,0,r_gem*1.25,fill=self._f(lvl_col,0.22),outline="")
-        self._ring_w(0,0,r_gem*1.25,self._b(lvl_col,"#ffffff",0.35),w=1)
+        r_gem=r*0.28
+        self._circle_w(0,0,r_gem*1.3,fill=self._f(lvl_col,0.22),outline="")
+        self._ring_w(0,0,r_gem*1.3,self._b(lvl_col,"#ffffff",0.35),w=1)
         if lvl_idx<=9:
             disp="C" if lvl_idx==0 else str(lvl_idx)
             self._text_w(0,0,text=disp,fill=lvl_col,font=("Georgia",max(18,int(r_gem*1.5)),"bold"))
@@ -1369,11 +1506,8 @@ class MagicCircleCanvas(tk.Canvas):
         elif lvl_idx==12: self._draw_wings_w(0,0,r_gem,"#FFFFFF")
         elif lvl_idx==13: self._draw_sun_w(0,0,r_gem,"#FFFFFF")
         else:             self._draw_stars_w(0,0,r_gem,"#FFFFFF")
-        self._text_w(0,r_gem*1.75,text=lvl_name.upper(),
+        self._text_w(0,r_gem*1.85,text=lvl_name.upper(),
                      fill=self._b(lvl_col,"#aabbdd",0.50),font=("TkFixedFont",5))
-
-        # Outer label
-        self._text_w(0,r+22,text="GLOBAL MODIFIERS",fill="#7799bb",font=("TkFixedFont",7))
 
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
@@ -1914,6 +2048,7 @@ class SpellForgeApp(tk.Tk):
             ttk.Button(zbar,text=lbl,command=cmd,width=6).pack(side=tk.LEFT,padx=2,pady=4)
         tk.Label(zbar,text="  Scroll=zoom on cursor  ·  Right-drag=pan",bg=self.PBG,fg=self.SUB,font=("Georgia",8,"italic")).pack(side=tk.LEFT,padx=8)
         self.circle=MagicCircleCanvas(cf); self.circle.pack(fill=tk.BOTH,expand=True,padx=2,pady=2)
+        self.circle._on_change=self._refresh
         self._build_right(self.pane.right)
 
     def circle_reset(self): self.circle.zoom_reset()
@@ -2103,7 +2238,7 @@ class SpellForgeApp(tk.Tk):
                 if isinstance(val,str) and val in edata.get("subtypes",{}):
                     lines.append(f"  Subtype effect: {edata['subtypes'][val]['modification']}")
         if s.active_connections:
-            lines+=["","SYNERGIES:"]; [lines.append(f"  {s1} + {s2}: {name}") for s1,s2,name in s.active_connections]
+            lines+=["","SYNERGIES:"]; [lines.append(f"  {s1} + {s2}: {name}") for s1,s2,name,_ in s.active_connections]
         if s.custom_effects:
             lines+=["","CUSTOM EFFECTS:"]; [lines.append(f"  • {e}") for e in s.custom_effects]
         with open(fp,"w") as fh: fh.write("\n".join(lines))
