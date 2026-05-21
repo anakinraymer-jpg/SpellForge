@@ -8,12 +8,21 @@ namespace SpellForge.Views.Controls;
 
 public class MagicCircleCanvas : FrameworkElement
 {
-    // ── Global zoom hooks (called by menu commands) ───────────────
+    // ── Constants ────────────────────────────────────────────────
+    private const double OuterR   = 370.0;
+    private const double CenterR  = 96.0;
+    private const double NodeRPri = 50.0;
+    private const double NodeRSec = 38.0;
+    private const double ModOrbit = 62.0;
+    private const double ModCR    = 19.0;
+    private const string BgHex    = "#1a1208";
+
+    // ── Global zoom actions ──────────────────────────────────────
     public static Action? GlobalZoomIn;
     public static Action? GlobalZoomOut;
     public static Action? GlobalZoomReset;
 
-    // ── Spell dependency property ─────────────────────────────────
+    // ── Spell DependencyProperty ─────────────────────────────────
     public static readonly DependencyProperty SpellProperty =
         DependencyProperty.Register(nameof(Spell), typeof(Spell), typeof(MagicCircleCanvas),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender,
@@ -32,29 +41,45 @@ public class MagicCircleCanvas : FrameworkElement
         InvalidateVisual();
     }
 
-    // ── Zoom / pan state ──────────────────────────────────────────
+    // ── Zoom / pan state ─────────────────────────────────────────
     private double _zoom = 1.0;
     private double _ox   = 0;
     private double _oy   = 0;
     private bool   _centered = false;
     private Point? _panStart;
 
-    private const double OuterR  = 370.0;
+    // ── Render-time state (valid only inside OnRender) ────────────
+    private DrawingContext _dc = null!;
+
+    private static readonly Typeface _tf      = new("Segoe UI");
+    private static readonly Typeface _tfFixed = new("Consolas");
+    private static readonly Typeface _tfGeo   = new("Georgia");
 
     public MagicCircleCanvas()
     {
         GlobalZoomIn    = () => ApplyZoom(1.15);
         GlobalZoomOut   = () => ApplyZoom(1.0 / 1.15);
         GlobalZoomReset = () => { _zoom = 1.0; _ox = 0; _oy = 0; _centered = false; InvalidateVisual(); };
-
-        Focusable = true;
+        Focusable    = true;
         ClipToBounds = true;
     }
 
-    // ── Coordinate helpers ────────────────────────────────────────
+    // ── Coordinates ──────────────────────────────────────────────
     private Point Tc(double wx, double wy) => new(_ox + wx * _zoom, _oy + wy * _zoom);
 
-    // ── Zoom ──────────────────────────────────────────────────────
+    private (double x, double y) Wpt(double wx, double wy, double r, double deg)
+    {
+        double a = (deg - 90.0) * Math.PI / 180.0;
+        return (wx + r * Math.Cos(a), wy + r * Math.Sin(a));
+    }
+
+    private Point WptP(double wx, double wy, double r, double deg)
+    {
+        var (x, y) = Wpt(wx, wy, r, deg);
+        return Tc(x, y);
+    }
+
+    // ── Zoom ─────────────────────────────────────────────────────
     private void ApplyZoom(double factor, Point? mouse = null)
     {
         double mx = mouse?.X ?? ActualWidth  / 2;
@@ -67,19 +92,17 @@ public class MagicCircleCanvas : FrameworkElement
         InvalidateVisual();
     }
 
-    // ── Mouse events ──────────────────────────────────────────────
+    // ── Mouse ────────────────────────────────────────────────────
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         ApplyZoom(e.Delta > 0 ? 1.15 : 1.0 / 1.15, e.GetPosition(this));
         e.Handled = true;
     }
-
     protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
     {
         _panStart = e.GetPosition(this);
         CaptureMouse();
     }
-
     protected override void OnMouseMove(MouseEventArgs e)
     {
         if (_panStart.HasValue && e.RightButton == MouseButtonState.Pressed)
@@ -91,57 +114,906 @@ public class MagicCircleCanvas : FrameworkElement
             InvalidateVisual();
         }
     }
-
     protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
     {
         _panStart = null;
         ReleaseMouseCapture();
     }
 
-    // ── Rendering ─────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════
+    //  COLOR HELPERS
+    // ════════════════════════════════════════════════════════════
+
+    // Blend two hex colors → Color
+    private static Color B(string c1, string c2, double t)
+        => ColorHelper.Blend(ColorHelper.FromHex(c1), ColorHelper.FromHex(c2), t);
+
+    // Fade: BG → color at alpha → Color
+    private static Color F(string c, double alpha)
+        => ColorHelper.Blend(ColorHelper.FromHex(BgHex), ColorHelper.FromHex(c), alpha);
+
+    private static SolidColorBrush Br(Color c)                      => new(c);
+    private static SolidColorBrush Br(string hex)                   => new(ColorHelper.FromHex(hex));
+    private static SolidColorBrush Br(string hex, double alpha)     => new(F(hex, alpha));
+    private static SolidColorBrush BrB(string c1, string c2, double t) => new(B(c1, c2, t));
+
+    private static Pen Pn(Color c, double w, bool dash = false)
+    {
+        var p = new Pen(new SolidColorBrush(c), w);
+        if (dash) p.DashStyle = new DashStyle(new[] { 4.0, 4.0 }, 0);
+        return p;
+    }
+    private static Pen Pn(string hex, double w, bool dash = false)
+        => Pn(ColorHelper.FromHex(hex), w, dash);
+    private static Pen PnF(string hex, double alpha, double w, bool dash = false)
+        => Pn(F(hex, alpha), w, dash);
+    private static Pen PnB(string c1, string c2, double t, double w, bool dash = false)
+        => Pn(B(c1, c2, t), w, dash);
+
+    // ════════════════════════════════════════════════════════════
+    //  DRAWING PRIMITIVES  (all take world-space coordinates)
+    // ════════════════════════════════════════════════════════════
+
+    private void CircleW(double wx, double wy, double r, Brush? fill = null, Pen? stroke = null)
+        => _dc.DrawEllipse(fill, stroke, Tc(wx, wy), r * _zoom, r * _zoom);
+
+    private void RingW(double wx, double wy, double r, Color c, double w = 1, bool dash = false)
+        => CircleW(wx, wy, r, null, Pn(c, w, dash));
+    private void RingW(double wx, double wy, double r, string hex, double w = 1, bool dash = false)
+        => RingW(wx, wy, r, ColorHelper.FromHex(hex), w, dash);
+    private void RingWF(double wx, double wy, double r, string hex, double alpha, double w = 1, bool dash = false)
+        => RingW(wx, wy, r, F(hex, alpha), w, dash);
+    private void RingWB(double wx, double wy, double r, string c1, string c2, double t, double w = 1)
+        => RingW(wx, wy, r, B(c1, c2, t), w);
+
+    private void LineW(double x1, double y1, double x2, double y2, Pen pen)
+        => _dc.DrawLine(pen, Tc(x1, y1), Tc(x2, y2));
+    private void LineW(double x1, double y1, double x2, double y2, string hex, double w = 1)
+        => LineW(x1, y1, x2, y2, Pn(hex, w));
+    private void LineWF(double x1, double y1, double x2, double y2, string hex, double alpha, double w = 1)
+        => LineW(x1, y1, x2, y2, PnF(hex, alpha, w));
+
+    private void PolyW(IEnumerable<(double, double)> worldPts, Brush? fill = null, Pen? stroke = null)
+    {
+        var pts = worldPts.Select(p => Tc(p.Item1, p.Item2)).ToList();
+        if (pts.Count < 3) return;
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            ctx.BeginFigure(pts[0], fill != null, true);
+            ctx.PolyLineTo(pts.Skip(1).ToList(), stroke != null, false);
+        }
+        geom.Freeze();
+        _dc.DrawGeometry(fill, stroke, geom);
+    }
+    private void PolyWF(IEnumerable<(double, double)> pts, string hex, double alpha)
+        => PolyW(pts, Br(hex, alpha));
+
+    private void TextW(double wx, double wy, string text, Brush brush, Typeface tf, double size, double angle = 0)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        var ft = new FormattedText(text, CultureInfo.CurrentCulture,
+                                   FlowDirection.LeftToRight, tf, size, brush, 1.0);
+        var c = Tc(wx, wy);
+        var origin = new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2);
+        if (Math.Abs(angle) > 0.01)
+        {
+            _dc.PushTransform(new RotateTransform(angle, c.X, c.Y));
+            _dc.DrawText(ft, origin);
+            _dc.Pop();
+        }
+        else
+            _dc.DrawText(ft, origin);
+    }
+    private void TextW(double wx, double wy, string text, string hex, double size,
+                       bool isFixed = false, double angle = 0)
+        => TextW(wx, wy, text, Br(hex), isFixed ? _tfFixed : _tf, size, angle);
+    private void TextWF(double wx, double wy, string text, string hex, double alpha, double size,
+                        bool isFixed = false, double angle = 0)
+        => TextW(wx, wy, text, Br(hex, alpha), isFixed ? _tfFixed : _tf, size, angle);
+    private void TextWB(double wx, double wy, string text, string c1, string c2, double t, double size,
+                        bool isFixed = false, double angle = 0)
+        => TextW(wx, wy, text, BrB(c1, c2, t), isFixed ? _tfFixed : _tf, size, angle);
+
+    private void ArcRingW(double wx, double wy, double r, double startDeg, double extentDeg, Pen pen)
+    {
+        if (Math.Abs(extentDeg) < 0.01) return;
+        double rs = r * _zoom;
+        if (Math.Abs(extentDeg) >= 359.9)
+        {
+            _dc.DrawEllipse(null, pen, Tc(wx, wy), rs, rs);
+            return;
+        }
+        bool large   = Math.Abs(extentDeg) > 180;
+        var startPt  = WptP(wx, wy, r, startDeg);
+        var endPt    = WptP(wx, wy, r, startDeg + extentDeg);
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            ctx.BeginFigure(startPt, false, false);
+            ctx.ArcTo(endPt, new Size(rs, rs), 0, large, SweepDirection.Clockwise, true, false);
+        }
+        geom.Freeze();
+        _dc.DrawGeometry(null, pen, geom);
+    }
+    private void ArcRingW(double wx, double wy, double r, double start, double extent, string hex, double w = 1)
+        => ArcRingW(wx, wy, r, start, extent, Pn(hex, w));
+    private void ArcRingWF(double wx, double wy, double r, double start, double extent,
+                           string hex, double alpha, double w = 1)
+        => ArcRingW(wx, wy, r, start, extent, PnF(hex, alpha, w));
+
+    private void WedgeW(double wx, double wy, double rIn, double rOut,
+                        double dStart, double dEnd, Brush fill)
+    {
+        double span = dEnd - dStart;
+        if (Math.Abs(span) < 0.01) return;
+        bool large   = Math.Abs(span) > 180;
+        double rInS  = rIn  * _zoom;
+        double rOutS = rOut * _zoom;
+        var oStart = WptP(wx, wy, rOut, dStart);
+        var oEnd   = WptP(wx, wy, rOut, dEnd);
+        var iStart = WptP(wx, wy, rIn,  dStart);
+        var iEnd   = WptP(wx, wy, rIn,  dEnd);
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            ctx.BeginFigure(oStart, true, true);
+            ctx.ArcTo(oEnd,   new Size(rOutS, rOutS), 0, large, SweepDirection.Clockwise,        true, false);
+            ctx.LineTo(iEnd,  true, false);
+            ctx.ArcTo(iStart, new Size(rInS,  rInS),  0, large, SweepDirection.Counterclockwise, true, false);
+        }
+        geom.Freeze();
+        _dc.DrawGeometry(fill, null, geom);
+    }
+    private void WedgeWF(double wx, double wy, double rIn, double rOut,
+                         double dStart, double dEnd, string hex, double alpha)
+        => WedgeW(wx, wy, rIn, rOut, dStart, dEnd, Br(hex, alpha));
+
+    private void PolyNW(double wx, double wy, double r, int n, double off = 0,
+                        Brush? fill = null, Pen? stroke = null)
+        => PolyW(Enumerable.Range(0, n).Select(i => Wpt(wx, wy, r, i * (360.0 / n) + off)),
+                 fill, stroke);
+
+    private void StarW(double wx, double wy, double rOut, double rIn, int n, double off = 0,
+                       Brush? fill = null, Pen? stroke = null)
+    {
+        var pts = new List<(double, double)>();
+        for (int i = 0; i < n; i++)
+        {
+            pts.Add(Wpt(wx, wy, rOut, i * (360.0 / n) + off));
+            pts.Add(Wpt(wx, wy, rIn,  i * (360.0 / n) + (180.0 / n) + off));
+        }
+        PolyW(pts, fill, stroke);
+    }
+
+    private void ArcTextW(double wx, double wy, double r, string text, double startDeg,
+                          string hexColor, double fontSize = 6, double stepDeg = 4.5)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        double total = text.Length * stepDeg;
+        double angle = startDeg - total / 2;
+        var brush = Br(hexColor);
+        foreach (char ch in text)
+        {
+            var (ax, ay) = Wpt(wx, wy, r, angle);
+            TextW(ax, ay, ch.ToString(), brush, _tfGeo, fontSize, angle - 90);
+            angle += stepDeg;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  MAIN RENDER
+    // ════════════════════════════════════════════════════════════
+
     protected override void OnRender(DrawingContext dc)
     {
+        _dc = dc;
         double W = ActualWidth, H = ActualHeight;
         if (W < 1 || H < 1) return;
 
-        if (!_centered)
-        {
-            _ox = W / 2; _oy = H / 2;
-            _centered = true;
-        }
+        if (!_centered) { _ox = W / 2; _oy = H / 2; _centered = true; }
 
-        // Parchment background
-        dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x2c, 0x1f, 0x08)), null,
-                         new Rect(0, 0, W, H));
-
-        // Radial vignette gradient
-        var radial = new RadialGradientBrush(
-            Color.FromArgb(0x00, 0x1a, 0x12, 0x08),
-            Color.FromArgb(0xCC, 0x0a, 0x06, 0x00))
-        {
-            Center = new Point(0.5, 0.5),
-            RadiusX = 0.7, RadiusY = 0.7,
-            GradientOrigin = new Point(0.5, 0.5)
-        };
-        dc.DrawRectangle(radial, null, new Rect(0, 0, W, H));
-
+        double R = OuterR;
+        DrawDeepBg(R, W, H);
         if (Spell == null) return;
 
-        // Placeholder circle until full drawing is implemented
-        var origin = Tc(0, 0);
-        double rs = OuterR * _zoom;
-        var pen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0xe8, 0xd8, 0xa0)), 2);
-        dc.DrawEllipse(null, pen, origin, rs, rs);
+        var pos = ComputeNodePositions(R);
+        DrawOuterFrame(R, pos);
+        DrawMainGeometry(R);
+        DrawElementRing(R);
+        DrawSchoolModules(pos);
+        DrawCenterHub();
+        DrawDrawbackRings();
+        DrawConditionsRing();
+        DrawStatusBar();
+    }
 
-        // Status text
-        var ft = new FormattedText(
-            $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {_zoom:F2}×",
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"),
-            11,
-            new SolidColorBrush(Color.FromRgb(0x44, 0x55, 0x66)),
-            96);
-        dc.DrawText(ft, new Point(W / 2 - ft.Width / 2, _oy + OuterR * _zoom + 8));
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 1 — PARCHMENT BACKGROUND
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawDeepBg(double R, double W, double H)
+    {
+        const string dark  = "#1a1208";
+        const string aged  = "#3d2b10";
+        const string mid   = "#251808";
+        const string parch = "#2c1f08";
+
+        _dc.DrawRectangle(Br(parch), null, new Rect(0, 0, W, H));
+
+        for (int i = 12; i >= 1; i--)
+            CircleW(0, 0, R * 1.55 * i / 12, Br(B(dark, mid, (1.0 - (double)i / 12) * 0.55)));
+
+        foreach (var (frac, sw, alpha) in new[] {
+            (1.50, 4.0, 0.45), (1.28, 2.0, 0.30), (1.08, 3.0, 0.22), (0.88, 1.0, 0.18) })
+            RingW(0, 0, R * frac, F("#0a0600", alpha), sw);
+
+        var cp1 = Pn(F("#120c04", 1.0), 1);
+        var cp2 = Pn(F("#1e1408", 1.0), 1);
+        _dc.DrawLine(cp1, new Point(W * 0.02, H * 0.12), new Point(W * 0.18, H * 0.02));
+        _dc.DrawLine(cp1, new Point(W * 0.82, H * 0.98), new Point(W * 0.98, H * 0.82));
+        _dc.DrawLine(cp2, new Point(W * 0.05, H * 0.90), new Point(W * 0.25, H * 0.98));
+        _dc.DrawLine(cp2, new Point(W * 0.75, H * 0.02), new Point(W * 0.95, H * 0.10));
+
+        var rng = new Random(42);
+        int fw = Math.Max(20, (int)W - 20), fh = Math.Max(20, (int)H - 20);
+        for (int i = 0; i < 18; i++)
+        {
+            double fx = rng.Next(10, fw);
+            double fy = rng.Next(10, fh);
+            double fr = rng.Next(2, 9);
+            _dc.DrawEllipse(Br(B("#0a0600", "#2a1a08", 0.3 + rng.NextDouble() * 0.4)),
+                            null, new Point(fx, fy), fr, fr);
+        }
+
+        for (int i = 6; i >= 1; i--)
+            CircleW(0, 0, R * 0.92 * i / 6, Br(B(dark, aged, 0.07 * (7 - i))));
+
+        RingWF(0, 0, R * 0.88, "#4a3015", 0.08);
+        RingWF(0, 0, R * 0.65, "#4a3015", 0.08);
+        RingWF(0, 0, R * 0.40, "#4a3015", 0.08);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 2 — OUTER FRAME
+    // ════════════════════════════════════════════════════════════
+
+    private Dictionary<string, (double x, double y)> ComputeNodePositions(double R)
+    {
+        var pos = new Dictionary<string, (double, double)>();
+        var list = GameData.SchoolOrder;
+        double nodeR = R * 0.82;
+        for (int i = 0; i < list.Count; i++)
+            pos[list[i]] = Wpt(0, 0, nodeR, i * (360.0 / list.Count));
+        return pos;
+    }
+
+    private void DrawOuterFrame(double R, Dictionary<string, (double x, double y)> pos)
+    {
+        var s      = Spell!;
+        var lvl    = s.LevelInfo;
+        var active = new HashSet<string>(s.AllSchools);
+        string ink  = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
+        string ink2 = ColorHelper.Blend("#c8a060", "#aa8844", 0.45);
+
+        RingW(0, 0, R,         ink,  3);
+        RingW(0, 0, R * 0.978, ink2, 1);
+
+        for (int i = 0; i < 72; i++)
+        {
+            double a  = i * 5.0;
+            double sw = i % 6 == 0 ? 3.0 : 1.0;
+            double r1 = R * (i % 6 == 0 ? 0.956 : 0.966);
+            var (x1, y1) = Wpt(0, 0, r1,       a);
+            var (x2, y2) = Wpt(0, 0, R * 0.978, a);
+            LineW(x1, y1, x2, y2, ink2, sw);
+        }
+
+        double schoolR = R * 0.82;
+        RingW(0, 0, schoolR,                   ink2, 2);
+        RingW(0, 0, schoolR + NodeRSec * 1.40, ink2, 1);
+
+        var list = GameData.SchoolOrder;
+        int n    = list.Count;
+        var spts = Enumerable.Range(0, n).Select(i => Wpt(0, 0, schoolR, i * (360.0 / n))).ToArray();
+        for (int i = 0; i < n; i++)
+            for (int j = i + 2; j < n - 1; j++)
+                LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, ink2, 0.07);
+
+        for (int i = 0; i < n; i++)
+        {
+            double a  = i * (360.0 / n);
+            var (dx, dy) = Wpt(0, 0, R * 0.950, a);
+            string c2    = GameData.Schools[list[i]].Color;
+            string fill  = active.Contains(list[i]) ? c2 : ColorHelper.Blend(BgHex, c2, 0.30);
+            TextW(dx, dy, "◆", fill, 5);
+        }
+
+        if (!string.IsNullOrEmpty(s.Name))
+            ArcTextW(0, 0, R * 0.990, $" ✦ {s.Name.ToUpper()} ✦ {lvl.Name.ToUpper()} ✦ ",
+                     0, lvl.Color, 6, 3.8);
+
+        DrawConnectionLines(pos);
+    }
+
+    private void DrawConnectionLines(Dictionary<string, (double x, double y)> pos)
+    {
+        var s       = Spell!;
+        var schools = s.AllSchools;
+        var seen    = new HashSet<string>();
+
+        for (int i = 0; i < schools.Count; i++)
+        for (int j = i + 1; j < schools.Count; j++)
+        {
+            var pair = GameData.SchoolPair(schools[i], schools[j]);
+            if (pair == null) continue;
+            string key = $"{pair.Value.Item1}|{pair.Value.Item2}";
+            if (!seen.Add(key)) continue;
+
+            bool cap = s.CapstoneActive(schools[i]) && s.CapstoneActive(schools[j]);
+            var (x1, y1) = pos[schools[i]];
+            var (x2, y2) = pos[schools[j]];
+            string mid   = ColorHelper.Blend(GameData.Schools[schools[i]].Color,
+                                              GameData.Schools[schools[j]].Color, 0.5);
+
+            LineW(x1, y1, x2, y2, cap ? PnF("#FFD700", 0.55, 2, true) : PnF(mid, 0.30, 2));
+
+            double mx   = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            int seed    = ((schools[i] + schools[j]).Sum(c => (int)c) % GameData.RunesAll.Length
+                           + GameData.RunesAll.Length) % GameData.RunesAll.Length;
+            TextWF(mx, my, GameData.RunesAll[seed].ToString(),
+                   cap ? "#FFD700" : mid, 0.70, 6, isFixed: true);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 3 — INNER GEOMETRY
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawMainGeometry(double R)
+    {
+        var asc  = Spell!.AllSchools;
+        string c = asc.Count > 0 ? GameData.Schools[asc[0]].Color : "#8899bb";
+        double webR = R * 0.48;
+
+        RingWF(0, 0, R * 0.50, c, 0.18);
+
+        var pts = Enumerable.Range(0, 10).Select(i => Wpt(0, 0, webR, i * 36.0)).ToArray();
+        for (int i = 0; i < 10; i++)
+            for (int j = i + 2; j < 10; j++)
+                LineWF(pts[i].x, pts[i].y, pts[j].x, pts[j].y, c, 0.08);
+
+        PolyNW(0, 0, webR, 5, fill: Br(c, 0.04), stroke: PnF(c, 0.22, 1));
+        PolyNW(0, 0, webR, 5, 36, stroke: PnF(c, 0.14, 1, true));
+
+        foreach (var (frac, alpha) in new[] { (0.48, 0.18), (0.38, 0.14), (0.28, 0.12), (0.18, 0.10) })
+            RingWF(0, 0, R * frac, c, alpha);
+
+        PolyNW(0, 0, R * 0.42, 3,  stroke: PnF(c, 0.20, 1));
+        PolyNW(0, 0, R * 0.42, 3, 60, stroke: PnF(c, 0.16, 1, true));
+        PolyNW(0, 0, R * 0.45, 7,  stroke: PnF(c, 0.08, 1, true));
+
+        foreach (var (px, py) in pts) CircleW(px, py, 2, Br(c, 0.35));
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 4 — ELEMENT RING
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawElementRing(double R)
+    {
+        var s      = Spell!;
+        var active = s.Elements.Where(kv => kv.Value != null).ToList();
+        if (active.Count == 0) return;
+
+        double rIn   = R * 0.545, rOut = R * 0.725;
+        double rMid  = (rIn + rOut) * 0.5;
+        double rName = rOut - 8, rRune = rIn + 10, rNode = rMid - 6;
+        int    n     = active.Count;
+        double sec   = 360.0 / n;
+        double gap   = n > 1 ? 1.5 : 0.0;
+
+        string border = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.50);
+        RingW(0, 0, rIn,  border, 2);
+        RingW(0, 0, rOut, border, 2);
+
+        var angMap = new Dictionary<string, (double s, double e, double m)>();
+
+        for (int i = 0; i < n; i++)
+        {
+            string el   = active[i].Key;
+            string? val = active[i].Value;
+            double aS   = i * sec + gap / 2;
+            double aE   = (i + 1) * sec - gap / 2;
+            double aM   = (aS + aE) * 0.5;
+            angMap[el]  = (aS, aE, aM);
+            double span = aE - aS;
+
+            var edata = GameData.Elements[el];
+            string ec = (el == "Celestial" && val is { Length: > 0 }
+                         && edata.Subtypes != null && edata.Subtypes.ContainsKey(val))
+                        ? edata.Subtypes[val].Color : edata.Color;
+
+            WedgeWF(0, 0, rIn, rOut, aS, aE, ec, 0.20);
+            ArcRingWF(0, 0, rIn,  aS, span, ec, 0.50, 2);
+            ArcRingWF(0, 0, rOut, aS, span, ec, 0.50, 2);
+
+            if (n > 1)
+            {
+                foreach (double sep in new[] { aS, aE })
+                {
+                    var (lx1, ly1) = Wpt(0, 0, rIn,  sep);
+                    var (lx2, ly2) = Wpt(0, 0, rOut, sep);
+                    LineW(lx1, ly1, lx2, ly2, PnB(border, ec, 0.45, 2));
+                }
+            }
+
+            var (sx, sy) = Wpt(0, 0, rMid, aM);
+            CircleW(sx, sy, 11, Br(ec, 0.35));
+            RingWB(sx, sy, 11, ec, "#ffffff", 0.55);
+            TextWB(sx, sy, edata.Symbol, ec, "#ffffff", 0.90, 10);
+
+            double step = Math.Min(4.5, Math.Max(1.8, (span - 6) / Math.Max(el.Length, 1)));
+            ArcTextW(0, 0, rName, el.ToUpper(), aM, ec, 6, step);
+
+            int elSeed  = ((el.Sum(c => (int)c) % GameData.RunesAll.Length)
+                          + GameData.RunesAll.Length) % GameData.RunesAll.Length;
+            int nRunes  = Math.Max(1, Math.Min(10, (int)(span / 10)));
+            for (int j = 0; j < nRunes; j++)
+            {
+                double ra = nRunes == 1 ? aM : aS + gap + j * (span - 2 * gap) / (nRunes - 1);
+                var (rrx, rry) = Wpt(0, 0, rRune, ra);
+                int rseed = (elSeed + j * 13) % GameData.RunesAll.Length;
+                TextWF(rrx, rry, GameData.RunesAll[rseed].ToString(), ec, 0.40, 5, isFixed: true);
+            }
+
+            s.ElementNodes.TryGetValue(el, out var boughtNodes); boughtNodes ??= new();
+            int nn = edata.Nodes.Count;
+            if (nn > 0)
+            {
+                double half = span * 0.35;
+                for (int k = 0; k < nn; k++)
+                {
+                    double offset = nn > 1 ? -half + k * (2 * half / (nn - 1)) : 0;
+                    var (nwx, nwy) = Wpt(0, 0, rNode, aM + offset);
+                    bool bought = boughtNodes.TryGetValue(edata.Nodes[k].Name, out int bc) && bc > 0;
+                    DrawElemNode(nwx, nwy, edata.Nodes[k].Glyph, ec, bought ? 6 : 4, bought);
+                }
+            }
+        }
+
+        if (n <= 1) return;
+        for (int i = 0; i < n; i++)
+        {
+            string el1 = active[i].Key;
+            string el2 = active[(i + 1) % n].Key;
+            (string, string)? pair =
+                GameData.ElementConnections.ContainsKey((el1, el2)) ? (el1, el2) :
+                GameData.ElementConnections.ContainsKey((el2, el1)) ? (el2, el1) : null;
+            if (pair == null) continue;
+
+            double jAng = (angMap[el1].e + angMap[el2].s) * 0.5;
+            string c1   = GameData.Elements[el1].Color;
+            string c2   = GameData.Elements[el2].Color;
+            string mc   = ColorHelper.Blend(c1, c2, 0.5);
+
+            WedgeWF(0, 0, rIn, rOut, jAng - 4, jAng + 4, mc, 0.35);
+            var (jl1x, jl1y) = Wpt(0, 0, rIn,  jAng);
+            var (jl2x, jl2y) = Wpt(0, 0, rOut, jAng);
+            LineW(jl1x, jl1y, jl2x, jl2y, PnB(border, mc, 0.60, 3));
+
+            var (jx, jy) = Wpt(0, 0, rMid, jAng);
+            int jseed = (int)((uint)(el1 + el2).GetHashCode() % (uint)GameData.RunesAll.Length);
+            CircleW(jx, jy, 9, Br(mc, 0.45));
+            RingWB(jx, jy, 9, mc, "#ffffff", 0.70, 2);
+            TextWB(jx, jy, GameData.RunesAll[jseed].ToString(), mc, "#ffffff", 0.95, 8, isFixed: true);
+
+            if (GameData.ElementConnections.TryGetValue(pair.Value, out string? conn))
+            {
+                string shortN = conn.Contains(" — ")
+                    ? conn.Split(new[] { " — " }, StringSplitOptions.None)[0]
+                    : conn.Length > 12 ? conn[..12] : conn;
+                var (lx, ly) = Wpt(0, 0, rOut + 12, jAng);
+                TextWB(lx, ly, shortN, mc, "#ffffff", 0.75, 5, isFixed: true);
+            }
+
+            if (GameData.SubelementNodes.TryGetValue(pair.Value, out var seNodes))
+            {
+                string keyStr = $"{pair.Value.Item1},{pair.Value.Item2}";
+                s.SubelementNodes.TryGetValue(keyStr, out var bsub);
+                if (bsub == null)
+                    s.SubelementNodes.TryGetValue($"{pair.Value.Item2},{pair.Value.Item1}", out bsub);
+                bsub ??= new();
+                for (int k = 0; k < seNodes.Length; k++)
+                {
+                    var (snx, sny) = Wpt(0, 0, k % 2 == 0 ? rIn + 14 : rOut - 14, jAng + (k - 1) * 10.0);
+                    bool bse = bsub.TryGetValue(seNodes[k].Name, out int bsc) && bsc > 0;
+                    DrawElemNode(snx, sny, seNodes[k].Glyph, mc, 5, bse);
+                }
+            }
+        }
+    }
+
+    private void DrawElemNode(double wx, double wy, string symbol, string color, double r, bool bought)
+    {
+        CircleW(wx, wy, r, Br(color, bought ? 0.55 : 0.18));
+        RingW(wx, wy, r, bought ? color : ColorHelper.Blend(BgHex, color, 0.45), bought ? 2.0 : 1.0);
+        if (bought) RingWF(wx, wy, r * 1.35, color, 0.25);
+        TextW(wx, wy, symbol,
+              bought ? color : ColorHelper.Blend(BgHex, color, 0.55),
+              Math.Max(6, (int)(r * 0.9)));
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 5 — SCHOOL MODULES
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawSchoolModules(Dictionary<string, (double x, double y)> pos)
+    {
+        var active = new HashSet<string>(Spell!.AllSchools);
+        foreach (var (school, pt) in pos)
+            DrawModule(pt.x, pt.y, school, active);
+    }
+
+    private void DrawModule(double wx, double wy, string school, HashSet<string> activeSet)
+    {
+        var s     = Spell!;
+        var sd    = GameData.Schools[school];
+        string c  = sd.Color;
+        bool act  = activeSet.Contains(school);
+        double r  = NodeRPri * s.CircleSizes.GetValueOrDefault(school, 1.0);
+        bool cap  = s.CapstoneActive(school);
+        double dim = act ? 1.0 : 0.20;
+        string ink = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
+
+        if (cap && act)
+        {
+            RingWF(wx, wy, r * 1.38, "#FFD700", 0.40, 1, true);
+            RingW(wx, wy,  r * 1.30, "#FFD700", 2);
+        }
+
+        RingW(wx, wy, r,         act ? ColorHelper.Blend(ink, c, 0.35)
+                                      : ColorHelper.Blend(BgHex, c, 0.22), act ? 2.0 : 1.0);
+        RingWF(wx, wy, r * 0.92, c, 0.30 * dim);
+
+        // Ability rune ring
+        var abNames = sd.Abilities.Keys.ToList();
+        s.SchoolAbilities.TryGetValue(school, out var abDict); abDict ??= new();
+        int nAb = abNames.Count;
+        for (int i = 0; i < Math.Min(nAb, 12); i++)
+        {
+            string abn = abNames[i];
+            double a   = i * (360.0 / Math.Max(12, nAb));
+            var (rx, ry) = Wpt(wx, wy, r * 0.84, a);
+            int cnt  = abDict.TryGetValue(abn, out int cv) ? cv : 0;
+            int seed = ((abn.Sum(ch => (int)ch) % GameData.RunesAll.Length)
+                        + GameData.RunesAll.Length) % GameData.RunesAll.Length;
+            string rune = GameData.RunesAll[seed].ToString();
+            if (cnt > 0)
+            {
+                CircleW(rx, ry, 3, Br(c, 0.65));
+                TextWB(rx, ry, rune, c, "#ffffff", 0.82, Math.Max(6, (int)(r * 0.20)), isFixed: true);
+            }
+            else
+            {
+                CircleW(rx, ry, 2, Br(c, 0.28 * dim));
+                TextWF(rx, ry, rune, c, 0.50 * dim, Math.Max(5, (int)(r * 0.16)), isFixed: true);
+            }
+        }
+
+        // Ring-mod rune ring
+        string[] grpColors = ["#ff8080", "#80ee88", "#8088ff", "#ffe080"];
+        s.RingMods.TryGetValue(school, out var ringData); ringData ??= new();
+        for (int gi = 0; gi < GameData.RingGroups.Length; gi++)
+        {
+            string grp  = GameData.RingGroups[gi];
+            string gc   = grpColors[gi];
+            int fillCnt = ringData.TryGetValue(grp, out int fc) ? fc : 0;
+            var runes   = GameData.ModRunes[grp];
+            for (int slot = 0; slot < 3; slot++)
+            {
+                var (rx2, ry2) = Wpt(wx, wy, r * 0.64, (gi * 3 + slot) * 30.0);
+                string rune    = runes[Math.Min(slot, runes.Length - 1)];
+                if (slot < fillCnt)
+                {
+                    CircleW(rx2, ry2, 3, Br(gc, 0.55));
+                    TextWB(rx2, ry2, rune, gc, "#ffffff", 0.75, Math.Max(5, (int)(r * 0.20)), isFixed: true);
+                }
+                else
+                {
+                    CircleW(rx2, ry2, 2, Br(gc, 0.22 * dim));
+                    TextWF(rx2, ry2, rune, gc, 0.42 * dim, Math.Max(5, (int)(r * 0.15)), isFixed: true);
+                }
+            }
+        }
+
+        RingWF(wx, wy, r * 0.52, c, 0.30 * dim);
+        RingWF(wx, wy, r * 0.35, c, 0.22 * dim);
+
+        for (int i = 0; i < 8; i++)
+        {
+            var (x1, y1) = Wpt(wx, wy, r * 0.08, i * 45.0);
+            var (x2, y2) = Wpt(wx, wy, r * 0.88, i * 45.0);
+            LineWF(x1, y1, x2, y2, c, 0.18 * dim);
+        }
+
+        PolyNW(wx, wy, r * 0.32, 5,
+               fill: Br(c, 0.08 * dim), stroke: PnF(c, 0.40 * dim, 1));
+
+        TextW(wx, wy, sd.Symbol,
+              act ? ColorHelper.Blend(c, "#ffffff", 0.55) : ColorHelper.Blend(BgHex, c, 0.30),
+              Math.Max(8, (int)(r * 0.48)));
+
+        if (cap && act && GameData.Capstones.TryGetValue(school, out var cd))
+        {
+            string capC = cd.Color;
+            CircleW(wx, wy, r * 0.26, Br(capC, 0.28));
+            TextW(wx, wy, cd.Glyph, capC, Math.Max(14, (int)(r * 0.58)));
+            for (int k = 0; k < cd.Ring.Length; k++)
+            {
+                var (rx3, ry3) = Wpt(wx, wy, r * 0.42, k * (360.0 / cd.Ring.Length));
+                TextWF(rx3, ry3, cd.Ring[k].ToString(), capC, 0.85, Math.Max(6, (int)(r * 0.15)));
+            }
+            TextW(wx, wy + r * 1.52, $"⚜ {cd.Name} ⚜", capC, 5);
+        }
+
+        TextW(wx, wy + r + 10, school,
+              act ? ColorHelper.Blend(c, "#e8d8a0", 0.50) : ColorHelper.Blend(BgHex, c, 0.22), 6);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 6 — CENTER HUB
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawCenterHub()
+    {
+        double r    = CenterR;
+        var cats    = GameData.CatColors.Keys.ToList();
+        int nc      = cats.Count;
+        double seg  = 360.0 / nc;
+
+        CircleW(0, 0, r, Br("#1a1208", 0.60));
+        RingWF(0, 0, r * 0.42, "#6688aa", 0.18);
+
+        for (int i = 0; i < nc; i++)
+        {
+            var (x1, y1) = Wpt(0, 0, r * 0.30, i * seg);
+            var (x2, y2) = Wpt(0, 0, r * 0.92, i * seg);
+            LineWF(x1, y1, x2, y2, "#aaaacc", 0.22);
+        }
+
+        DrawModCircles();
+
+        var s   = Spell!;
+        int pts = s.TotalPoints;
+        int lvlIdx = Math.Min(GameData.LevelTable.Count - 1,
+                              GameData.LevelTable.TakeWhile(e => e.Hi < pts).Count());
+        var lvl   = GameData.LevelTable[lvlIdx];
+        double rGem = r * 0.28;
+
+        CircleW(0, 0, rGem * 1.35, Br(lvl.Color, 0.25));
+        RingWB(0, 0, rGem * 1.35, lvl.Color, "#ffffff", 0.40, 2);
+
+        if      (lvlIdx <= 9)  TextW(0, 0, lvlIdx == 0 ? "C" : lvlIdx.ToString(), lvl.Color, Math.Max(18, (int)(rGem * 1.5)));
+        else if (lvlIdx == 10) DrawFistW(0, 0, rGem, "#FFD700");
+        else if (lvlIdx == 11) DrawCrownW(0, 0, rGem, "#FFD700");
+        else if (lvlIdx == 12) DrawWingsW(0, 0, rGem, "#FFFFFF");
+        else if (lvlIdx == 13) DrawSunW(0, 0, rGem, "#FFFFFF");
+        else                   DrawStarsW(0, 0, rGem, "#FFFFFF");
+
+        TextWB(0, rGem * 1.92, lvl.Name.ToUpper(), lvl.Color, "#aabbdd", 0.50, 5, isFixed: true);
+
+        RingWB(0, 0, r, "#e8d8a0", "#ffffff", 0.55, 2);
+        RingWF(0, 0, r * 0.94, "#6688aa", 0.20);
+
+        for (int i = 0; i < 16; i++)
+        {
+            var (dx, dy) = Wpt(0, 0, r * 0.91, i * (360.0 / 16));
+            CircleW(dx, dy, i % 4 == 0 ? 2.0 : 1.0, Br("#aabbdd", 0.40));
+        }
+
+        for (int i = 0; i < cats.Count; i++)
+        {
+            string gc = GameData.CatColors[cats[i]];
+            double aS = i * seg, midA = aS + seg / 2;
+            ArcRingWF(0, 0, r, aS, seg - 3, gc, 0.50, 3);
+            var (lx, ly) = Wpt(0, 0, r * 0.87, midA);
+            TextWF(lx, ly, GameData.ModRunes[cats[i]][0], gc, 0.65, 6, isFixed: true, angle: -(midA - 90));
+        }
+    }
+
+    private void DrawModCircles()
+    {
+        var s    = Spell!;
+        var cats = GameData.CatColors.Keys.ToList();
+        int n    = cats.Count;
+        double seg = 360.0 / n;
+
+        for (int i = 0; i < n; i++)
+        {
+            string cat   = cats[i];
+            double angle = i * seg + seg / 2;
+            var (cx, cy) = Wpt(0, 0, ModOrbit, angle);
+            string gc    = GameData.CatColors[cat];
+            var catMods  = GameData.DefaultGlobalMods.Where(kv => kv.Value.Cat == cat).ToList();
+            bool hasAct  = catMods.Any(kv => s.GlobalMods.TryGetValue(kv.Key, out int v) && v > 0);
+
+            CircleW(cx, cy, ModCR, Br(gc, hasAct ? 0.12 : 0.05));
+            RingW(cx, cy, ModCR, ColorHelper.Blend(BgHex, gc, hasAct ? 0.60 : 0.30), hasAct ? 2 : 1);
+            RingWF(cx, cy, ModCR * 0.68, gc, 0.18);
+
+            for (int k = 0; k < 4; k++)
+            {
+                var (p1x, p1y) = Wpt(cx, cy, ModCR * 0.12, angle + k * 90);
+                var (p2x, p2y) = Wpt(cx, cy, ModCR * 0.62, angle + k * 90);
+                LineWF(p1x, p1y, p2x, p2y, gc, 0.18);
+            }
+
+            string baseRune = GameData.ModRunes[cat][0];
+            TextW(cx, cy, baseRune,
+                  hasAct ? ColorHelper.Blend(gc, "#ffffff", 0.75) : ColorHelper.Blend(BgHex, gc, 0.45),
+                  Math.Max(6, (int)(ModCR * 0.50)), isFixed: true);
+
+            int nm = catMods.Count;
+            if (nm == 0) continue;
+            double nodeR = ModCR * 0.82;
+            for (int j = 0; j < nm; j++)
+            {
+                var (rx, ry) = Wpt(cx, cy, nodeR, j * (360.0 / nm));
+                int cnt  = s.GlobalMods.TryGetValue(catMods[j].Key, out int v2) ? v2 : 0;
+                int seed = ((catMods[j].Key.Sum(ch => (int)ch) % GameData.RunesAll.Length)
+                            + GameData.RunesAll.Length) % GameData.RunesAll.Length;
+                string rune = GameData.RunesAll[seed].ToString();
+                if (cnt > 0)
+                {
+                    CircleW(rx, ry, 3, Br(gc, 0.65));
+                    TextWB(rx, ry, rune, gc, "#ffffff", 0.80, Math.Max(5, (int)(ModCR * 0.30)), isFixed: true);
+                }
+                else
+                {
+                    CircleW(rx, ry, 2, Br(gc, 0.14));
+                    TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(ModCR * 0.26)), isFixed: true);
+                }
+            }
+        }
+    }
+
+    // ── Level icons ───────────────────────────────────────────────
+    private void DrawFistW(double wx, double wy, double r, string color)
+    {
+        double p0 = r * 0.18;
+        PolyWF(new[] { (wx-r*.55,wy+p0),(wx+r*.55,wy+p0),(wx+r*.55,wy+r*.65),(wx-r*.55,wy+r*.65) }, color, 0.75);
+        for (int i = 0; i < 4; i++)
+            CircleW(wx + (-r * 0.42 + i * r * 0.28), wy - r * 0.02, r * 0.20, Br(color, 0.80));
+    }
+    private void DrawCrownW(double wx, double wy, double r, string color)
+    {
+        double by = r * 0.12;
+        PolyWF(new[] { (wx-r*.72,wy+by),(wx+r*.72,wy+by),(wx+r*.72,wy+r*.55),(wx-r*.72,wy+r*.55) }, color, 0.70);
+        foreach (double px in new[] { -0.68, -0.34, 0.0, 0.34, 0.68 })
+            PolyWF(new[] { (wx+px*r-r*.16,wy+by),(wx+px*r,wy-r*.52),(wx+px*r+r*.16,wy+by) }, color, 0.90);
+    }
+    private void DrawWingsW(double wx, double wy, double r, string color)
+    {
+        foreach (int side in new[] { -1, 1 })
+        {
+            var pts = new List<(double, double)> { (wx, wy) };
+            for (int i = 0; i <= 9; i++)
+            {
+                double t = i / 9.0;
+                pts.Add(Wpt(wx, wy, r * (0.25 + t * 0.80), 180 + side * (20 + t * 110)));
+            }
+            pts.Add((wx, wy));
+            PolyW(pts, Br(color, 0.25));
+        }
+    }
+    private void DrawSunW(double wx, double wy, double r, string color)
+    {
+        CircleW(wx, wy, r * 0.32, Br(color, 0.70));
+        for (int i = 0; i < 12; i++)
+        {
+            var (x1, y1) = Wpt(wx, wy, r * 0.42, i * 30.0);
+            var (x2, y2) = Wpt(wx, wy, r * 0.88, i * 30.0);
+            LineW(x1, y1, x2, y2, color, 2);
+        }
+    }
+    private void DrawStarsW(double wx, double wy, double r, string color)
+    {
+        for (int i = 0; i < 7; i++)
+        {
+            var (sx, sy) = Wpt(wx, wy, r * 0.62, i * (360.0 / 7));
+            StarW(sx, sy, r * 0.25, r * 0.12, 5, fill: Br(color, 0.85));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 7 — DRAWBACK RINGS
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawDrawbackRings()
+    {
+        var s = Spell!;
+        if (s.DrawbackBuys.Count == 0) return;
+        var keys = s.DrawbackBuys.Keys.ToList();
+        int n    = keys.Count;
+        double orbit = CenterR + 18, ringR = 7;
+        for (int i = 0; i < n; i++)
+        {
+            double a     = i * (360.0 / Math.Max(n, 1));
+            var (rx, ry) = Wpt(0, 0, orbit, a);
+            RingW(rx, ry, ringR, "#ffffff", 2);
+            RingWF(rx, ry, ringR * 0.5, "#ffffff", 0.25);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 8 — CONDITIONS RING
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawConditionsRing()
+    {
+        var s = Spell!;
+        var all = s.IfThenConditions.Select(c => ("if", c))
+                   .Concat(s.WhenThenConditions.Select(c => ("wt", c))).ToList();
+        if (all.Count == 0) return;
+
+        double orbit = CenterR + 50;
+        int n        = all.Count;
+        RingWF(0, 0, orbit, "#8899bb", 0.22, 1, true);
+
+        string[] ifP = ["#6080ff","#8899ff","#aabbff","#99aaee","#7788dd",
+                         "#5566cc","#8899ee","#aaccff","#6677bb","#9999dd"];
+        string[] wtP = ["#ff9960","#60dd88","#ffdd60","#ff88ff","#88ffff",
+                         "#ff6080","#88ddff","#ddff88","#ffaa88","#aaffaa"];
+
+        for (int i = 0; i < n; i++)
+        {
+            var (kind, cond) = all[i];
+            double a  = i * (360.0 / n);
+            var (rx, ry) = Wpt(0, 0, orbit, a);
+            string c  = kind == "if" ? ifP[i % ifP.Length] : wtP[i % wtP.Length];
+            string l1 = cond.IfOrWhenText, l2 = cond.ThenText;
+            int seed  = (((l1 + l2).Sum(ch => (int)ch) + i * 37) % GameData.RunesAll.Length
+                         + GameData.RunesAll.Length) % GameData.RunesAll.Length;
+            string rune = GameData.RunesAll[seed].ToString();
+
+            if (kind == "if")
+            {
+                double d = 8;
+                PolyW(new[] { (rx,ry-d),(rx+d,ry),(rx,ry+d),(rx-d,ry) },
+                      Br(c, 0.30), Pn(B(c, "#ffffff", 0.60), 1));
+            }
+            else
+            {
+                CircleW(rx, ry, 7, Br(c, 0.28));
+                RingWB(rx, ry, 7, c, "#ffffff", 0.60);
+            }
+            TextWB(rx, ry, rune, c, "#ffffff", 0.88, 8, isFixed: true);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  STATUS BAR
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawStatusBar()
+    {
+        var s   = Spell!;
+        var lvl = s.LevelInfo;
+        string col = ColorHelper.Blend("#445566", lvl.Color, 0.7);
+        string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
+        var ft  = new FormattedText(txt, CultureInfo.CurrentCulture,
+                                    FlowDirection.LeftToRight, _tfGeo, 9, Br(col), 1.0);
+        var cp  = Tc(0, OuterR + 14);
+        _dc.DrawText(ft, new Point(cp.X - ft.Width / 2, cp.Y - ft.Height / 2));
+
+        if (s.DrawbackBuys.Count > 0 && !s.IsComplete)
+        {
+            var ft2 = new FormattedText("⚠ more drawbacks than purchases — add normal items",
+                                        CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                                        _tf, 7, Br("#ff5555"), 1.0);
+            var cp2 = Tc(0, OuterR + 26);
+            _dc.DrawText(ft2, new Point(cp2.X - ft2.Width / 2, cp2.Y - ft2.Height / 2));
+        }
     }
 }
