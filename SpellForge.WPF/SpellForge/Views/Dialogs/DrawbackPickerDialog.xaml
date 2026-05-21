@@ -2,13 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Manage Drawbacks"
-        Width="500" Height="540"
+        Width="500" Height="640"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -48,8 +49,44 @@
             </ItemsControl>
         </ScrollViewer>
 
+        <!-- Create custom drawback -->
+        <Border Grid.Row="2" Margin="0,6,0,0" Padding="8,6"
+                Background="{StaticResource EBgBrush}" CornerRadius="2">
+            <StackPanel>
+                <TextBlock Text="Create Custom Drawback"
+                           FontSize="10" FontWeight="Bold"
+                           Foreground="{StaticResource GoldBrush}"
+                           Margin="0,0,0,4"/>
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Name"
+                               Foreground="{StaticResource DimBrush}" FontSize="9"
+                               VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" x:Name="CustomNameBox" FontSize="10"/>
+                </Grid>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Desc"
+                               Foreground="{StaticResource DimBrush}" FontSize="9"
+                               VerticalAlignment="Top" Margin="0,2,0,0"/>
+                    <TextBox Grid.Column="1" x:Name="CustomDescBox"
+                             FontSize="10" Height="44"
+                             AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Grid>
+                <Button Content="+ Add Custom" HorizontalAlignment="Left"
+                        Padding="6,2" FontSize="9" Click="AddCustom_Click"/>
+            </StackPanel>
+        </Border>
+
         <!-- Footer -->
-        <Button Grid.Row="2" Content="Close"
+        <Button Grid.Row="3" Content="Close"
                 HorizontalAlignment="Right" Width="80"
                 Margin="0,8,0,0" Click="Close_Click"/>
     </Grid>

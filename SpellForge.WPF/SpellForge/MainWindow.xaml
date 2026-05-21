@@ -24,6 +24,9 @@
                 <MenuItem Header="_Save"       Command="{Binding SaveSpellCommand}"/>
                 <MenuItem Header="Save _As…"   Command="{Binding SaveAsSpellCommand}"/>
                 <Separator/>
+                <MenuItem Header="Export _PNG…"      Click="MenuSavePng_Click"/>
+                <MenuItem Header="Copy _Image"       Click="MenuCopyCanvas_Click"/>
+                <Separator/>
                 <MenuItem Header="E_xit" Click="MenuExit_Click"/>
             </MenuItem>
             <MenuItem Header="_View" Foreground="{StaticResource TextBrush}">

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using SpellForge.Models;
@@ -34,18 +35,40 @@ public partial class DrawbackItemVM : ObservableObject
 // ── Dialog ────────────────────────────────────────────────────────────
 public partial class DrawbackPickerDialog : Window
 {
+    private readonly Spell _spell;
+    private readonly ObservableCollection<DrawbackItemVM> _items;
+
     public DrawbackPickerDialog(Spell spell)
     {
         InitializeComponent();
+        _spell = spell;
 
-        // Combine built-in and custom negative mods
-        var items = GameData.DefaultNegativeMods
-            .Select(m => new DrawbackItemVM(spell, m.Name, m.Desc))
-            .Concat(spell.CustomNegMods
-                .Select(m => new DrawbackItemVM(spell, m.Name, m.Desc)))
-            .ToList();
+        _items = new ObservableCollection<DrawbackItemVM>(
+            GameData.DefaultNegativeMods
+                .Select(m => new DrawbackItemVM(spell, m.Name, m.Desc))
+                .Concat(spell.CustomNegMods
+                    .Select(m => new DrawbackItemVM(spell, m.Name, m.Desc))));
 
-        DrawbackList.ItemsSource = items;
+        DrawbackList.ItemsSource = _items;
+    }
+
+    private void AddCustom_Click(object sender, RoutedEventArgs e)
+    {
+        var name = CustomNameBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name)) { CustomNameBox.Focus(); return; }
+        if (_items.Any(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            CustomNameBox.SelectAll();
+            CustomNameBox.Focus();
+            return;
+        }
+        var desc   = CustomDescBox.Text.Trim();
+        var negMod = new NegModDef(name, desc);
+        _spell.CustomNegMods.Add(negMod);
+        _items.Add(new DrawbackItemVM(_spell, name, desc));
+        CustomNameBox.Text = "";
+        CustomDescBox.Text = "";
+        CustomNameBox.Focus();
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
