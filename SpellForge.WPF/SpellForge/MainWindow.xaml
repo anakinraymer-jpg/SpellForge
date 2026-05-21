@@ -431,7 +431,7 @@
                                     <TextBlock Text="{Binding Spell.LevelName}" FontWeight="Bold"
                                                Foreground="{StaticResource AccentBrush}"/>
                                 </StackPanel>
-                                <ProgressBar Value="{Binding Spell.LevelProgress}" Maximum="100"
+                                <ProgressBar Value="{Binding Spell.LevelProgress, Mode=OneWay}" Maximum="100"
                                              Height="12" Margin="0,6,0,0"
                                              Background="{StaticResource EBgBrush}"
                                              Foreground="{StaticResource AccentBrush}"/>
