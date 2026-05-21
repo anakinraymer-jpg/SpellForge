@@ -1,0 +1,84 @@
+<Application x:Class="SpellForge.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- ── Colours ─────────────────────────────────── -->
+            <Color x:Key="BgColor">#0a0a14</Color>
+            <Color x:Key="PanelBgColor">#0d0d1a</Color>
+            <Color x:Key="EBgColor">#111120</Color>
+            <Color x:Key="TextColor">#c8d0e8</Color>
+            <Color x:Key="AccentColor">#3355ff</Color>
+            <Color x:Key="GoldColor">#c8a840</Color>
+            <Color x:Key="DimColor">#445566</Color>
+
+            <SolidColorBrush x:Key="BgBrush"      Color="{StaticResource BgColor}"/>
+            <SolidColorBrush x:Key="PanelBgBrush" Color="{StaticResource PanelBgColor}"/>
+            <SolidColorBrush x:Key="EBgBrush"     Color="{StaticResource EBgColor}"/>
+            <SolidColorBrush x:Key="TextBrush"    Color="{StaticResource TextColor}"/>
+            <SolidColorBrush x:Key="AccentBrush"  Color="{StaticResource AccentColor}"/>
+            <SolidColorBrush x:Key="GoldBrush"    Color="{StaticResource GoldColor}"/>
+            <SolidColorBrush x:Key="DimBrush"     Color="{StaticResource DimColor}"/>
+
+            <!-- ── Base styles ────────────────────────────── -->
+            <Style TargetType="Window">
+                <Setter Property="Background" Value="{StaticResource BgBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+            </Style>
+
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="FontFamily" Value="Segoe UI"/>
+            </Style>
+
+            <Style TargetType="Label">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            </Style>
+
+            <Style TargetType="TextBox">
+                <Setter Property="Background"  Value="{StaticResource EBgBrush}"/>
+                <Setter Property="Foreground"  Value="{StaticResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="CaretBrush"  Value="{StaticResource TextBrush}"/>
+                <Setter Property="Padding"     Value="4,2"/>
+            </Style>
+
+            <Style TargetType="Button">
+                <Setter Property="Background"  Value="{StaticResource EBgBrush}"/>
+                <Setter Property="Foreground"  Value="{StaticResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Padding"     Value="8,3"/>
+                <Setter Property="Cursor"      Value="Hand"/>
+            </Style>
+
+            <Style TargetType="TabControl">
+                <Setter Property="Background"  Value="{StaticResource PanelBgBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            </Style>
+
+            <Style TargetType="TabItem">
+                <Setter Property="Background"  Value="{StaticResource BgBrush}"/>
+                <Setter Property="Foreground"  Value="{StaticResource DimBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Padding"     Value="8,4"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{StaticResource PanelBgBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="ScrollViewer">
+                <Setter Property="Background" Value="Transparent"/>
+            </Style>
+
+            <Style TargetType="GridSplitter">
+                <Setter Property="Background" Value="#1a2a3a"/>
+                <Setter Property="Width"      Value="5"/>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

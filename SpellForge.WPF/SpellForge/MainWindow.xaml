@@ -1,0 +1,213 @@
+<Window x:Class="SpellForge.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:SpellForge.Views.Controls"
+        Title="SpellForge" Height="800" Width="1400"
+        Background="{StaticResource BgBrush}"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <Style x:Key="PaneHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource GoldBrush}"/>
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="FontStyle"  Value="Italic"/>
+            <Setter Property="Margin"     Value="0,4,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- ── Menu bar ──────────────────────────────────────────── -->
+        <Menu DockPanel.Dock="Top" Background="#0d0d1a" Foreground="{StaticResource TextBrush}">
+            <MenuItem Header="_File" Foreground="{StaticResource TextBrush}">
+                <MenuItem Header="_New Spell"  Command="{Binding NewSpellCommand}"/>
+                <MenuItem Header="_Open…"      Command="{Binding OpenSpellCommand}"/>
+                <MenuItem Header="_Save"       Command="{Binding SaveSpellCommand}"/>
+                <MenuItem Header="Save _As…"   Command="{Binding SaveAsSpellCommand}"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="MenuExit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_View" Foreground="{StaticResource TextBrush}">
+                <MenuItem Header="Zoom In"    Command="{Binding ZoomInCommand}"/>
+                <MenuItem Header="Zoom Out"   Command="{Binding ZoomOutCommand}"/>
+                <MenuItem Header="Reset View" Command="{Binding ZoomResetCommand}"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- ── Status bar ────────────────────────────────────────── -->
+        <StatusBar DockPanel.Dock="Bottom" Background="#0d0d1a">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource DimBrush}" FontSize="11"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- ── Three-pane layout ─────────────────────────────────── -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" MinWidth="220"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"   MinWidth="400"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="420" MinWidth="220"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT PANE ── school/element/identity tabs -->
+            <Border Grid.Column="0" Background="{StaticResource PanelBgBrush}">
+                <TabControl x:Name="LeftTabs" Background="{StaticResource PanelBgBrush}">
+                    <!-- Identity tab -->
+                    <TabItem Header="Identity">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8" Background="{StaticResource PanelBgBrush}">
+                                <TextBlock Text="✦  Spell Identity" Style="{StaticResource PaneHeader}"/>
+                                <TextBlock Text="Name" Foreground="{StaticResource DimBrush}" Margin="0,4,0,2"/>
+                                <TextBox Text="{Binding Spell.Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Description" Foreground="{StaticResource DimBrush}" Margin="0,0,0,2"/>
+                                <TextBox Text="{Binding Spell.Description, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" Height="80" TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+                                <TextBlock Text="Spell Effects" Style="{StaticResource PaneHeader}"/>
+                                <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="4">
+                                    <TextBlock Text="{Binding SpellEffectsSummary}"
+                                               TextWrapping="Wrap" FontFamily="Courier New" FontSize="10"
+                                               Foreground="{StaticResource DimBrush}"/>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- Elements tab -->
+                    <TabItem Header="🜂 Elements">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8" Background="{StaticResource PanelBgBrush}">
+                                <TextBlock Text="⊕  Elemental Affinities" Style="{StaticResource PaneHeader}"/>
+                                <TextBlock Text="(Max 3 active. Select below.)"
+                                           Foreground="{StaticResource DimBrush}" FontSize="10" Margin="0,0,0,8"/>
+                                <!-- Element rows populated in code-behind -->
+                                <ItemsControl ItemsSource="{Binding ElementViewModels}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,2" Padding="6" Background="{StaticResource EBgBrush}"
+                                                    BorderThickness="1" CornerRadius="2">
+                                                <Border.BorderBrush>
+                                                    <SolidColorBrush Color="{Binding SchoolColor}"/>
+                                                </Border.BorderBrush>
+                                                <StackPanel>
+                                                    <CheckBox IsChecked="{Binding IsActive}"
+                                                              Content="{Binding HeaderText}"
+                                                              Foreground="{Binding ColorBrush}"/>
+                                                    <TextBlock Text="{Binding Modification}"
+                                                               FontSize="9" FontStyle="Italic"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="16,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <!-- School tabs — one per school, populated in code-behind -->
+                </TabControl>
+            </Border>
+
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="#1a2a3a"/>
+
+            <!-- CENTRE PANE ── Magic circle canvas -->
+            <Border Grid.Column="2" Background="#1a1208">
+                <controls:MagicCircleCanvas x:Name="MagicCanvas"
+                                             Spell="{Binding Spell}"
+                                             ClipToBounds="True"/>
+            </Border>
+
+            <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="#1a2a3a"/>
+
+            <!-- RIGHT PANE ── Calculator / Modifiers / Synergies / etc. -->
+            <Border Grid.Column="4" Background="{StaticResource PanelBgBrush}">
+                <TabControl Background="{StaticResource PanelBgBrush}">
+                    <TabItem Header="✦ Calculator">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <TextBlock Text="⊕  Spell Calculator" Style="{StaticResource PaneHeader}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4">
+                                    <TextBlock Text="Total Points: " Foreground="{StaticResource DimBrush}"/>
+                                    <TextBlock Text="{Binding Spell.TotalPoints}" FontWeight="Bold"
+                                               Foreground="{StaticResource GoldBrush}" FontSize="14"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="Spell Level: " Foreground="{StaticResource DimBrush}"/>
+                                    <TextBlock Text="{Binding Spell.LevelName}" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentBrush}"/>
+                                </StackPanel>
+                                <ProgressBar Value="{Binding Spell.LevelProgress}" Maximum="100"
+                                             Height="12" Margin="0,6,0,0"
+                                             Background="{StaticResource EBgBrush}"
+                                             Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock Text="Level Thresholds" Style="{StaticResource PaneHeader}" Margin="0,12,0,4"/>
+                                <ItemsControl ItemsSource="{Binding LevelThresholds}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                                <TextBlock Text="{Binding Range}" Width="70"
+                                                           Foreground="{StaticResource DimBrush}" FontSize="10"/>
+                                                <TextBlock Text="{Binding Name}"
+                                                           Foreground="{Binding ColorBrush}" FontSize="10"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Modifiers">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <TextBlock Text="⊙  Global Modifiers" Style="{StaticResource PaneHeader}"/>
+                                <TextBlock Text="(Modifier UI — coming soon)" Foreground="{StaticResource DimBrush}" FontSize="10"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Synergies">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <TextBlock Text="⚜  School Synergies" Style="{StaticResource PaneHeader}"/>
+                                <ItemsControl ItemsSource="{Binding ActiveSynergies}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,4">
+                                                <TextBlock Text="{Binding Header}" FontWeight="Bold"
+                                                           Foreground="{Binding ColorBrush}" FontSize="10"/>
+                                                <TextBlock Text="{Binding Description}"
+                                                           Foreground="{StaticResource DimBrush}"
+                                                           FontSize="9" TextWrapping="Wrap" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Drawbacks">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <TextBlock Text="◌  Drawbacks" Style="{StaticResource PaneHeader}"/>
+                                <TextBlock Text="(Drawback UI — coming soon)" Foreground="{StaticResource DimBrush}" FontSize="10"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Guide">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock Text="{Binding GuideText}" Margin="8"
+                                       TextWrapping="Wrap" FontFamily="Courier New" FontSize="9"
+                                       Foreground="{StaticResource DimBrush}"/>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>
