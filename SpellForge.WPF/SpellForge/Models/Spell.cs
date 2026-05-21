@@ -29,6 +29,10 @@ public partial class Spell : ObservableObject
     public Dictionary<string, string> DrawbackBuys { get; set; } = new();
     // user-added negative mods
     public ObservableCollection<NegModDef> CustomNegMods { get; set; } = new();
+    // per-school capstone overrides (null entry = use GameData defaults)
+    public Dictionary<string, CapstoneDef> CustomCapstones { get; set; } = new();
+    // user-added custom global modifier definitions
+    public Dictionary<string, ModDef> CustomMods { get; set; } = new();
     // if-then conditions
     public ObservableCollection<ConditionEntry> IfThenConditions { get; set; } = new();
     // when-then conditions
@@ -100,7 +104,10 @@ public partial class Spell : ObservableObject
                     if (abMap.TryGetValue(ab, out var def)) pts += def.Cost * cnt;
             }
             foreach (var (mod, cnt) in GlobalMods)
+            {
                 if (GameData.DefaultGlobalMods.TryGetValue(mod, out var md)) pts += md.Cost * cnt;
+                else if (CustomMods.TryGetValue(mod, out var cm))            pts += cm.Cost * cnt;
+            }
             foreach (var groups in RingMods.Values)
                 foreach (var cnt in groups.Values) pts += cnt;
             foreach (var (el, val) in Elements)
@@ -131,8 +138,9 @@ public partial class Spell : ObservableObject
                 }
                 else if (key.StartsWith("mod/"))
                 {
-                    if (GameData.DefaultGlobalMods.TryGetValue(key[4..], out var md))
-                        pts -= md.Cost;
+                    var mname = key[4..];
+                    if (GameData.DefaultGlobalMods.TryGetValue(mname, out var md))      pts -= md.Cost;
+                    else if (CustomMods.TryGetValue(mname, out var cm))                 pts -= cm.Cost;
                 }
                 else if (key.StartsWith("ringmod/"))
                     pts -= 1;

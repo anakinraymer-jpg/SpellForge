@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using SpellForge.Models;
 using SpellForge.Views.Controls;
+using SpellForge.Views.Dialogs;
 
 namespace SpellForge.ViewModels;
 
@@ -78,8 +79,36 @@ public partial class SpellViewModel : ViewModelBase
             };
             foreach (var (name, def) in GameData.DefaultGlobalMods.Where(kv => kv.Value.Cat == cat))
                 catVm.Mods.Add(new GlobalModRowVM(name, def, Spell, OnSpellDataChanged));
+            // Also show any custom mods in this category
+            foreach (var (name, def) in Spell.CustomMods.Where(kv => kv.Value.Cat == cat))
+                catVm.Mods.Add(new GlobalModRowVM(name, def, Spell, OnSpellDataChanged));
             GlobalModCategories.Add(catVm);
         }
+    }
+
+    [RelayCommand]
+    private void AddCustomMod()
+    {
+        var dlg = new ModEditorDialog { Owner = Application.Current.MainWindow };
+        if (dlg.ShowDialog() != true || dlg.Result == null) return;
+        var (name, def) = dlg.Result.Value;
+        if (Spell.CustomMods.ContainsKey(name) || GameData.DefaultGlobalMods.ContainsKey(name))
+        {
+            MessageBox.Show($"A modifier named \"{name}\" already exists.", "Duplicate Name",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        Spell.CustomMods[name] = def;
+        var catVm = GlobalModCategories.FirstOrDefault(c => c.Name == def.Cat);
+        catVm?.Mods.Add(new GlobalModRowVM(name, def, Spell, OnSpellDataChanged));
+    }
+
+    [RelayCommand]
+    private void ManageDrawbacks()
+    {
+        var dlg = new DrawbackPickerDialog(Spell) { Owner = Application.Current.MainWindow };
+        dlg.ShowDialog();
+        RefreshDerived();
     }
 
     // ── Shared callback from row VMs ──────────────────────────────
@@ -156,6 +185,8 @@ public partial class SpellViewModel : ViewModelBase
         foreach (var vm in SchoolViewModels) vm.Refresh();
         foreach (var cat in GlobalModCategories)
             foreach (var mod in cat.Mods) mod.Refresh();
+        foreach (var el in ElementViewModels)
+            foreach (var node in el.NodeRows) node.Refresh();
         StatusText = $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {Spell.AllSchools.Count} school(s)";
     }
 
@@ -226,12 +257,95 @@ public record SynergyItem(string Header, string Description, string Color)
         new((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(Color));
 }
 
+// ── Element node (upgrade) row ────────────────────────────────────
+public partial class ElementNodeRowVM : ObservableObject
+{
+    private readonly string _element;
+    private readonly string _name;
+    private readonly Spell  _spell;
+    private readonly Action _onChange;
+
+    public string Name      { get; }
+    public string Rune      { get; }
+    public string Glyph     { get; }
+    public string Desc      { get; }
+    public int    Cost      { get; }
+    public string CostLabel { get; }
+    public System.Windows.Media.SolidColorBrush ColorBrush { get; }
+
+    [ObservableProperty] private int _count;
+    partial void OnCountChanged(int value) => OnPropertyChanged(nameof(CountDisplay));
+
+    public string CountDisplay => Count switch
+    {
+        0 => "○ ○ ○",
+        1 => "● ○ ○",
+        2 => "● ● ○",
+        _ => "● ● ●",
+    };
+
+    public ElementNodeRowVM(string element, NodeDef def,
+                            System.Windows.Media.Color elColor,
+                            Spell spell, Action onChange)
+    {
+        _element  = element;
+        _name     = def.Name;
+        _spell    = spell;
+        _onChange = onChange;
+        Name      = def.Name;
+        Rune      = def.Rune;
+        Glyph     = def.Glyph;
+        Desc      = def.Desc;
+        Cost      = def.Cost;
+        CostLabel = $"({Cost} pt)";
+        ColorBrush = new System.Windows.Media.SolidColorBrush(elColor);
+        ReadCount();
+    }
+
+    private void ReadCount()
+    {
+        int v = 0;
+        if (_spell.ElementNodes.TryGetValue(_element, out var nodes))
+            nodes.TryGetValue(_name, out v);
+        Count = v;
+    }
+
+    [RelayCommand]
+    private void Increment()
+    {
+        if (Count >= 3) return;
+        Count++;
+        EnsureDict();
+        _spell.ElementNodes[_element][_name] = Count;
+        _onChange();
+    }
+
+    [RelayCommand]
+    private void Decrement()
+    {
+        if (Count <= 0) return;
+        Count--;
+        EnsureDict();
+        _spell.ElementNodes[_element][_name] = Count;
+        _onChange();
+    }
+
+    public void Refresh() => ReadCount();
+
+    private void EnsureDict()
+    {
+        if (!_spell.ElementNodes.ContainsKey(_element))
+            _spell.ElementNodes[_element] = new Dictionary<string, int>();
+    }
+}
+
+// ── Element row ───────────────────────────────────────────────────
 public partial class ElementRowViewModel : ObservableObject
 {
-    private readonly string _name;
+    private readonly string     _name;
     private readonly ElementDef _def;
-    private readonly Spell _spell;
-    private readonly Action _onChange;
+    private readonly Spell      _spell;
+    private readonly Action     _onChange;
 
     public string HeaderText   => $"{_def.Symbol}  {_name}  [{_def.Rune}]";
     public string Modification => _def.Modification;
@@ -239,6 +353,7 @@ public partial class ElementRowViewModel : ObservableObject
         (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(_def.Color);
     public System.Windows.Media.SolidColorBrush ColorBrush => new(SchoolColor);
 
+    // ── Active toggle ─────────────────────────────────────────────
     public bool IsActive
     {
         get => _spell.Elements.TryGetValue(_name, out var v) && v != null;
@@ -261,12 +376,54 @@ public partial class ElementRowViewModel : ObservableObject
                 _spell.ElementNodes.Remove(_name);
             }
             OnPropertyChanged();
+            OnPropertyChanged(nameof(SubtypeVisibility));
+            OnPropertyChanged(nameof(NodeSectionVisibility));
             _onChange();
         }
     }
 
+    // ── Celestial subtype ─────────────────────────────────────────
+    public bool IsCelestial => _name == "Celestial";
+
+    public Visibility SubtypeVisibility =>
+        (IsActive && IsCelestial) ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility NodeSectionVisibility =>
+        IsActive ? Visibility.Visible : Visibility.Collapsed;
+
+    public IReadOnlyList<string> SubtypeOptions =>
+        IsCelestial && _def.Subtypes != null
+            ? _def.Subtypes.Keys.ToList()
+            : Array.Empty<string>();
+
+    public string SelectedSubtypeText
+    {
+        get
+        {
+            if (!_spell.Elements.TryGetValue(_name, out var v) || v == null) return "";
+            return v;
+        }
+        set
+        {
+            if (_spell.Elements.ContainsKey(_name))
+                _spell.Elements[_name] = value ?? "";
+            OnPropertyChanged();
+            _onChange();
+        }
+    }
+
+    // ── Upgrade node rows ─────────────────────────────────────────
+    public ObservableCollection<ElementNodeRowVM> NodeRows { get; } = new();
+
+    // ─────────────────────────────────────────────────────────────
     public ElementRowViewModel(string name, ElementDef def, Spell spell, Action onChange)
     {
-        _name = name; _def = def; _spell = spell; _onChange = onChange;
+        _name     = name;
+        _def      = def;
+        _spell    = spell;
+        _onChange = onChange;
+
+        foreach (var node in def.Nodes)
+            NodeRows.Add(new ElementNodeRowVM(name, node, SchoolColor, spell, onChange));
     }
 }

@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SpellForge.Models;
+using SpellForge.Views.Dialogs;
 
 namespace SpellForge.ViewModels;
 
@@ -199,6 +201,33 @@ public partial class SchoolViewModel : ObservableObject
     public ObservableCollection<RingModRowVM> RingMods  { get; } = new();
     public ObservableCollection<AbilityRowVM> Abilities { get; } = new();
 
+    // ── Capstone ──────────────────────────────────────────────────
+    private Spell  _spell;
+    private Action _onChange;
+
+    public CapstoneDef EffectiveCapstone =>
+        _spell.CustomCapstones.TryGetValue(Name, out var c) ? c : GameData.Capstones[Name];
+
+    public Visibility CapstoneActiveVisibility =>
+        _spell.CapstoneActive(Name) ? Visibility.Visible : Visibility.Collapsed;
+
+    [RelayCommand]
+    private void EditCapstone()
+    {
+        var dlg = new CapstoneEditorDialog(Name, EffectiveCapstone)
+        {
+            Owner = Application.Current.MainWindow,
+        };
+        if (dlg.ShowDialog() == true && dlg.Result != null)
+        {
+            _spell.CustomCapstones[Name] = dlg.Result;
+            OnPropertyChanged(nameof(EffectiveCapstone));
+            OnPropertyChanged(nameof(CapstoneActiveVisibility));
+            _onChange();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     public SchoolViewModel(string name, SchoolDef def, Spell spell, Action onChange)
     {
         Name       = name;
@@ -207,6 +236,8 @@ public partial class SchoolViewModel : ObservableObject
         Color      = def.Color;
         ColorBrush = new SolidColorBrush(
             (System.Windows.Media.Color)ColorConverter.ConvertFromString(def.Color));
+        _spell     = spell;
+        _onChange  = onChange;
 
         BuildRows(def, spell, onChange);
     }
@@ -231,11 +262,15 @@ public partial class SchoolViewModel : ObservableObject
     {
         foreach (var row in RingMods)  row.Refresh();
         foreach (var row in Abilities) row.Refresh();
+        OnPropertyChanged(nameof(EffectiveCapstone));
+        OnPropertyChanged(nameof(CapstoneActiveVisibility));
     }
 
     /// <summary>Point all rows at a replacement spell (New / Open).</summary>
     public void Rebuild(Spell newSpell, Action newOnChange)
     {
+        _spell    = newSpell;
+        _onChange = newOnChange;
         foreach (var row in RingMods)  row.Rebuild(newSpell, newOnChange);
         foreach (var row in Abilities) row.Rebuild(newSpell, newOnChange);
     }

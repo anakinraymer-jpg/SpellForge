@@ -81,23 +81,101 @@
                                 <TextBlock Text="⊕  Elemental Affinities" Style="{StaticResource PaneHeader}"/>
                                 <TextBlock Text="(Max 3 active. Select below.)"
                                            Foreground="{StaticResource DimBrush}" FontSize="10" Margin="0,0,0,8"/>
-                                <!-- Element rows populated in code-behind -->
                                 <ItemsControl ItemsSource="{Binding ElementViewModels}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Margin="0,2" Padding="6" Background="{StaticResource EBgBrush}"
+                                            <Border Margin="0,2" Padding="6"
+                                                    Background="{StaticResource EBgBrush}"
                                                     BorderThickness="1" CornerRadius="2">
                                                 <Border.BorderBrush>
                                                     <SolidColorBrush Color="{Binding SchoolColor}"/>
                                                 </Border.BorderBrush>
                                                 <StackPanel>
+                                                    <!-- Toggle + header -->
                                                     <CheckBox IsChecked="{Binding IsActive}"
                                                               Content="{Binding HeaderText}"
                                                               Foreground="{Binding ColorBrush}"/>
                                                     <TextBlock Text="{Binding Modification}"
                                                                FontSize="9" FontStyle="Italic"
                                                                Foreground="{StaticResource DimBrush}"
-                                                               TextWrapping="Wrap" Margin="16,2,0,0"/>
+                                                               TextWrapping="Wrap"
+                                                               Margin="16,2,0,0"/>
+
+                                                    <!-- Celestial subtype selector -->
+                                                    <StackPanel Visibility="{Binding SubtypeVisibility}"
+                                                                Orientation="Horizontal"
+                                                                Margin="16,4,0,0">
+                                                        <TextBlock Text="Subtype: "
+                                                                   Foreground="{StaticResource DimBrush}"
+                                                                   FontSize="9"
+                                                                   VerticalAlignment="Center"/>
+                                                        <ComboBox ItemsSource="{Binding SubtypeOptions}"
+                                                                  SelectedItem="{Binding SelectedSubtypeText, Mode=TwoWay}"
+                                                                  Width="110" FontSize="10"/>
+                                                    </StackPanel>
+
+                                                    <!-- Upgrade node rows -->
+                                                    <StackPanel Visibility="{Binding NodeSectionVisibility}"
+                                                                Margin="0,6,0,0">
+                                                        <TextBlock Text="UPGRADES"
+                                                                   FontSize="8"
+                                                                   Foreground="{StaticResource DimBrush}"
+                                                                   Margin="0,0,0,2"/>
+                                                        <ItemsControl ItemsSource="{Binding NodeRows}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,1">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="28"/>
+                                                                            <ColumnDefinition Width="28"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Grid.ToolTip>
+                                                                            <ToolTip Content="{Binding Desc}"/>
+                                                                        </Grid.ToolTip>
+                                                                        <!-- Glyph -->
+                                                                        <TextBlock Grid.Column="0"
+                                                                                   Text="{Binding Glyph}"
+                                                                                   FontSize="11"
+                                                                                   Foreground="{Binding ColorBrush}"
+                                                                                   Margin="0,0,4,0"
+                                                                                   VerticalAlignment="Center"/>
+                                                                        <!-- Name + cost + dots -->
+                                                                        <StackPanel Grid.Column="1"
+                                                                                    Orientation="Horizontal"
+                                                                                    VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding Name}"
+                                                                                       FontSize="10" FontWeight="Bold"
+                                                                                       Foreground="{Binding ColorBrush}"
+                                                                                       VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="{Binding CostLabel}"
+                                                                                       FontSize="9"
+                                                                                       Foreground="{StaticResource DimBrush}"
+                                                                                       Margin="4,0,0,0"
+                                                                                       VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="{Binding CountDisplay}"
+                                                                                       FontSize="9" FontWeight="Bold"
+                                                                                       Foreground="{StaticResource GoldBrush}"
+                                                                                       Margin="5,0,0,0"
+                                                                                       VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                        <!-- Decrement -->
+                                                                        <Button Grid.Column="2" Content="−"
+                                                                                Command="{Binding DecrementCommand}"
+                                                                                Width="22" Height="22"
+                                                                                Padding="0" Margin="2,0"/>
+                                                                        <!-- Increment -->
+                                                                        <Button Grid.Column="3" Content="+"
+                                                                                Command="{Binding IncrementCommand}"
+                                                                                Width="22" Height="22"
+                                                                                Padding="0" Margin="2,0"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -161,7 +239,17 @@
                     </TabItem>
 
                     <TabItem Header="Modifiers">
-                        <controls:GlobalModPanel x:Name="ModPanel" Margin="4"/>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Content="+ Custom Mod"
+                                    Command="{Binding AddCustomModCommand}"
+                                    HorizontalAlignment="Right"
+                                    Margin="4,4,4,2" Padding="6,2" FontSize="10"/>
+                            <controls:GlobalModPanel Grid.Row="1" x:Name="ModPanel" Margin="4,2,4,4"/>
+                        </Grid>
                     </TabItem>
 
                     <TabItem Header="Synergies">
@@ -186,23 +274,33 @@
                     </TabItem>
 
                     <TabItem Header="Drawbacks">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="8">
-                                <TextBlock Text="◌  Drawbacks" Style="{StaticResource PaneHeader}"/>
-                                <TextBlock Text="Active drawbacks appear here. (Full editor: Phase 4)"
-                                           Foreground="{StaticResource DimBrush}" FontSize="9" TextWrapping="Wrap"/>
-                                <ItemsControl ItemsSource="{Binding ActiveDrawbacks}" Margin="0,8,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="◌ " Foreground="#aaaacc"/>
-                                                <TextBlock Text="{Binding}" Foreground="{StaticResource DimBrush}" FontSize="10"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Content="✎ Manage Drawbacks"
+                                    Command="{Binding ManageDrawbacksCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="8,4,8,2" Padding="6,2" FontSize="10"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="8">
+                                    <TextBlock Text="◌  Active Drawbacks" Style="{StaticResource PaneHeader}"/>
+                                    <ItemsControl ItemsSource="{Binding ActiveDrawbacks}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <TextBlock Text="◌ " Foreground="#aaaacc" FontSize="10"/>
+                                                    <TextBlock Text="{Binding}"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               FontSize="10" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
                     </TabItem>
 
                     <TabItem Header="Guide">
