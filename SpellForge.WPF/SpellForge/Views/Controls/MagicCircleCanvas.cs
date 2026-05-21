@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SpellForge.Models;
@@ -48,6 +49,11 @@ public class MagicCircleCanvas : FrameworkElement
     private bool   _centered = false;
     private Point? _panStart;
 
+    // ── Hit testing ──────────────────────────────────────────────
+    private record HitRegion(Point Center, double Radius, string Tooltip, Action? OnClick);
+    private readonly List<HitRegion> _hits = new();
+    private ToolTip? _hoverTip;
+
     // ── Render-time state (valid only inside OnRender) ────────────
     private DrawingContext _dc = null!;
 
@@ -92,6 +98,24 @@ public class MagicCircleCanvas : FrameworkElement
         InvalidateVisual();
     }
 
+    // ── Hit helpers ──────────────────────────────────────────────
+    private void MutateSpell(Action<Spell> mutation)
+    {
+        var s = Spell;
+        if (s == null) return;
+        mutation(s);
+        s.NotifyAllChanged();
+    }
+
+    private void Hit(double wx, double wy, double worldR, string tooltip, Action? onClick = null)
+    {
+        var sc = Tc(wx, wy);
+        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 8), tooltip, onClick));
+    }
+
+    private HitRegion? FindHit(Point p) =>
+        _hits.FirstOrDefault(h => (p - h.Center).Length <= h.Radius + 4);
+
     // ── Mouse ────────────────────────────────────────────────────
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
@@ -112,8 +136,42 @@ public class MagicCircleCanvas : FrameworkElement
             _oy += pos.Y - _panStart.Value.Y;
             _panStart = pos;
             InvalidateVisual();
+            ToolTip = null;
+            return;
         }
+
+        var hit = FindHit(e.GetPosition(this));
+        if (hit != null)
+        {
+            _hoverTip ??= new ToolTip
+            {
+                Background      = new SolidColorBrush(Color.FromRgb(0x0d, 0x0d, 0x1a)),
+                Foreground      = new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
+                BorderBrush     = new SolidColorBrush(Color.FromRgb(0x33, 0x55, 0xff)),
+                BorderThickness = new Thickness(1),
+                Padding         = new Thickness(8, 5, 8, 5),
+                FontSize        = 10,
+            };
+            _hoverTip.Content = hit.Tooltip;
+            ToolTip = _hoverTip;
+        }
+        else
+            ToolTip = null;
     }
+
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        Focus();
+        var hit = FindHit(e.GetPosition(this));
+        if (hit?.OnClick != null)
+        {
+            hit.OnClick();
+            e.Handled = true;
+            return;
+        }
+        base.OnMouseLeftButtonDown(e);
+    }
+
     protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
     {
         _panStart = null;
@@ -308,6 +366,7 @@ public class MagicCircleCanvas : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         _dc = dc;
+        _hits.Clear();
         double W = ActualWidth, H = ActualHeight;
         if (W < 1 || H < 1) return;
 
@@ -578,6 +637,14 @@ public class MagicCircleCanvas : FrameworkElement
                     var (nwx, nwy) = Wpt(0, 0, rNode, aM + offset);
                     bool bought = boughtNodes.TryGetValue(edata.Nodes[k].Name, out int bc) && bc > 0;
                     DrawElemNode(nwx, nwy, edata.Nodes[k].Glyph, ec, bought ? 6 : 4, bought);
+                    var capEl = el; var capNode = edata.Nodes[k]; var capBc = bc;
+                    Hit(nwx, nwy, bought ? 6 : 4,
+                        $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)\nLevel: {capBc}/3\n{capNode.Desc}",
+                        () => MutateSpell(sp => {
+                            if (!sp.ElementNodes.ContainsKey(capEl)) sp.ElementNodes[capEl] = new();
+                            int cur = sp.ElementNodes[capEl].TryGetValue(capNode.Name, out int v) ? v : 0;
+                            sp.ElementNodes[capEl][capNode.Name] = cur >= 3 ? 0 : cur + 1;
+                        }));
                 }
             }
         }
@@ -629,6 +696,15 @@ public class MagicCircleCanvas : FrameworkElement
                     var (snx, sny) = Wpt(0, 0, k % 2 == 0 ? rIn + 14 : rOut - 14, jAng + (k - 1) * 10.0);
                     bool bse = bsub.TryGetValue(seNodes[k].Name, out int bsc) && bsc > 0;
                     DrawElemNode(snx, sny, seNodes[k].Glyph, mc, 5, bse);
+                    var capSeKey = keyStr; var capSen = seNodes[k]; var capBsc = bsc;
+                    string pairLabel = $"{pair.Value.Item1} + {pair.Value.Item2}";
+                    Hit(snx, sny, 5,
+                        $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}\nLevel: {capBsc}/3\n{capSen.Desc}",
+                        () => MutateSpell(sp => {
+                            if (!sp.SubelementNodes.ContainsKey(capSeKey)) sp.SubelementNodes[capSeKey] = new();
+                            int cur = sp.SubelementNodes[capSeKey].TryGetValue(capSen.Name, out int v) ? v : 0;
+                            sp.SubelementNodes[capSeKey][capSen.Name] = cur >= 3 ? 0 : cur + 1;
+                        }));
                 }
             }
         }
@@ -666,6 +742,9 @@ public class MagicCircleCanvas : FrameworkElement
         double dim = act ? 1.0 : 0.20;
         string ink = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
 
+        Hit(wx, wy, r,
+            $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}");
+
         if (cap && act)
         {
             RingWF(wx, wy, r * 1.38, "#FFD700", 0.40, 1, true);
@@ -699,6 +778,15 @@ public class MagicCircleCanvas : FrameworkElement
                 CircleW(rx, ry, 2, Br(c, 0.28 * dim));
                 TextWF(rx, ry, rune, c, 0.50 * dim, Math.Max(5, (int)(r * 0.16)), isFixed: true);
             }
+            var capAbSch = school; var capAbn = abn; var capAbCnt = cnt;
+            var abDef = sd.Abilities[abn];
+            Hit(rx, ry, Math.Max(r * 0.14, 6),
+                $"⬥ {abn}  [{school}]\nCost: {abDef.Cost} pt each  ·  Level: {cnt}/3\n{abDef.Desc}",
+                () => MutateSpell(sp => {
+                    if (!sp.SchoolAbilities.ContainsKey(capAbSch)) sp.SchoolAbilities[capAbSch] = new();
+                    int cur = sp.SchoolAbilities[capAbSch].TryGetValue(capAbn, out int v) ? v : 0;
+                    sp.SchoolAbilities[capAbSch][capAbn] = cur >= 3 ? 0 : cur + 1;
+                }));
         }
 
         // Ring-mod rune ring
@@ -724,6 +812,13 @@ public class MagicCircleCanvas : FrameworkElement
                     CircleW(rx2, ry2, 2, Br(gc, 0.22 * dim));
                     TextWF(rx2, ry2, rune, gc, 0.42 * dim, Math.Max(5, (int)(r * 0.15)), isFixed: true);
                 }
+                var capRmSch = school; var capGrp = grp; var capSlot = slot; var capFill = fillCnt;
+                Hit(rx2, ry2, Math.Max(r * 0.14, 6),
+                    $"◈ {grp}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}",
+                    () => MutateSpell(sp => {
+                        if (!sp.RingMods.ContainsKey(capRmSch)) sp.RingMods[capRmSch] = new();
+                        sp.RingMods[capRmSch][capGrp] = capFill == capSlot + 1 ? capSlot : capSlot + 1;
+                    }));
             }
         }
 
@@ -854,6 +949,11 @@ public class MagicCircleCanvas : FrameworkElement
                   hasAct ? ColorHelper.Blend(gc, "#ffffff", 0.75) : ColorHelper.Blend(BgHex, gc, 0.45),
                   Math.Max(6, (int)(ModCR * 0.50)), isFixed: true);
 
+            Hit(cx, cy, ModCR,
+                $"■ {cat} Modifiers\n" +
+                string.Join("\n", catMods.Select(kv =>
+                    $"  {kv.Key} ({kv.Value.Cost} pt, max {kv.Value.Max})")));
+
             int nm = catMods.Count;
             if (nm == 0) continue;
             double nodeR = ModCR * 0.82;
@@ -874,6 +974,13 @@ public class MagicCircleCanvas : FrameworkElement
                     CircleW(rx, ry, 2, Br(gc, 0.14));
                     TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(ModCR * 0.26)), isFixed: true);
                 }
+                var capModKey = catMods[j].Key; var capModDef = catMods[j].Value; var capModCnt = cnt;
+                Hit(rx, ry, 7,
+                    $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}",
+                    () => MutateSpell(sp => {
+                        int cur = sp.GlobalMods.TryGetValue(capModKey, out int v) ? v : 0;
+                        sp.GlobalMods[capModKey] = cur >= capModDef.Max ? 0 : cur + 1;
+                    }));
             }
         }
     }
