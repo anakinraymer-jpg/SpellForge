@@ -76,6 +76,8 @@ public partial class Spell : ObservableObject
                 if (val != null) n++;
             foreach (var nodes in ElementNodes.Values)
                 n += nodes.Values.Count(c => c > 0);
+            foreach (var nodes in SubelementNodes.Values)
+                n += nodes.Values.Count(c => c > 0);
             return n;
         }
     }
@@ -124,6 +126,17 @@ public partial class Spell : ObservableObject
                 foreach (var (nname, cnt) in nodes)
                 {
                     var nd = ed.Nodes.FirstOrDefault(x => x.Name == nname);
+                    if (nd != null) pts += nd.Cost * cnt;
+                }
+            }
+            foreach (var (pairKey, nodes) in SubelementNodes)
+            {
+                var parts = pairKey.Split(',');
+                if (parts.Length != 2) continue;
+                if (!GameData.SubelementNodes.TryGetValue((parts[0], parts[1]), out var defs)) continue;
+                foreach (var (nname, cnt) in nodes)
+                {
+                    var nd = defs.FirstOrDefault(x => x.Name == nname);
                     if (nd != null) pts += nd.Cost * cnt;
                 }
             }

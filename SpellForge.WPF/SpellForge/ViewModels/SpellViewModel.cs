@@ -180,13 +180,24 @@ public partial class SpellViewModel : ViewModelBase
 
     // ── Sub-element groups ────────────────────────────────────────
     public ObservableCollection<SubelementGroupVM> ActiveSubelements { get; } = new();
+    private HashSet<string> _lastActiveElsForSubelements = new();
 
     private void RefreshSubelements()
     {
-        ActiveSubelements.Clear();
         var activeEls = GameData.Elements.Keys
             .Where(el => Spell.Elements.TryGetValue(el, out var v) && v != null)
             .ToHashSet();
+
+        // If the set of active elements hasn't changed, just refresh existing row counts.
+        if (activeEls.SetEquals(_lastActiveElsForSubelements))
+        {
+            foreach (var grp in ActiveSubelements)
+                foreach (var row in grp.NodeRows) row.Refresh();
+            return;
+        }
+
+        _lastActiveElsForSubelements = activeEls;
+        ActiveSubelements.Clear();
 
         foreach (var ((el1, el2), nodes) in GameData.SubelementNodes)
         {
@@ -287,6 +298,8 @@ public partial class SpellViewModel : ViewModelBase
         Spell = new Spell();
         Spell.PropertyChanged += (_, _) => RefreshDerived();
         OnPropertyChanged(nameof(Spell));
+        NewIfText = NewThenText = NewWhenText = NewWThenText = "";
+        _lastActiveElsForSubelements = new HashSet<string>();
         BuildElementViewModels();
         BuildSchoolViewModels();
         BuildGlobalModCategories();
@@ -304,6 +317,8 @@ public partial class SpellViewModel : ViewModelBase
         Spell = loaded;
         Spell.PropertyChanged += (_, _) => RefreshDerived();
         OnPropertyChanged(nameof(Spell));
+        NewIfText = NewThenText = NewWhenText = NewWThenText = "";
+        _lastActiveElsForSubelements = new HashSet<string>();
         BuildElementViewModels();
         BuildSchoolViewModels();
         BuildGlobalModCategories();
