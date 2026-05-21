@@ -52,7 +52,7 @@ public class MagicCircleCanvas : FrameworkElement
     // ── Hit testing ──────────────────────────────────────────────
     private record HitRegion(Point Center, double Radius, string Tooltip, Action? OnClick);
     private readonly List<HitRegion> _hits = new();
-    private ToolTip? _hoverTip;
+    private string? _hoverInfo;
 
     // ── Render-time state (valid only inside OnRender) ────────────
     private DrawingContext _dc = null!;
@@ -136,27 +136,17 @@ public class MagicCircleCanvas : FrameworkElement
             _oy += pos.Y - _panStart.Value.Y;
             _panStart = pos;
             InvalidateVisual();
-            ToolTip = null;
+            if (_hoverInfo != null) { _hoverInfo = null; InvalidateVisual(); }
             return;
         }
 
-        var hit = FindHit(e.GetPosition(this));
-        if (hit != null)
+        var hit     = FindHit(e.GetPosition(this));
+        var newInfo = hit?.Tooltip;
+        if (newInfo != _hoverInfo)
         {
-            _hoverTip ??= new ToolTip
-            {
-                Background      = new SolidColorBrush(Color.FromRgb(0x0d, 0x0d, 0x1a)),
-                Foreground      = new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
-                BorderBrush     = new SolidColorBrush(Color.FromRgb(0x33, 0x55, 0xff)),
-                BorderThickness = new Thickness(1),
-                Padding         = new Thickness(8, 5, 8, 5),
-                FontSize        = 10,
-            };
-            _hoverTip.Content = hit.Tooltip;
-            ToolTip = _hoverTip;
+            _hoverInfo = newInfo;
+            InvalidateVisual();
         }
-        else
-            ToolTip = null;
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -385,6 +375,55 @@ public class MagicCircleCanvas : FrameworkElement
         DrawDrawbackRings();
         DrawConditionsRing();
         DrawStatusBar();
+        DrawHoverInfo();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  HOVER INFO BOX  (screen-space overlay, drawn last)
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawHoverInfo()
+    {
+        if (string.IsNullOrEmpty(_hoverInfo)) return;
+
+        var lines  = _hoverInfo.Split('\n');
+        double W   = ActualWidth, H = ActualHeight;
+        const double padX = 12, padY = 8, lineH = 15, maxBoxW = 320;
+
+        // measure each line to find the widest
+        double boxW = 0;
+        var fts = new FormattedText[lines.Length];
+        for (int i = 0; i < lines.Length; i++)
+        {
+            bool hdr = i == 0;
+            fts[i] = new FormattedText(
+                string.IsNullOrWhiteSpace(lines[i]) ? " " : lines[i],
+                CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                hdr ? _tfGeo : _tf, hdr ? 11 : 9,
+                hdr ? new SolidColorBrush(Color.FromRgb(0xff, 0xee, 0x88))
+                     : new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
+                1.0)
+            { MaxTextWidth = maxBoxW - padX * 2 };
+            boxW = Math.Max(boxW, Math.Min(fts[i].Width + padX * 2 + 4, maxBoxW));
+        }
+
+        double boxH = lines.Length * lineH + padY * 2;
+        double bx   = 10, by = H - boxH - 10;
+
+        // clamp so it doesn't go off-screen
+        bx = Math.Max(4, Math.Min(bx, W - boxW - 4));
+        by = Math.Max(4, by);
+
+        _dc.DrawRoundedRectangle(
+            new SolidColorBrush(Color.FromArgb(0xE8, 0x09, 0x09, 0x16)),
+            new Pen(new SolidColorBrush(Color.FromRgb(0x33, 0x55, 0xff)), 1),
+            new Rect(bx, by, boxW, boxH), 5, 5);
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (string.IsNullOrWhiteSpace(lines[i])) continue;
+            _dc.DrawText(fts[i], new Point(bx + padX, by + padY + i * lineH));
+        }
     }
 
     // ════════════════════════════════════════════════════════════
