@@ -193,7 +193,7 @@ public class MagicCircleCanvas : FrameworkElement
     {
         if (string.IsNullOrEmpty(text)) return;
         var ft = new FormattedText(text, CultureInfo.CurrentCulture,
-                                   FlowDirection.LeftToRight, tf, size, brush, 1.0);
+                                   FlowDirection.LeftToRight, tf, size * _zoom, brush, 1.0);
         var c = Tc(wx, wy);
         var origin = new Point(c.X - ft.Width / 2, c.Y - ft.Height / 2);
         if (Math.Abs(angle) > 0.01)
@@ -1003,7 +1003,7 @@ public class MagicCircleCanvas : FrameworkElement
         string col = ColorHelper.Blend("#445566", lvl.Color, 0.7);
         string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
         var ft  = new FormattedText(txt, CultureInfo.CurrentCulture,
-                                    FlowDirection.LeftToRight, _tfGeo, 9, Br(col), 1.0);
+                                    FlowDirection.LeftToRight, _tfGeo, 9 * _zoom, Br(col), 1.0);
         var cp  = Tc(0, OuterR + 14);
         _dc.DrawText(ft, new Point(cp.X - ft.Width / 2, cp.Y - ft.Height / 2));
 
@@ -1011,7 +1011,7 @@ public class MagicCircleCanvas : FrameworkElement
         {
             var ft2 = new FormattedText("⚠ more drawbacks than purchases — add normal items",
                                         CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                                        _tf, 7, Br("#ff5555"), 1.0);
+                                        _tf, 7 * _zoom, Br("#ff5555"), 1.0);
             var cp2 = Tc(0, OuterR + 26);
             _dc.DrawText(ft2, new Point(cp2.X - ft2.Width / 2, cp2.Y - ft2.Height / 2));
         }
