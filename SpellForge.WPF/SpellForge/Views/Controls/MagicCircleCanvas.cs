@@ -393,12 +393,25 @@ public class MagicCircleCanvas : FrameworkElement
     {
         if (string.IsNullOrEmpty(_hoverInfo)) return;
 
-        var lines  = _hoverInfo.Split('\n');
-        double W   = ActualWidth, H = ActualHeight;
-        const double padX    = 12, padY = 8, lineH = 15, maxBoxW = 320;
-        const double cursorOffX = 16, cursorOffY = 20; // offset from cursor tip
+        double W = ActualWidth, H = ActualHeight;
 
-        // measure each line to find the widest
+        // ── Cursor crosshair at exact mouse tip ──────────────────
+        var glowBrush = new SolidColorBrush(Color.FromArgb(0xCC, 0xff, 0xee, 0x55));
+        var glowPen   = new Pen(glowBrush, 1.2);
+        double cr = 6;
+        _dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(0x88, 0xff, 0xee, 0x55)), 1.5),
+                        _mousePos, cr, cr);
+        _dc.DrawLine(glowPen,
+                     new Point(_mousePos.X - cr - 3, _mousePos.Y),
+                     new Point(_mousePos.X + cr + 3, _mousePos.Y));
+        _dc.DrawLine(glowPen,
+                     new Point(_mousePos.X, _mousePos.Y - cr - 3),
+                     new Point(_mousePos.X, _mousePos.Y + cr + 3));
+
+        // ── Info box — fixed center-bottom ───────────────────────
+        var lines = _hoverInfo.Split('\n');
+        const double padX = 14, padY = 9, maxBoxW = 380;
+
         double boxW = 0;
         var fts = new FormattedText[lines.Length];
         for (int i = 0; i < lines.Length; i++)
@@ -407,54 +420,34 @@ public class MagicCircleCanvas : FrameworkElement
             fts[i] = new FormattedText(
                 string.IsNullOrWhiteSpace(lines[i]) ? " " : lines[i],
                 CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                hdr ? _tfGeo : _tf, hdr ? 11 : 9,
+                hdr ? _tfGeo : _tf, hdr ? 12 : 9.5,
                 hdr ? new SolidColorBrush(Color.FromRgb(0xff, 0xee, 0x88))
                      : new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
                 1.0)
             { MaxTextWidth = maxBoxW - padX * 2 };
-
-            // Measure actual wrapped height
             boxW = Math.Max(boxW, Math.Min(fts[i].Width + padX * 2 + 4, maxBoxW));
         }
 
-        // Use actual text heights for accurate box sizing
+        // Exact height from actual text metrics
         double boxH = padY * 2;
-        for (int i = 0; i < lines.Length; i++)
-            boxH += string.IsNullOrWhiteSpace(lines[i]) ? lineH * 0.5 : fts[i].Height + 2;
+        foreach (var ft in fts)
+            boxH += ft.Height + 2;
 
-        // Start the box just below and to the right of the cursor
-        double bx = _mousePos.X + cursorOffX;
-        double by = _mousePos.Y + cursorOffY;
-
-        // Flip left if the box would overflow the right edge
-        if (bx + boxW + 4 > W)
-            bx = _mousePos.X - boxW - cursorOffX * 0.5;
-
-        // Flip up if the box would overflow the bottom edge
-        if (by + boxH + 4 > H)
-            by = _mousePos.Y - boxH - 4;
-
-        // Hard-clamp to canvas bounds
-        bx = Math.Clamp(bx, 4, W - boxW - 4);
-        by = Math.Clamp(by, 4, H - boxH - 4);
+        // Centered horizontally, 10px from bottom
+        double bx = Math.Clamp((W - boxW) / 2, 4, W - boxW - 4);
+        double by = Math.Clamp(H - boxH - 10, 4, H - boxH - 4);
 
         _dc.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromArgb(0xEE, 0x07, 0x07, 0x12)),
+            new SolidColorBrush(Color.FromArgb(0xF0, 0x06, 0x06, 0x11)),
             new Pen(new SolidColorBrush(Color.FromRgb(0x44, 0x66, 0xff)), 1),
-            new Rect(bx, by, boxW, boxH), 5, 5);
+            new Rect(bx, by, boxW, boxH), 6, 6);
 
         double ty = by + padY;
         for (int i = 0; i < lines.Length; i++)
         {
             if (!string.IsNullOrWhiteSpace(lines[i]))
-            {
                 _dc.DrawText(fts[i], new Point(bx + padX, ty));
-                ty += fts[i].Height + 2;
-            }
-            else
-            {
-                ty += lineH * 0.5;
-            }
+            ty += fts[i].Height + 2;
         }
     }
 
