@@ -33,6 +33,8 @@ public partial class Spell : ObservableObject
     public Dictionary<string, CapstoneDef> CustomCapstones { get; set; } = new();
     // user-added custom global modifier definitions
     public Dictionary<string, ModDef> CustomMods { get; set; } = new();
+    // per-element text overrides (modification label + description)
+    public Dictionary<string, ElementOverride> CustomElementDescs { get; set; } = new();
     // if-then conditions
     public ObservableCollection<ConditionEntry> IfThenConditions { get; set; } = new();
     // when-then conditions

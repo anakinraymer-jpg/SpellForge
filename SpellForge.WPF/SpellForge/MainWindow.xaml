@@ -70,6 +70,128 @@
                                                TextWrapping="Wrap" FontFamily="Courier New" FontSize="10"
                                                Foreground="{StaticResource DimBrush}"/>
                                 </Border>
+
+                                <!-- ── If-Then conditions ────────────────── -->
+                                <TextBlock Text="▸  If-Then Conditions" Style="{StaticResource PaneHeader}"
+                                           Margin="0,12,0,4"/>
+                                <ItemsControl ItemsSource="{Binding Spell.IfThenConditions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="24"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock FontSize="9" Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap">
+                                                        <Run Text="IF "  Foreground="#88aaff" FontWeight="Bold"/>
+                                                        <Run Text="{Binding IfOrWhenText}"/>
+                                                    </TextBlock>
+                                                    <TextBlock FontSize="9" Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="8,0,0,0">
+                                                        <Run Text="THEN " Foreground="{StaticResource GoldBrush}" FontWeight="Bold"/>
+                                                        <Run Text="{Binding ThenText}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="✕" Width="20" Height="20"
+                                                        Padding="0" VerticalAlignment="Top"
+                                                        Command="{Binding DataContext.RemoveIfThenCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Add If-Then row -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="IF"
+                                               Foreground="#88aaff" FontWeight="Bold" FontSize="9"
+                                               VerticalAlignment="Center" Margin="0,0,6,2"/>
+                                    <TextBox  Grid.Row="0" Grid.Column="1"
+                                              Text="{Binding NewIfText, UpdateSourceTrigger=PropertyChanged}"
+                                              FontSize="10" Margin="0,0,0,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="THEN"
+                                               Foreground="{StaticResource GoldBrush}" FontWeight="Bold" FontSize="9"
+                                               VerticalAlignment="Center" Margin="0,0,6,4"/>
+                                    <TextBox  Grid.Row="1" Grid.Column="1"
+                                              Text="{Binding NewThenText, UpdateSourceTrigger=PropertyChanged}"
+                                              FontSize="10" Margin="0,0,0,4"/>
+                                    <Button   Grid.Row="2" Grid.Column="1"
+                                              Content="+ Add" FontSize="9"
+                                              HorizontalAlignment="Left" Padding="6,1"
+                                              Command="{Binding AddIfThenCommand}"/>
+                                </Grid>
+
+                                <!-- ── When-Then conditions ──────────────── -->
+                                <TextBlock Text="▸  When-Then Conditions" Style="{StaticResource PaneHeader}"
+                                           Margin="0,12,0,4"/>
+                                <ItemsControl ItemsSource="{Binding Spell.WhenThenConditions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="24"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock FontSize="9" Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap">
+                                                        <Run Text="WHEN " Foreground="#88ffcc" FontWeight="Bold"/>
+                                                        <Run Text="{Binding IfOrWhenText}"/>
+                                                    </TextBlock>
+                                                    <TextBlock FontSize="9" Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="8,0,0,0">
+                                                        <Run Text="THEN " Foreground="{StaticResource GoldBrush}" FontWeight="Bold"/>
+                                                        <Run Text="{Binding ThenText}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <Button Grid.Column="1" Content="✕" Width="20" Height="20"
+                                                        Padding="0" VerticalAlignment="Top"
+                                                        Command="{Binding DataContext.RemoveWhenThenCommand,
+                                                                          RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Add When-Then row -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="WHEN"
+                                               Foreground="#88ffcc" FontWeight="Bold" FontSize="9"
+                                               VerticalAlignment="Center" Margin="0,0,6,2"/>
+                                    <TextBox  Grid.Row="0" Grid.Column="1"
+                                              Text="{Binding NewWhenText, UpdateSourceTrigger=PropertyChanged}"
+                                              FontSize="10" Margin="0,0,0,2"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="THEN"
+                                               Foreground="{StaticResource GoldBrush}" FontWeight="Bold" FontSize="9"
+                                               VerticalAlignment="Center" Margin="0,0,6,4"/>
+                                    <TextBox  Grid.Row="1" Grid.Column="1"
+                                              Text="{Binding NewWThenText, UpdateSourceTrigger=PropertyChanged}"
+                                              FontSize="10" Margin="0,0,0,4"/>
+                                    <Button   Grid.Row="2" Grid.Column="1"
+                                              Content="+ Add" FontSize="9"
+                                              HorizontalAlignment="Left" Padding="6,1"
+                                              Command="{Binding AddWhenThenCommand}"/>
+                                </Grid>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
@@ -91,11 +213,24 @@
                                                     <SolidColorBrush Color="{Binding SchoolColor}"/>
                                                 </Border.BorderBrush>
                                                 <StackPanel>
-                                                    <!-- Toggle + header -->
-                                                    <CheckBox IsChecked="{Binding IsActive}"
-                                                              Content="{Binding HeaderText}"
-                                                              Foreground="{Binding ColorBrush}"/>
-                                                    <TextBlock Text="{Binding Modification}"
+                                                    <!-- Toggle + header + edit button -->
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="26"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox Grid.Column="0"
+                                                                  IsChecked="{Binding IsActive}"
+                                                                  Content="{Binding HeaderText}"
+                                                                  Foreground="{Binding ColorBrush}"
+                                                                  VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="1" Content="✎"
+                                                                Command="{Binding EditElementCommand}"
+                                                                Width="22" Height="22"
+                                                                Padding="0" VerticalAlignment="Center"
+                                                                ToolTip="Edit modification text"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding EffectiveModification}"
                                                                FontSize="9" FontStyle="Italic"
                                                                Foreground="{StaticResource DimBrush}"
                                                                TextWrapping="Wrap"
@@ -181,6 +316,82 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+
+                                <!-- Sub-element combinations -->
+                                <ItemsControl ItemsSource="{Binding ActiveSubelements}"
+                                              Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,4" Padding="6"
+                                                    Background="{StaticResource EBgBrush}"
+                                                    BorderThickness="1" CornerRadius="2">
+                                                <Border.BorderBrush>
+                                                    <SolidColorBrush Color="#334455"/>
+                                                </Border.BorderBrush>
+                                                <StackPanel>
+                                                    <!-- Pair header -->
+                                                    <TextBlock Text="{Binding Label}"
+                                                               FontSize="11" FontWeight="Bold"
+                                                               Foreground="{StaticResource GoldBrush}"
+                                                               Margin="0,0,0,1"/>
+                                                    <TextBlock Text="{Binding ConnectionDesc}"
+                                                               FontSize="9" FontStyle="Italic"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap"
+                                                               Margin="0,0,0,4"/>
+                                                    <!-- Node rows -->
+                                                    <ItemsControl ItemsSource="{Binding NodeRows}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid Margin="0,1">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="28"/>
+                                                                        <ColumnDefinition Width="28"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Grid.ToolTip>
+                                                                        <ToolTip Content="{Binding Desc}"/>
+                                                                    </Grid.ToolTip>
+                                                                    <TextBlock Grid.Column="0"
+                                                                               Text="{Binding Glyph}"
+                                                                               FontSize="11"
+                                                                               Foreground="{StaticResource GoldBrush}"
+                                                                               Margin="0,0,4,0"
+                                                                               VerticalAlignment="Center"/>
+                                                                    <StackPanel Grid.Column="1"
+                                                                                Orientation="Horizontal"
+                                                                                VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding Name}"
+                                                                                   FontSize="10" FontWeight="Bold"
+                                                                                   Foreground="{StaticResource TextBrush}"/>
+                                                                        <TextBlock Text="{Binding CostLabel}"
+                                                                                   FontSize="9"
+                                                                                   Foreground="{StaticResource DimBrush}"
+                                                                                   Margin="4,0,0,0"/>
+                                                                        <TextBlock Text="{Binding CountDisplay}"
+                                                                                   FontSize="9" FontWeight="Bold"
+                                                                                   Foreground="{StaticResource GoldBrush}"
+                                                                                   Margin="5,0,0,0"/>
+                                                                    </StackPanel>
+                                                                    <Button Grid.Column="2" Content="−"
+                                                                            Command="{Binding DecrementCommand}"
+                                                                            Width="22" Height="22"
+                                                                            Padding="0" Margin="2,0"/>
+                                                                    <Button Grid.Column="3" Content="+"
+                                                                            Command="{Binding IncrementCommand}"
+                                                                            Width="22" Height="22"
+                                                                            Padding="0" Margin="2,0"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
@@ -308,6 +519,114 @@
                             <TextBlock Text="{Binding GuideText}" Margin="8"
                                        TextWrapping="Wrap" FontFamily="Courier New" FontSize="9"
                                        Foreground="{StaticResource DimBrush}"/>
+                        </ScrollViewer>
+                    </TabItem>
+
+                    <TabItem Header="Library">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="8">
+                                <!-- Schools -->
+                                <TextBlock Text="◈  Schools" Style="{StaticResource PaneHeader}"/>
+                                <ItemsControl ItemsSource="{Binding LibrarySchools}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,2" Padding="5"
+                                                    Background="{StaticResource EBgBrush}"
+                                                    CornerRadius="2">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Symbol}"
+                                                                   FontSize="14" Margin="0,0,5,0"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="10" FontWeight="Bold"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Desc}"
+                                                               FontSize="8" FontStyle="Italic"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="0,1,0,0"/>
+                                                    <TextBlock Text="{Binding AbilityList}"
+                                                               FontSize="8"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Elements -->
+                                <TextBlock Text="⊕  Elements" Style="{StaticResource PaneHeader}"
+                                           Margin="0,10,0,4"/>
+                                <ItemsControl ItemsSource="{Binding LibraryElements}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,2" Padding="5"
+                                                    Background="{StaticResource EBgBrush}"
+                                                    CornerRadius="2">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Symbol}"
+                                                                   FontSize="14" Margin="0,0,5,0"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="10" FontWeight="Bold"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Modification}"
+                                                               FontSize="8"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="0,1,0,0"/>
+                                                    <TextBlock Text="{Binding NodeList}"
+                                                               FontSize="8"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Capstones -->
+                                <TextBlock Text="⚜  Capstones" Style="{StaticResource PaneHeader}"
+                                           Margin="0,10,0,4"/>
+                                <ItemsControl ItemsSource="{Binding LibraryCapstones}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="0,2" Padding="5"
+                                                    Background="{StaticResource EBgBrush}"
+                                                    CornerRadius="2">
+                                                <StackPanel>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Glyph}"
+                                                                   FontSize="14" Margin="0,0,5,0"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding SchoolName}"
+                                                                   FontSize="10" FontWeight="Bold"
+                                                                   Foreground="{Binding ColorBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="10"
+                                                                   Foreground="{StaticResource TextBrush}"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="6,0,0,0"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding Desc}"
+                                                               FontSize="8" FontStyle="Italic"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               TextWrapping="Wrap" Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
                     </TabItem>
                 </TabControl>

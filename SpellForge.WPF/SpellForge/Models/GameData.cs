@@ -16,6 +16,7 @@ public record ElementDef(
     IReadOnlyDictionary<string, SubtypeDef>? Subtypes = null);
 
 public record CapstoneDef(string Name, string Desc, string Glyph, string Ring, string Color);
+public record ElementOverride(string Modification, string Desc);
 public record ModDef(string Cat, int Cost, int Max, string Desc);
 public record NegModDef(string Name, string Desc);
 public record LevelEntry(int Lo, int Hi, string Name, string Color);

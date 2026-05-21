@@ -201,6 +201,20 @@ public partial class SchoolViewModel : ObservableObject
     public ObservableCollection<RingModRowVM> RingMods  { get; } = new();
     public ObservableCollection<AbilityRowVM> Abilities { get; } = new();
 
+    // ── Circle size ───────────────────────────────────────────────
+    public double CircleSize
+    {
+        get => _spell.CircleSizes.TryGetValue(Name, out var s) ? s : 1.0;
+        set
+        {
+            _spell.CircleSizes[Name] = Math.Round(value, 2);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CircleSizeLabel));
+            _onChange();
+        }
+    }
+    public string CircleSizeLabel => $"{CircleSize:F1}×";
+
     // ── Capstone ──────────────────────────────────────────────────
     private Spell  _spell;
     private Action _onChange;
@@ -262,6 +276,8 @@ public partial class SchoolViewModel : ObservableObject
     {
         foreach (var row in RingMods)  row.Refresh();
         foreach (var row in Abilities) row.Refresh();
+        OnPropertyChanged(nameof(CircleSize));
+        OnPropertyChanged(nameof(CircleSizeLabel));
         OnPropertyChanged(nameof(EffectiveCapstone));
         OnPropertyChanged(nameof(CapstoneActiveVisibility));
     }
@@ -273,5 +289,7 @@ public partial class SchoolViewModel : ObservableObject
         _onChange = newOnChange;
         foreach (var row in RingMods)  row.Rebuild(newSpell, newOnChange);
         foreach (var row in Abilities) row.Rebuild(newSpell, newOnChange);
+        OnPropertyChanged(nameof(CircleSize));
+        OnPropertyChanged(nameof(CircleSizeLabel));
     }
 }

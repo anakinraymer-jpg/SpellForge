@@ -23,6 +23,23 @@
 
             <Separator Margin="0,0,0,4"/>
 
+            <!-- Module size slider -->
+            <Grid Margin="0,0,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="32"/>
+                </Grid.ColumnDefinitions>
+                <Slider Grid.Column="0"
+                        Minimum="0.4" Maximum="2.2"
+                        Value="{Binding CircleSize, Mode=TwoWay}"
+                        TickFrequency="0.1" IsSnapToTickEnabled="True"
+                        VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding CircleSizeLabel}"
+                           FontSize="10" Foreground="{StaticResource DimBrush}"
+                           VerticalAlignment="Center" HorizontalAlignment="Right"/>
+            </Grid>
+
             <!-- Ring Modifiers -->
             <TextBlock Text="RING MODIFIERS"
                        FontSize="9" Foreground="{StaticResource DimBrush}"
