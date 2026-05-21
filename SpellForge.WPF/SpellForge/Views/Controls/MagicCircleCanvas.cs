@@ -53,6 +53,7 @@ public class MagicCircleCanvas : FrameworkElement
     private record HitRegion(Point Center, double Radius, string Tooltip, Action? OnClick);
     private readonly List<HitRegion> _hits = new();
     private string? _hoverInfo;
+    private Point   _mousePos;
 
     // ── Render-time state (valid only inside OnRender) ────────────
     private DrawingContext _dc = null!;
@@ -129,22 +130,28 @@ public class MagicCircleCanvas : FrameworkElement
     }
     protected override void OnMouseMove(MouseEventArgs e)
     {
+        _mousePos = e.GetPosition(this);
+
         if (_panStart.HasValue && e.RightButton == MouseButtonState.Pressed)
         {
-            var pos = e.GetPosition(this);
-            _ox += pos.X - _panStart.Value.X;
-            _oy += pos.Y - _panStart.Value.Y;
-            _panStart = pos;
+            _ox += _mousePos.X - _panStart.Value.X;
+            _oy += _mousePos.Y - _panStart.Value.Y;
+            _panStart = _mousePos;
+            if (_hoverInfo != null) _hoverInfo = null;
             InvalidateVisual();
-            if (_hoverInfo != null) { _hoverInfo = null; InvalidateVisual(); }
             return;
         }
 
-        var hit     = FindHit(e.GetPosition(this));
+        var hit     = FindHit(_mousePos);
         var newInfo = hit?.Tooltip;
+        // Always invalidate while hovering so the box tracks the cursor smoothly
         if (newInfo != _hoverInfo)
         {
             _hoverInfo = newInfo;
+            InvalidateVisual();
+        }
+        else if (_hoverInfo != null)
+        {
             InvalidateVisual();
         }
     }
@@ -388,7 +395,8 @@ public class MagicCircleCanvas : FrameworkElement
 
         var lines  = _hoverInfo.Split('\n');
         double W   = ActualWidth, H = ActualHeight;
-        const double padX = 12, padY = 8, lineH = 15, maxBoxW = 320;
+        const double padX    = 12, padY = 8, lineH = 15, maxBoxW = 320;
+        const double cursorOffX = 16, cursorOffY = 20; // offset from cursor tip
 
         // measure each line to find the widest
         double boxW = 0;
@@ -404,25 +412,49 @@ public class MagicCircleCanvas : FrameworkElement
                      : new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
                 1.0)
             { MaxTextWidth = maxBoxW - padX * 2 };
+
+            // Measure actual wrapped height
             boxW = Math.Max(boxW, Math.Min(fts[i].Width + padX * 2 + 4, maxBoxW));
         }
 
-        double boxH = lines.Length * lineH + padY * 2;
-        double bx   = 10, by = H - boxH - 10;
+        // Use actual text heights for accurate box sizing
+        double boxH = padY * 2;
+        for (int i = 0; i < lines.Length; i++)
+            boxH += string.IsNullOrWhiteSpace(lines[i]) ? lineH * 0.5 : fts[i].Height + 2;
 
-        // clamp so it doesn't go off-screen
-        bx = Math.Max(4, Math.Min(bx, W - boxW - 4));
-        by = Math.Max(4, by);
+        // Start the box just below and to the right of the cursor
+        double bx = _mousePos.X + cursorOffX;
+        double by = _mousePos.Y + cursorOffY;
+
+        // Flip left if the box would overflow the right edge
+        if (bx + boxW + 4 > W)
+            bx = _mousePos.X - boxW - cursorOffX * 0.5;
+
+        // Flip up if the box would overflow the bottom edge
+        if (by + boxH + 4 > H)
+            by = _mousePos.Y - boxH - 4;
+
+        // Hard-clamp to canvas bounds
+        bx = Math.Clamp(bx, 4, W - boxW - 4);
+        by = Math.Clamp(by, 4, H - boxH - 4);
 
         _dc.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromArgb(0xE8, 0x09, 0x09, 0x16)),
-            new Pen(new SolidColorBrush(Color.FromRgb(0x33, 0x55, 0xff)), 1),
+            new SolidColorBrush(Color.FromArgb(0xEE, 0x07, 0x07, 0x12)),
+            new Pen(new SolidColorBrush(Color.FromRgb(0x44, 0x66, 0xff)), 1),
             new Rect(bx, by, boxW, boxH), 5, 5);
 
+        double ty = by + padY;
         for (int i = 0; i < lines.Length; i++)
         {
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            _dc.DrawText(fts[i], new Point(bx + padX, by + padY + i * lineH));
+            if (!string.IsNullOrWhiteSpace(lines[i]))
+            {
+                _dc.DrawText(fts[i], new Point(bx + padX, ty));
+                ty += fts[i].Height + 2;
+            }
+            else
+            {
+                ty += lineH * 0.5;
+            }
         }
     }
 
