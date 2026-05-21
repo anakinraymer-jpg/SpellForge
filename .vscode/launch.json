@@ -10,7 +10,13 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "exceptionOptions": [
+                {
+                    "path": [{ "names": ["System.Exception"] }],
+                    "breakMode": "unhandled"
+                }
+            ]
         }
     ]
 }
