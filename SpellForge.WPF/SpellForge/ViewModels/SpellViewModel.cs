@@ -178,6 +178,9 @@ public partial class SpellViewModel : ViewModelBase
     // ── Shared callback from row VMs ──────────────────────────────
     private void OnSpellDataChanged() => RefreshDerived();
 
+    // ── Refresh (reentrancy-guarded) ──────────────────────────────
+    private bool _isRefreshing;
+
     // ── Sub-element groups ────────────────────────────────────────
     public ObservableCollection<SubelementGroupVM> ActiveSubelements { get; } = new();
     private HashSet<string> _lastActiveElsForSubelements = new();
@@ -278,17 +281,26 @@ public partial class SpellViewModel : ViewModelBase
 
     private void RefreshDerived()
     {
-        Spell.NotifyAllChanged();
-        OnPropertyChanged(nameof(SpellEffectsSummary));
-        OnPropertyChanged(nameof(ActiveDrawbacks));
-        RefreshSynergies();
-        foreach (var vm in SchoolViewModels) vm.Refresh();
-        foreach (var cat in GlobalModCategories)
-            foreach (var mod in cat.Mods) mod.Refresh();
-        foreach (var el in ElementViewModels)
-            foreach (var node in el.NodeRows) node.Refresh();
-        RefreshSubelements();
-        StatusText = $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {Spell.AllSchools.Count} school(s)";
+        if (_isRefreshing) return;
+        _isRefreshing = true;
+        try
+        {
+            Spell.NotifyAllChanged();
+            OnPropertyChanged(nameof(SpellEffectsSummary));
+            OnPropertyChanged(nameof(ActiveDrawbacks));
+            RefreshSynergies();
+            foreach (var vm in SchoolViewModels) vm.Refresh();
+            foreach (var cat in GlobalModCategories)
+                foreach (var mod in cat.Mods) mod.Refresh();
+            foreach (var el in ElementViewModels)
+                foreach (var node in el.NodeRows) node.Refresh();
+            RefreshSubelements();
+            StatusText = $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {Spell.AllSchools.Count} school(s)";
+        }
+        finally
+        {
+            _isRefreshing = false;
+        }
     }
 
     // ── Commands ─────────────────────────────────────────────────
