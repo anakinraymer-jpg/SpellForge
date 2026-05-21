@@ -1,0 +1,137 @@
+<UserControl x:Class="SpellForge.Views.Controls.SchoolPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="8">
+
+            <!-- Header -->
+            <StackPanel Margin="0,0,0,6">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding Symbol}"
+                               FontSize="16" Margin="0,0,6,0"
+                               Foreground="{Binding ColorBrush}"/>
+                    <TextBlock Text="{Binding Name}"
+                               FontSize="12" FontWeight="Bold"
+                               Foreground="{Binding ColorBrush}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{Binding Desc}"
+                           FontSize="9" TextWrapping="Wrap"
+                           Foreground="{StaticResource DimBrush}"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <Separator Margin="0,0,0,4"/>
+
+            <!-- Ring Modifiers -->
+            <TextBlock Text="RING MODIFIERS"
+                       FontSize="9" Foreground="{StaticResource DimBrush}"
+                       Margin="0,0,0,4"/>
+
+            <ItemsControl ItemsSource="{Binding RingMods}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="28"/>
+                                <ColumnDefinition Width="28"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Label + dot display -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Label}"
+                                           FontSize="10"
+                                           Foreground="{Binding ColorBrush}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding CountDisplay}"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="{StaticResource TextBrush}"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Decrement -->
+                            <Button Grid.Column="1" Content="−"
+                                    Command="{Binding DecrementCommand}"
+                                    Width="22" Height="22"
+                                    Padding="0" Margin="2,0"/>
+
+                            <!-- Increment -->
+                            <Button Grid.Column="2" Content="+"
+                                    Command="{Binding IncrementCommand}"
+                                    Width="22" Height="22"
+                                    Padding="0" Margin="2,0"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Separator Margin="0,6,0,4"/>
+
+            <!-- Abilities -->
+            <TextBlock Text="ABILITIES"
+                       FontSize="9" Foreground="{StaticResource DimBrush}"
+                       Margin="0,0,0,4"/>
+
+            <ItemsControl ItemsSource="{Binding Abilities}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{StaticResource EBgBrush}"
+                                CornerRadius="2" Margin="0,2" Padding="4">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="28"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Name + cost + count -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}"
+                                                   FontSize="10" FontWeight="Bold"
+                                                   Foreground="{Binding ColorBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CostLabel}"
+                                                   FontSize="9"
+                                                   Foreground="{StaticResource DimBrush}"
+                                                   Margin="4,0,0,0"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CountDisplay}"
+                                                   FontSize="10" FontWeight="Bold"
+                                                   Foreground="{StaticResource GoldBrush}"
+                                                   Margin="6,0,0,0"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <!-- Decrement -->
+                                    <Button Grid.Column="1" Content="−"
+                                            Command="{Binding DecrementCommand}"
+                                            Width="22" Height="22"
+                                            Padding="0" Margin="2,0"/>
+
+                                    <!-- Increment -->
+                                    <Button Grid.Column="2" Content="+"
+                                            Command="{Binding IncrementCommand}"
+                                            Width="22" Height="22"
+                                            Padding="0" Margin="2,0"/>
+                                </Grid>
+
+                                <!-- Description -->
+                                <TextBlock Text="{Binding Desc}"
+                                           FontSize="9" FontStyle="Italic"
+                                           Foreground="{StaticResource DimBrush}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

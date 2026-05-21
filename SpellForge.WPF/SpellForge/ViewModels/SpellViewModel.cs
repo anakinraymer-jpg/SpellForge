@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
@@ -19,6 +20,8 @@ public partial class SpellViewModel : ViewModelBase
         Spell.PropertyChanged += (_, _) => RefreshDerived();
         BuildLevelThresholds();
         BuildElementViewModels();
+        BuildSchoolViewModels();
+        BuildGlobalModCategories();
     }
 
     // ── Level thresholds for the Calculator panel ─────────────────
@@ -38,8 +41,49 @@ public partial class SpellViewModel : ViewModelBase
     {
         ElementViewModels.Clear();
         foreach (var (name, def) in GameData.Elements)
-            ElementViewModels.Add(new ElementRowViewModel(name, def, Spell, RefreshDerived));
+            ElementViewModels.Add(new ElementRowViewModel(name, def, Spell, OnSpellDataChanged));
     }
+
+    // ── School view models ────────────────────────────────────────
+    public ObservableCollection<SchoolViewModel> SchoolViewModels { get; } = new();
+
+    private void BuildSchoolViewModels()
+    {
+        if (SchoolViewModels.Count == 0)
+        {
+            foreach (var name in GameData.SchoolOrder)
+                SchoolViewModels.Add(new SchoolViewModel(name, GameData.Schools[name], Spell, OnSpellDataChanged));
+        }
+        else
+        {
+            foreach (var vm in SchoolViewModels)
+                vm.Rebuild(Spell, OnSpellDataChanged);
+        }
+    }
+
+    // ── Global mod categories ─────────────────────────────────────
+    public ObservableCollection<GlobalModCategoryVM> GlobalModCategories { get; } = new();
+
+    private void BuildGlobalModCategories()
+    {
+        GlobalModCategories.Clear();
+        foreach (var cat in GameData.CatColors.Keys)
+        {
+            var catVm = new GlobalModCategoryVM
+            {
+                Name       = cat,
+                Color      = GameData.CatColors[cat],
+                ColorBrush = new SolidColorBrush(
+                    (Color)System.Windows.Media.ColorConverter.ConvertFromString(GameData.CatColors[cat])),
+            };
+            foreach (var (name, def) in GameData.DefaultGlobalMods.Where(kv => kv.Value.Cat == cat))
+                catVm.Mods.Add(new GlobalModRowVM(name, def, Spell, OnSpellDataChanged));
+            GlobalModCategories.Add(catVm);
+        }
+    }
+
+    // ── Shared callback from row VMs ──────────────────────────────
+    private void OnSpellDataChanged() => RefreshDerived();
 
     // ── Active synergies ──────────────────────────────────────────
     public ObservableCollection<SynergyItem> ActiveSynergies { get; } = new();
@@ -100,10 +144,18 @@ public partial class SpellViewModel : ViewModelBase
         }
     }
 
+    // ── Active drawbacks list ─────────────────────────────────────
+    public IEnumerable<string> ActiveDrawbacks => Spell.DrawbackBuys.Values;
+
     private void RefreshDerived()
     {
+        Spell.NotifyAllChanged();
         OnPropertyChanged(nameof(SpellEffectsSummary));
+        OnPropertyChanged(nameof(ActiveDrawbacks));
         RefreshSynergies();
+        foreach (var vm in SchoolViewModels) vm.Refresh();
+        foreach (var cat in GlobalModCategories)
+            foreach (var mod in cat.Mods) mod.Refresh();
         StatusText = $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {Spell.AllSchools.Count} school(s)";
     }
 
@@ -115,6 +167,8 @@ public partial class SpellViewModel : ViewModelBase
         Spell.PropertyChanged += (_, _) => RefreshDerived();
         OnPropertyChanged(nameof(Spell));
         BuildElementViewModels();
+        BuildSchoolViewModels();
+        BuildGlobalModCategories();
         RefreshDerived();
         CurrentFilePath = "";
     }
@@ -130,6 +184,8 @@ public partial class SpellViewModel : ViewModelBase
         Spell.PropertyChanged += (_, _) => RefreshDerived();
         OnPropertyChanged(nameof(Spell));
         BuildElementViewModels();
+        BuildSchoolViewModels();
+        BuildGlobalModCategories();
         RefreshDerived();
         CurrentFilePath = dlg.FileName;
     }

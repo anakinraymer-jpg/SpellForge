@@ -161,12 +161,7 @@
                     </TabItem>
 
                     <TabItem Header="Modifiers">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="8">
-                                <TextBlock Text="⊙  Global Modifiers" Style="{StaticResource PaneHeader}"/>
-                                <TextBlock Text="(Modifier UI — coming soon)" Foreground="{StaticResource DimBrush}" FontSize="10"/>
-                            </StackPanel>
-                        </ScrollViewer>
+                        <controls:GlobalModPanel x:Name="ModPanel" Margin="4"/>
                     </TabItem>
 
                     <TabItem Header="Synergies">
@@ -194,7 +189,18 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="8">
                                 <TextBlock Text="◌  Drawbacks" Style="{StaticResource PaneHeader}"/>
-                                <TextBlock Text="(Drawback UI — coming soon)" Foreground="{StaticResource DimBrush}" FontSize="10"/>
+                                <TextBlock Text="Active drawbacks appear here. (Full editor: Phase 4)"
+                                           Foreground="{StaticResource DimBrush}" FontSize="9" TextWrapping="Wrap"/>
+                                <ItemsControl ItemsSource="{Binding ActiveDrawbacks}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="◌ " Foreground="#aaaacc"/>
+                                                <TextBlock Text="{Binding}" Foreground="{StaticResource DimBrush}" FontSize="10"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>

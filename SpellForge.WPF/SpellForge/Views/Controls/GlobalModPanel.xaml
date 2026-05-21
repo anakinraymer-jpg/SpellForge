@@ -1,0 +1,80 @@
+<UserControl x:Class="SpellForge.Views.Controls.GlobalModPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Categories, ElementName=Root}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel>
+
+                        <!-- Category header -->
+                        <TextBlock Text="{Binding Name}"
+                                   Foreground="{Binding ColorBrush}"
+                                   FontWeight="Bold" FontSize="10"
+                                   Margin="0,8,0,2"/>
+
+                        <!-- Modifier rows -->
+                        <ItemsControl ItemsSource="{Binding Mods}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource EBgBrush}"
+                                            Margin="0,1" Padding="4,2">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                    <ColumnDefinition Width="28"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Name + cost + count -->
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="10"
+                                                               Foreground="{StaticResource TextBrush}"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding CostLabel}"
+                                                               FontSize="9"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               Margin="4,0,0,0"
+                                                               VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding CountDisplay}"
+                                                               FontSize="10" FontWeight="Bold"
+                                                               Foreground="{Binding CatColorBrush}"
+                                                               Margin="6,0,0,0"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+
+                                                <!-- Decrement -->
+                                                <Button Grid.Column="1" Content="−"
+                                                        Command="{Binding DecrementCommand}"
+                                                        Width="22" Height="22"
+                                                        Padding="0" Margin="2,0"/>
+
+                                                <!-- Increment -->
+                                                <Button Grid.Column="2" Content="+"
+                                                        Command="{Binding IncrementCommand}"
+                                                        Width="22" Height="22"
+                                                        Padding="0" Margin="2,0"/>
+                                            </Grid>
+
+                                            <!-- Description -->
+                                            <TextBlock Text="{Binding Desc}"
+                                                       FontSize="9" FontStyle="Italic"
+                                                       Foreground="{StaticResource DimBrush}"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,1,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>
