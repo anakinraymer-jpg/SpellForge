@@ -50,9 +50,10 @@ public class MagicCircleCanvas : FrameworkElement
     private Point? _panStart;
 
     // ── Hit testing ──────────────────────────────────────────────
-    private record HitRegion(Point Center, double Radius, string Tooltip, Action? OnClick);
+    private record HitRegion(Point Center, double Radius, string Left, string Right, Action? OnClick);
     private readonly List<HitRegion> _hits = new();
-    private string? _hoverInfo;
+    private string? _hoverLeft;
+    private string? _hoverRight;
     private Point   _mousePos;
 
     // ── Render-time state (valid only inside OnRender) ────────────
@@ -108,10 +109,10 @@ public class MagicCircleCanvas : FrameworkElement
         s.NotifyAllChanged();
     }
 
-    private void Hit(double wx, double wy, double worldR, string tooltip, Action? onClick = null)
+    private void Hit(double wx, double wy, double worldR, string left, string right = "", Action? onClick = null)
     {
         var sc = Tc(wx, wy);
-        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 8), tooltip, onClick));
+        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 8), left, right, onClick));
     }
 
     private HitRegion? FindHit(Point p) =>
@@ -137,22 +138,23 @@ public class MagicCircleCanvas : FrameworkElement
             _ox += _mousePos.X - _panStart.Value.X;
             _oy += _mousePos.Y - _panStart.Value.Y;
             _panStart = _mousePos;
-            if (_hoverInfo != null) _hoverInfo = null;
+            _hoverLeft = null; _hoverRight = null;
             InvalidateVisual();
             return;
         }
 
-        var hit     = FindHit(_mousePos);
-        var newInfo = hit?.Tooltip;
-        // Always invalidate while hovering so the box tracks the cursor smoothly
-        if (newInfo != _hoverInfo)
+        var hit      = FindHit(_mousePos);
+        var newLeft  = hit?.Left;
+        var newRight = hit?.Right;
+        if (newLeft != _hoverLeft || newRight != _hoverRight)
         {
-            _hoverInfo = newInfo;
+            _hoverLeft  = newLeft;
+            _hoverRight = newRight;
             InvalidateVisual();
         }
-        else if (_hoverInfo != null)
+        else if (_hoverLeft != null)
         {
-            InvalidateVisual();
+            InvalidateVisual(); // keep tracking cursor for crosshair
         }
     }
 
@@ -391,64 +393,103 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawHoverInfo()
     {
-        if (string.IsNullOrEmpty(_hoverInfo)) return;
+        if (string.IsNullOrEmpty(_hoverLeft)) return;
 
         double W = ActualWidth, H = ActualHeight;
 
-        // ── Cursor crosshair at exact mouse tip ──────────────────
-        var glowBrush = new SolidColorBrush(Color.FromArgb(0xCC, 0xff, 0xee, 0x55));
-        var glowPen   = new Pen(glowBrush, 1.2);
+        // ── Cursor crosshair exactly at mouse tip ─────────────────
+        var glowPen = new Pen(new SolidColorBrush(Color.FromArgb(0xCC, 0xff, 0xee, 0x55)), 1.2);
         double cr = 6;
-        _dc.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(0x88, 0xff, 0xee, 0x55)), 1.5),
-                        _mousePos, cr, cr);
+        _dc.DrawEllipse(null,
+            new Pen(new SolidColorBrush(Color.FromArgb(0x88, 0xff, 0xee, 0x55)), 1.5),
+            _mousePos, cr, cr);
         _dc.DrawLine(glowPen,
-                     new Point(_mousePos.X - cr - 3, _mousePos.Y),
-                     new Point(_mousePos.X + cr + 3, _mousePos.Y));
+            new Point(_mousePos.X - cr - 3, _mousePos.Y),
+            new Point(_mousePos.X + cr + 3, _mousePos.Y));
         _dc.DrawLine(glowPen,
-                     new Point(_mousePos.X, _mousePos.Y - cr - 3),
-                     new Point(_mousePos.X, _mousePos.Y + cr + 3));
+            new Point(_mousePos.X, _mousePos.Y - cr - 3),
+            new Point(_mousePos.X, _mousePos.Y + cr + 3));
 
-        // ── Info box — fixed center-bottom ───────────────────────
-        var lines = _hoverInfo.Split('\n');
-        const double padX = 14, padY = 9, maxBoxW = 380;
+        // ── Build column texts ────────────────────────────────────
+        const double colMaxW = 240, padX = 12, padY = 9, divPad = 8, divW = 1;
 
-        double boxW = 0;
+        string[] leftLines  = _hoverLeft!.Split('\n');
+        bool     hasRight   = !string.IsNullOrEmpty(_hoverRight);
+        string[] rightLines = hasRight ? _hoverRight!.Split('\n') : Array.Empty<string>();
+
+        var (leftFts, lColW, lColH)   = BuildColTexts(leftLines,  colMaxW, isLeft: true);
+        var (rightFts, rColW, rColH)  = hasRight
+            ? BuildColTexts(rightLines, colMaxW, isLeft: false)
+            : (Array.Empty<FormattedText>(), 0.0, 0.0);
+
+        double boxW = hasRight
+            ? padX + lColW + divPad + divW + divPad + rColW + padX
+            : padX + lColW + padX;
+        double boxH = Math.Max(lColH, rColH) + padY * 2;
+
+        // Center-bottom
+        double bx = Math.Clamp((W - boxW) / 2, 4, W - boxW - 4);
+        double by = Math.Clamp(H - boxH - 10, 4, H - boxH - 4);
+
+        // Box background + border
+        _dc.DrawRoundedRectangle(
+            new SolidColorBrush(Color.FromArgb(0xF2, 0x06, 0x06, 0x11)),
+            new Pen(new SolidColorBrush(Color.FromRgb(0x44, 0x66, 0xff)), 1),
+            new Rect(bx, by, boxW, boxH), 6, 6);
+
+        // Left column
+        double ty = by + padY;
+        for (int i = 0; i < leftFts.Length; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(leftLines[i]))
+                _dc.DrawText(leftFts[i], new Point(bx + padX, ty));
+            ty += leftFts[i].Height + 2;
+        }
+
+        if (hasRight)
+        {
+            // Divider line
+            double divX = bx + padX + lColW + divPad;
+            _dc.DrawLine(
+                new Pen(new SolidColorBrush(Color.FromArgb(0x55, 0x66, 0x88, 0xff)), 1),
+                new Point(divX, by + padY * 0.5),
+                new Point(divX, by + boxH - padY * 0.5));
+
+            // Right column
+            double rx = divX + divW + divPad;
+            ty = by + padY;
+            for (int i = 0; i < rightFts.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(rightLines[i]))
+                    _dc.DrawText(rightFts[i], new Point(rx, ty));
+                ty += rightFts[i].Height + 2;
+            }
+        }
+    }
+
+    private (FormattedText[] fts, double maxW, double totalH) BuildColTexts(
+        string[] lines, double colMaxW, bool isLeft)
+    {
         var fts = new FormattedText[lines.Length];
+        double maxW = 0, totalH = 0;
         for (int i = 0; i < lines.Length; i++)
         {
             bool hdr = i == 0;
+            var color = hdr
+                ? (isLeft
+                    ? Color.FromRgb(0xff, 0xee, 0x88)   // gold header for pip info
+                    : Color.FromRgb(0x88, 0xcc, 0xff))  // blue header for circle context
+                : Color.FromRgb(0xc8, 0xd0, 0xe8);
             fts[i] = new FormattedText(
                 string.IsNullOrWhiteSpace(lines[i]) ? " " : lines[i],
                 CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
                 hdr ? _tfGeo : _tf, hdr ? 12 : 9.5,
-                hdr ? new SolidColorBrush(Color.FromRgb(0xff, 0xee, 0x88))
-                     : new SolidColorBrush(Color.FromRgb(0xc8, 0xd0, 0xe8)),
-                1.0)
-            { MaxTextWidth = maxBoxW - padX * 2 };
-            boxW = Math.Max(boxW, Math.Min(fts[i].Width + padX * 2 + 4, maxBoxW));
+                new SolidColorBrush(color), 1.0)
+            { MaxTextWidth = colMaxW };
+            maxW   = Math.Max(maxW, Math.Min(fts[i].Width + 4, colMaxW));
+            totalH += fts[i].Height + 2;
         }
-
-        // Exact height from actual text metrics
-        double boxH = padY * 2;
-        foreach (var ft in fts)
-            boxH += ft.Height + 2;
-
-        // Centered horizontally, 10px from bottom
-        double bx = Math.Clamp((W - boxW) / 2, 4, W - boxW - 4);
-        double by = Math.Clamp(H - boxH - 10, 4, H - boxH - 4);
-
-        _dc.DrawRoundedRectangle(
-            new SolidColorBrush(Color.FromArgb(0xF0, 0x06, 0x06, 0x11)),
-            new Pen(new SolidColorBrush(Color.FromRgb(0x44, 0x66, 0xff)), 1),
-            new Rect(bx, by, boxW, boxH), 6, 6);
-
-        double ty = by + padY;
-        for (int i = 0; i < lines.Length; i++)
-        {
-            if (!string.IsNullOrWhiteSpace(lines[i]))
-                _dc.DrawText(fts[i], new Point(bx + padX, ty));
-            ty += fts[i].Height + 2;
-        }
+        return (fts, maxW, totalH);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -702,8 +743,10 @@ public class MagicCircleCanvas : FrameworkElement
                     bool bought = boughtNodes.TryGetValue(edata.Nodes[k].Name, out int bc) && bc > 0;
                     DrawElemNode(nwx, nwy, edata.Nodes[k].Glyph, ec, bought ? 6 : 4, bought);
                     var capEl = el; var capNode = edata.Nodes[k]; var capBc = bc;
+                    var capEdata = edata;
                     Hit(nwx, nwy, bought ? 6 : 4,
                         $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)\nLevel: {capBc}/3\n{capNode.Desc}",
+                        $"Element: {capEdata.Symbol} {capEl}\n{capEdata.Desc}",
                         () => MutateSpell(sp => {
                             if (!sp.ElementNodes.ContainsKey(capEl)) sp.ElementNodes[capEl] = new();
                             int cur = sp.ElementNodes[capEl].TryGetValue(capNode.Name, out int v) ? v : 0;
@@ -762,8 +805,11 @@ public class MagicCircleCanvas : FrameworkElement
                     DrawElemNode(snx, sny, seNodes[k].Glyph, mc, 5, bse);
                     var capSeKey = keyStr; var capSen = seNodes[k]; var capBsc = bsc;
                     string pairLabel = $"{pair.Value.Item1} + {pair.Value.Item2}";
+                    string connRight = GameData.ElementConnections.TryGetValue(pair.Value, out string? connDesc)
+                        ? $"Connection: {pairLabel}\n{connDesc}" : $"Connection: {pairLabel}";
                     Hit(snx, sny, 5,
-                        $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}\nLevel: {capBsc}/3\n{capSen.Desc}",
+                        $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}  ·  Level: {capBsc}/3\n{capSen.Desc}",
+                        connRight,
                         () => MutateSpell(sp => {
                             if (!sp.SubelementNodes.ContainsKey(capSeKey)) sp.SubelementNodes[capSeKey] = new();
                             int cur = sp.SubelementNodes[capSeKey].TryGetValue(capSen.Name, out int v) ? v : 0;
@@ -806,8 +852,13 @@ public class MagicCircleCanvas : FrameworkElement
         double dim = act ? 1.0 : 0.20;
         string ink = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
 
+        int abBought = s.SchoolAbilities.TryGetValue(school, out var abD)
+            ? abD.Values.Sum() : 0;
+        int rmTotal  = s.RingMods.TryGetValue(school, out var rmD)
+            ? rmD.Values.Sum() : 0;
         Hit(wx, wy, r,
-            $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}");
+            $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}",
+            $"Circle Stats\nAbilities purchased: {abBought}\nRing mods filled: {rmTotal} / 12\n{(cap ? "⚜ Capstone Active!" : $"Capstone: fill all 4 ring mods to 3")}");
 
         if (cap && act)
         {
@@ -846,6 +897,7 @@ public class MagicCircleCanvas : FrameworkElement
             var abDef = sd.Abilities[abn];
             Hit(rx, ry, Math.Max(r * 0.14, 6),
                 $"⬥ {abn}  [{school}]\nCost: {abDef.Cost} pt each  ·  Level: {cnt}/3\n{abDef.Desc}",
+                $"School: {sd.Symbol} {school}\n{sd.Desc}",
                 () => MutateSpell(sp => {
                     if (!sp.SchoolAbilities.ContainsKey(capAbSch)) sp.SchoolAbilities[capAbSch] = new();
                     int cur = sp.SchoolAbilities[capAbSch].TryGetValue(capAbn, out int v) ? v : 0;
@@ -877,8 +929,10 @@ public class MagicCircleCanvas : FrameworkElement
                     TextWF(rx2, ry2, rune, gc, 0.42 * dim, Math.Max(5, (int)(r * 0.15)), isFixed: true);
                 }
                 var capRmSch = school; var capGrp = grp; var capSlot = slot; var capFill = fillCnt;
+                string rmLabel2 = sd.RingMods.TryGetValue(grp, out var rl2) ? rl2 : grp;
                 Hit(rx2, ry2, Math.Max(r * 0.14, 6),
-                    $"◈ {grp}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}",
+                    $"◈ {rmLabel2}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}",
+                    $"School: {sd.Symbol} {school}\n{sd.Desc}\n{(cap ? "⚜ Capstone Active!" : "Max all 4 ring mods at 3 for capstone")}",
                     () => MutateSpell(sp => {
                         if (!sp.RingMods.ContainsKey(capRmSch)) sp.RingMods[capRmSch] = new();
                         sp.RingMods[capRmSch][capGrp] = capFill == capSlot + 1 ? capSlot : capSlot + 1;
@@ -908,11 +962,6 @@ public class MagicCircleCanvas : FrameworkElement
             string capC = cd.Color;
             CircleW(wx, wy, r * 0.26, Br(capC, 0.28));
             TextW(wx, wy, cd.Glyph, capC, Math.Max(14, (int)(r * 0.58)));
-            for (int k = 0; k < cd.Ring.Length; k++)
-            {
-                var (rx3, ry3) = Wpt(wx, wy, r * 0.42, k * (360.0 / cd.Ring.Length));
-                TextWF(rx3, ry3, cd.Ring[k].ToString(), capC, 0.85, Math.Max(6, (int)(r * 0.15)));
-            }
             TextW(wx, wy + r * 1.52, $"⚜ {cd.Name} ⚜", capC, 5);
         }
 
@@ -1016,7 +1065,8 @@ public class MagicCircleCanvas : FrameworkElement
             Hit(cx, cy, ModCR,
                 $"■ {cat} Modifiers\n" +
                 string.Join("\n", catMods.Select(kv =>
-                    $"  {kv.Key} ({kv.Value.Cost} pt, max {kv.Value.Max})")));
+                    $"  {kv.Key} ({kv.Value.Cost} pt, max {kv.Value.Max})")),
+                $"Spell Overview\nLevel: {s.LevelName}\nTotal pts: {s.TotalPoints}\nSchools: {string.Join(", ", s.AllSchools)}");
 
             int nm = catMods.Count;
             if (nm == 0) continue;
@@ -1041,6 +1091,7 @@ public class MagicCircleCanvas : FrameworkElement
                 var capModKey = catMods[j].Key; var capModDef = catMods[j].Value; var capModCnt = cnt;
                 Hit(rx, ry, 7,
                     $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}",
+                    $"Category: {cat}\nLevel: {s.LevelName}\nTotal pts: {s.TotalPoints}",
                     () => MutateSpell(sp => {
                         int cur = sp.GlobalMods.TryGetValue(capModKey, out int v) ? v : 0;
                         sp.GlobalMods[capModKey] = cur >= capModDef.Max ? 0 : cur + 1;
