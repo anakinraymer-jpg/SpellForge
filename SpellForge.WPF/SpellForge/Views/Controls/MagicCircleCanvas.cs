@@ -112,11 +112,14 @@ public class MagicCircleCanvas : FrameworkElement
     private void Hit(double wx, double wy, double worldR, string left, string right = "", Action? onClick = null)
     {
         var sc = Tc(wx, wy);
-        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 8), left, right, onClick));
+        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 12), left, right, onClick));
     }
 
+    // Return the smallest (most specific) matching region so pip hits
+    // always win over the larger school-circle hit that contains them.
     private HitRegion? FindHit(Point p) =>
-        _hits.FirstOrDefault(h => (p - h.Center).Length <= h.Radius + 4);
+        _hits.Where(h => (p - h.Center).Length <= h.Radius + 4)
+             .MinBy(h => h.Radius);
 
     // ── Mouse ────────────────────────────────────────────────────
     protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -858,7 +861,7 @@ public class MagicCircleCanvas : FrameworkElement
             ? rmD.Values.Sum() : 0;
         Hit(wx, wy, r,
             $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}",
-            $"Circle Stats\nAbilities purchased: {abBought}\nRing mods filled: {rmTotal} / 12\n{(cap ? "⚜ Capstone Active!" : $"Capstone: fill all 4 ring mods to 3")}");
+            $"Circle Stats\nAbilities: {abBought}  ·  Ring mods: {rmTotal}/12\n{(cap ? "⚜ Capstone Active!" : "Capstone: fill all 4 ring mods to 3")}");
 
         if (cap && act)
         {
