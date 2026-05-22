@@ -151,53 +151,22 @@
 
             <Separator Margin="0,6,0,4"/>
 
-            <!-- Capstone -->
-            <TextBlock Text="CAPSTONE"
-                       FontSize="9" Foreground="{StaticResource DimBrush}"
-                       Margin="0,0,0,4"/>
-
-            <Border Background="{StaticResource EBgBrush}" CornerRadius="2" Padding="6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="28"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0">
-                        <!-- Glyph + name + active badge -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                            <TextBlock Text="{Binding EffectiveCapstone.Glyph}"
-                                       FontSize="18" Margin="0,0,6,0"
-                                       Foreground="{Binding ColorBrush}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding EffectiveCapstone.Name}"
-                                       FontSize="11" FontWeight="Bold"
-                                       Foreground="{StaticResource TextBrush}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="  ⚜ ACTIVE"
-                                       FontSize="9" FontWeight="Bold"
-                                       Foreground="{StaticResource GoldBrush}"
-                                       VerticalAlignment="Center"
-                                       Visibility="{Binding CapstoneActiveVisibility}"/>
-                        </StackPanel>
-                        <!-- Orbital ring glyphs -->
-                        <TextBlock Text="{Binding EffectiveCapstone.Ring}"
-                                   FontFamily="Segoe UI Symbol" FontSize="14"
-                                   Foreground="{Binding ColorBrush}"
-                                   Margin="0,0,0,3"/>
-                        <!-- Description -->
-                        <TextBlock Text="{Binding EffectiveCapstone.Desc}"
-                                   FontSize="9" FontStyle="Italic"
-                                   Foreground="{StaticResource DimBrush}"
-                                   TextWrapping="Wrap"/>
-                    </StackPanel>
-
-                    <!-- Edit button -->
-                    <Button Grid.Column="1" Content="✎"
-                            Command="{Binding EditCapstoneCommand}"
-                            Width="22" Height="22"
-                            Padding="0" VerticalAlignment="Top"/>
-                </Grid>
+            <!-- Capstone status -->
+            <Border Background="{StaticResource EBgBrush}" CornerRadius="2" Padding="6,5">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding EffectiveCapstone.Glyph}"
+                               FontSize="16" Margin="0,0,6,0"
+                               Foreground="{Binding ColorBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock FontSize="10" FontWeight="Bold" VerticalAlignment="Center"
+                               Visibility="{Binding CapstoneActiveVisibility}"
+                               Foreground="{StaticResource GoldBrush}"
+                               Text="⚜  Capstone Achieved"/>
+                    <TextBlock FontSize="10" VerticalAlignment="Center"
+                               Visibility="{Binding CapstoneLockedVisibility}"
+                               Foreground="{StaticResource DimBrush}"
+                               Text="Capstone Locked  —  max all 4 ring mods"/>
+                </StackPanel>
             </Border>
 
         </StackPanel>

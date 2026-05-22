@@ -225,6 +225,9 @@ public partial class SchoolViewModel : ObservableObject
     public Visibility CapstoneActiveVisibility =>
         _spell.CapstoneActive(Name) ? Visibility.Visible : Visibility.Collapsed;
 
+    public Visibility CapstoneLockedVisibility =>
+        _spell.CapstoneActive(Name) ? Visibility.Collapsed : Visibility.Visible;
+
     [RelayCommand]
     private void EditCapstone()
     {
@@ -280,6 +283,7 @@ public partial class SchoolViewModel : ObservableObject
         OnPropertyChanged(nameof(CircleSizeLabel));
         OnPropertyChanged(nameof(EffectiveCapstone));
         OnPropertyChanged(nameof(CapstoneActiveVisibility));
+        OnPropertyChanged(nameof(CapstoneLockedVisibility));
     }
 
     /// <summary>Point all rows at a replacement spell (New / Open).</summary>
