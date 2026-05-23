@@ -279,6 +279,36 @@ public partial class SpellViewModel : ViewModelBase
     // ── Active drawbacks list ─────────────────────────────────────
     public IEnumerable<string> ActiveDrawbacks => Spell.DrawbackBuys.Values;
 
+    // ── Level dice rows ───────────────────────────────────────────
+    public ObservableCollection<DiceRowVM> DiceRowViewModels { get; } = new();
+
+    private void RefreshDicePips()
+    {
+        Spell.SyncDiceAssignments();
+        int n = Spell.NumLevelDice;
+
+        // Trim surplus rows
+        while (DiceRowViewModels.Count > n)
+            DiceRowViewModels.RemoveAt(DiceRowViewModels.Count - 1);
+
+        // Add missing rows
+        while (DiceRowViewModels.Count < n)
+            DiceRowViewModels.Add(new DiceRowVM(DiceRowViewModels.Count, Spell, OnSpellDataChanged));
+
+        // Refresh all existing rows (updates spell reference + assignments)
+        for (int i = 0; i < DiceRowViewModels.Count; i++)
+            DiceRowViewModels[i].Refresh(i, Spell);
+    }
+
+    [RelayCommand]
+    private void ClearAllDice()
+    {
+        Spell.SyncDiceAssignments();
+        for (int i = 0; i < Spell.DiceAssignments.Count; i++)
+            Spell.DiceAssignments[i] = "";
+        RefreshDerived();
+    }
+
     private void RefreshDerived()
     {
         if (_isRefreshing) return;
@@ -295,6 +325,7 @@ public partial class SpellViewModel : ViewModelBase
             foreach (var el in ElementViewModels)
                 foreach (var node in el.NodeRows) node.Refresh();
             RefreshSubelements();
+            RefreshDicePips();
             StatusText = $"{Spell.LevelName}  ·  {Spell.TotalPoints} pts  ·  {Spell.AllSchools.Count} school(s)";
         }
         finally
@@ -391,6 +422,57 @@ public record SynergyItem(string Header, string Description, string Color)
 {
     public System.Windows.Media.SolidColorBrush ColorBrush =>
         new((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(Color));
+}
+
+// ── Dice row view model ───────────────────────────────────────────
+public partial class DiceRowVM : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
+{
+    private Spell  _spell    = null!;
+    private Action _onChange = null!;
+    private bool   _refreshing;
+
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty]
+    private int _index;
+
+    [CommunityToolkit.Mvvm.ComponentModel.ObservableProperty]
+    private string _assignedSchool = "";
+
+    public string DisplayLabel => $"d6 #{Index + 1}";
+
+    // Choices for the combo box: blank entry (unassigned) + all 10 schools
+    private static readonly IReadOnlyList<string> _allSchoolChoices =
+        new[] { "" }.Concat(GameData.SchoolOrder).ToList();
+    public IReadOnlyList<string> AllSchoolChoices => _allSchoolChoices;
+
+    public DiceRowVM(int index, Spell spell, Action onChange)
+    {
+        _spell    = spell;
+        _onChange = onChange;
+        Refresh(index, spell);
+    }
+
+    public void Refresh(int index, Spell spell)
+    {
+        _refreshing  = true;
+        _spell       = spell;
+        Index        = index;
+        spell.SyncDiceAssignments();
+        AssignedSchool = index < spell.DiceAssignments.Count ? spell.DiceAssignments[index] : "";
+        OnPropertyChanged(nameof(DisplayLabel));
+        _refreshing  = false;
+    }
+
+    partial void OnAssignedSchoolChanged(string value)
+    {
+        if (_refreshing) return;
+        _spell.SyncDiceAssignments();
+        if (Index < _spell.DiceAssignments.Count)
+            _spell.DiceAssignments[Index] = value ?? "";
+        _onChange();
+    }
+
+    [CommunityToolkit.Mvvm.Input.RelayCommand]
+    private void Clear() => AssignedSchool = "";
 }
 
 // ── Sub-element node row ──────────────────────────────────────────

@@ -39,6 +39,8 @@ public partial class Spell : ObservableObject
     public ObservableCollection<ConditionEntry> IfThenConditions { get; set; } = new();
     // when-then conditions
     public ObservableCollection<ConditionEntry> WhenThenConditions { get; set; } = new();
+    // one entry per earned level die: "" = unassigned, else school name
+    public List<string> DiceAssignments { get; set; } = new();
 
     // ── Derived properties ────────────────────────────────────────
     [JsonIgnore]
@@ -222,6 +224,17 @@ public partial class Spell : ObservableObject
     }
 
     [JsonIgnore]
+    public int NumLevelDice => GameData.LevelTableIndex(TotalPoints);
+
+    /// <summary>Grow or trim DiceAssignments to match NumLevelDice.</summary>
+    public void SyncDiceAssignments()
+    {
+        int n = NumLevelDice;
+        while (DiceAssignments.Count < n) DiceAssignments.Add("");
+        while (DiceAssignments.Count > n) DiceAssignments.RemoveAt(DiceAssignments.Count - 1);
+    }
+
+    [JsonIgnore]
     public LevelEntry LevelInfo => GameData.PtsToLevel(TotalPoints);
 
     [JsonIgnore]
@@ -255,6 +268,8 @@ public partial class Spell : ObservableObject
         OnPropertyChanged(nameof(NormalItemCount));
         OnPropertyChanged(nameof(DrawbackRefund));
         OnPropertyChanged(nameof(IsComplete));
+        OnPropertyChanged(nameof(NumLevelDice));
+        OnPropertyChanged(nameof(DiceAssignments));
     }
 }
 

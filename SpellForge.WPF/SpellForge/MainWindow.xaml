@@ -540,6 +540,78 @@
                         </Grid>
                     </TabItem>
 
+                    <TabItem Header="⚄ Dice">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <!-- Header + Clear All -->
+                            <StackPanel Grid.Row="0" Margin="8,6,8,2">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="{Binding Spell.NumLevelDice}"
+                                               FontWeight="Bold" FontSize="16"
+                                               Foreground="{StaticResource GoldBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="d6"
+                                               Foreground="{StaticResource DimBrush}"
+                                               FontSize="12" Margin="3,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text=" — " Foreground="{StaticResource DimBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Spell.LevelName}"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               FontSize="11" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="One d6 per level threshold reached."
+                                           FontSize="9" FontStyle="Italic"
+                                           Foreground="{StaticResource DimBrush}"
+                                           Margin="0,0,0,4"/>
+                                <Button Content="Clear All Assignments"
+                                        Command="{Binding ClearAllDiceCommand}"
+                                        HorizontalAlignment="Left"
+                                        Padding="8,2" FontSize="10" Margin="0,0,0,2"/>
+                            </StackPanel>
+                            <!-- Dice rows -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding DiceRowViewModels}" Margin="8,4,8,8">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource EBgBrush}"
+                                                    Margin="0,2" Padding="6,4" CornerRadius="2">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="44"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="28"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <!-- Die badge -->
+                                                    <TextBlock Grid.Column="0"
+                                                               Text="{Binding DisplayLabel}"
+                                                               Foreground="{StaticResource DimBrush}"
+                                                               FontSize="10" FontWeight="Bold"
+                                                               VerticalAlignment="Center"/>
+                                                    <!-- School picker -->
+                                                    <ComboBox Grid.Column="1"
+                                                              ItemsSource="{Binding AllSchoolChoices}"
+                                                              SelectedItem="{Binding AssignedSchool, Mode=TwoWay}"
+                                                              FontSize="10"
+                                                              Margin="4,0"/>
+                                                    <!-- Clear button -->
+                                                    <Button Grid.Column="2" Content="✕"
+                                                            Width="22" Height="22"
+                                                            Padding="0"
+                                                            Command="{Binding ClearCommand}"
+                                                            ToolTip="Clear assignment"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </TabItem>
+
                     <TabItem Header="Guide">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock Text="{Binding GuideText}" Margin="8"

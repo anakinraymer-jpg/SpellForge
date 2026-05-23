@@ -570,7 +570,7 @@ public static class GameData
             ["Power: Powerful d10"]  = new("Power",    6, 1, "Significant and threatening."),
             ["Power: Mighty d12"]    = new("Power",    8, 1, "Devastating single-hit power."),
             ["Power: Epic 2d10"]     = new("Power",   10, 1, "Legendary magnitude."),
-            ["Extra Damage Die"]     = new("Power",    2,10, "Add one additional damage die per purchase."),
+            ["Power Surge"]           = new("Power",    2,10, "Amplify spell potency per purchase; each rank increases raw force output."),
             ["Cast: Free Action"]    = new("Casting",  3, 1, "No action economy cost."),
             ["Cast: Bonus Action"]   = new("Casting",  2, 1, "Uses your bonus action."),
             ["Cast: Standard"]       = new("Casting",  0, 1, "Uses your primary action."),
@@ -657,5 +657,13 @@ public static class GameData
         foreach (var entry in LevelTable)
             if (pts <= entry.Hi) return entry;
         return LevelTable[^1];
+    }
+
+    // ── Helper: pts → 0-based level index (= number of level dice) ──
+    public static int LevelTableIndex(int pts)
+    {
+        for (int i = 0; i < LevelTable.Count; i++)
+            if (pts <= LevelTable[i].Hi) return i;
+        return LevelTable.Count - 1;
     }
 }

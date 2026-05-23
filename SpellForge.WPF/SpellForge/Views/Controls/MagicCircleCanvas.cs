@@ -404,6 +404,7 @@ public class MagicCircleCanvas : FrameworkElement
         DrawCenterHub();
         DrawDrawbackRings();
         DrawConditionsRing();
+        DrawDicePips(R);
         DrawStatusBar();
         DrawHoverInfo();
     }
@@ -1377,6 +1378,65 @@ public class MagicCircleCanvas : FrameworkElement
     }
 
     // ════════════════════════════════════════════════════════════
+    //  LAYER 9 — LEVEL DICE PIPS
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawDicePips(double R)
+    {
+        var s = Spell!;
+        s.SyncDiceAssignments();
+        int n = s.NumLevelDice;
+
+        if (n == 0) return;
+
+        const double orbit = 185.0;  // R * 0.50 ≈ 185
+        const double pipR  = 10.0;
+
+        // Faint dashed track ring
+        RingWF(0, 0, orbit, "#aaaaff", 0.16, 1.0, true);
+
+        for (int i = 0; i < n; i++)
+        {
+            double angleDeg = i * (360.0 / n);
+            var (px, py) = Wpt(0, 0, orbit, angleDeg);
+
+            string school   = s.DiceAssignments[i];
+            bool   assigned = !string.IsNullOrEmpty(school);
+            bool   valid    = assigned && GameData.Schools.ContainsKey(school);
+            string colHex   = valid ? GameData.Schools[school].Color : "#555577";
+
+            // Pip body: filled circle + outline
+            CircleW(px, py, pipR, Br(colHex, assigned ? 0.45 : 0.18));
+            RingWB(px, py, pipR, colHex, "#ffffff", assigned ? 0.65 : 0.35, 1.5);
+
+            // Die-face glyph
+            TextWB(px, py, "⚄", colHex, "#ffffff", assigned ? 0.95 : 0.55, 8, isFixed: true);
+
+            // Hit zone — left-click cycles through schools
+            int   capI    = i;
+            string capSchool = school;
+            string leftHint  = assigned
+                ? $"⚄ d6 #{capI + 1}\nAssigned: {capSchool}\nLeft-click to reassign  ·  cycle through schools"
+                : $"⚄ d6 #{capI + 1}\nUnassigned\nLeft-click to assign a school";
+            string rightHint = $"{n}d6  ·  {s.LevelName}  ·  {s.TotalPoints} pts";
+
+            Hit(px, py, pipR, leftHint, rightHint,
+                () => MutateSpell(sp =>
+                {
+                    sp.SyncDiceAssignments();
+                    var order   = GameData.SchoolOrder;
+                    string curr = sp.DiceAssignments[capI];
+                    int    cur  = string.IsNullOrEmpty(curr)
+                                  ? -1
+                                  : Enumerable.Range(0, order.Count)
+                                              .FirstOrDefault(j => order[j] == curr, -1);
+                    int next = cur + 1;
+                    sp.DiceAssignments[capI] = next < order.Count ? order[next] : "";
+                }));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
     //  STATUS BAR
     // ════════════════════════════════════════════════════════════
 
@@ -1385,7 +1445,9 @@ public class MagicCircleCanvas : FrameworkElement
         var s   = Spell!;
         var lvl = s.LevelInfo;
         string col = ColorHelper.Blend("#445566", lvl.Color, 0.7);
-        string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
+        int    nDice    = s.NumLevelDice;
+        string diceStr  = nDice > 0 ? $"  ·  {nDice}d6" : "";
+        string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts{diceStr}  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
         var ft  = new FormattedText(txt, CultureInfo.CurrentCulture,
                                     FlowDirection.LeftToRight, _tfGeo, 9 * _zoom, Br(col), 1.0);
         var cp  = Tc(0, OuterR + 14);
