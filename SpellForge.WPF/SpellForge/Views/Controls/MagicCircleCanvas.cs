@@ -1158,16 +1158,47 @@ public class MagicCircleCanvas : FrameworkElement
     private void DrawDrawbackRings()
     {
         var s = Spell!;
-        if (s.DrawbackBuys.Count == 0) return;
-        var keys = s.DrawbackBuys.Keys.ToList();
-        int n    = keys.Count;
-        double orbit = CenterR + 18, ringR = 7;
+
+        // Collect active "neg/" drawbacks in order
+        var active = s.DrawbackBuys.Keys
+            .Where(k => k.StartsWith("neg/"))
+            .Select(k => k[4..])
+            .ToList();
+
+        if (active.Count == 0) return;
+
+        int    n     = active.Count;
+        double orbit = CenterR + 22;
+        double ringR = 8;
+
+        // Faint orbit ring
+        RingWF(0, 0, orbit, "#882222", 0.30, 1, true);
+
         for (int i = 0; i < n; i++)
         {
-            double a     = i * (360.0 / Math.Max(n, 1));
-            var (rx, ry) = Wpt(0, 0, orbit, a);
-            RingW(rx, ry, ringR, "#ffffff", 2);
-            RingWF(rx, ry, ringR * 0.5, "#ffffff", 0.25);
+            string name  = active[i];
+            double angle = i * (360.0 / n);
+            var (rx, ry) = Wpt(0, 0, orbit, angle);
+
+            // Look up cost
+            var def  = GameData.DefaultNegativeMods.FirstOrDefault(m => m.Name == name);
+            int cost = def?.Cost ?? s.CustomNegMods.FirstOrDefault(m => m.Name == name)?.Cost ?? 2;
+            string costHex = cost >= 3 ? "#ff4444" : cost == 2 ? "#dd6644" : "#cc8844";
+
+            // Token: filled crimson circle
+            CircleW(rx, ry, ringR, Br(costHex, 0.25));
+            RingWB(rx, ry, ringR, costHex, "#ffffff", 0.55, 1.5);
+
+            // Initial letter label
+            string lbl = name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+            TextWB(rx, ry, lbl, costHex, "#ffffff", 0.80, Math.Max(5, (int)(ringR * 0.80)), isFixed: true);
+
+            // Hit region — hover shows full drawback info
+            var capName = name; var capCost = cost; var capDesc = def?.Desc ?? "";
+            Hit(rx, ry, ringR,
+                $"✕ {capName}  (−{capCost} pt)\n{capDesc}",
+                $"Drawbacks Active: {n}\nTotal Refund: −{s.DrawbackRefund} pts\n" +
+                $"Rule: refund capped at 50% of gross cost");
         }
     }
 

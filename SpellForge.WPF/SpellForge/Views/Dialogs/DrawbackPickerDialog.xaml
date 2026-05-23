@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Manage Drawbacks"
-        Width="500" Height="640"
+        Width="520" Height="660"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Grid Margin="12">
@@ -11,55 +11,87 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header note -->
-        <TextBlock Grid.Row="0"
-                   Text="Check the drawbacks this spell carries. Each drawback records a narrative constraint and reduces spell cost by offsetting a purchased item."
-                   TextWrapping="Wrap" Foreground="{StaticResource DimBrush}"
-                   FontSize="10" Margin="0,0,0,8"/>
+        <!-- Rules header -->
+        <Border Grid.Row="0" Background="{StaticResource EBgBrush}"
+                CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Drawback Rules"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource GoldBrush}"
+                           Margin="0,0,0,4"/>
+                <TextBlock TextWrapping="Wrap" FontSize="9"
+                           Foreground="{StaticResource DimBrush}">
+                    <Run>Each drawback is a narrative constraint on the spell. In exchange, it refunds a number of spell points equal to its cost (shown in red). </Run>
+                    <Run FontWeight="Bold" Foreground="{StaticResource TextBrush}">Drawbacks may refund at most 50% of the spell's gross cost.</Run>
+                    <Run> Minor drawbacks refund 1 pt, moderate 2 pts, severe 3 pts.</Run>
+                </TextBlock>
+            </StackPanel>
+        </Border>
 
-        <!-- Scrollable list -->
+        <!-- Drawback list -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <ItemsControl x:Name="DrawbackList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Margin="0,1" Padding="6,4"
+                        <Border Margin="0,1" Padding="6,5"
                                 Background="{StaticResource EBgBrush}"
                                 CornerRadius="2">
-                            <StackPanel>
-                                <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}"
-                                          Foreground="{StaticResource TextBrush}"
-                                          FontSize="10" FontWeight="Bold">
-                                    <CheckBox.Content>
-                                        <TextBlock Text="{Binding Name}"
-                                                   Foreground="{StaticResource TextBrush}"
-                                                   FontWeight="Bold"/>
-                                    </CheckBox.Content>
-                                </CheckBox>
-                                <TextBlock Text="{Binding Desc}"
-                                           FontSize="9" FontStyle="Italic"
-                                           Foreground="{StaticResource DimBrush}"
-                                           TextWrapping="Wrap"
-                                           Margin="20,2,0,0"/>
-                            </StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="40"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}"
+                                              Foreground="{StaticResource TextBrush}"
+                                              FontSize="10" FontWeight="Bold"
+                                              Content="{Binding Name}"/>
+                                    <TextBlock Text="{Binding Desc}"
+                                               FontSize="9" FontStyle="Italic"
+                                               Foreground="{StaticResource DimBrush}"
+                                               TextWrapping="Wrap"
+                                               Margin="20,1,0,0"/>
+                                </StackPanel>
+                                <!-- Cost badge -->
+                                <Border Grid.Column="1"
+                                        Background="#44220000" CornerRadius="3"
+                                        Padding="4,2" VerticalAlignment="Center"
+                                        HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding CostTag}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="#ff6666"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
 
+        <!-- Running total -->
+        <Border Grid.Row="2" Margin="0,6,0,0" Padding="8,5"
+                Background="{StaticResource EBgBrush}" CornerRadius="2">
+            <TextBlock x:Name="TotalLabel"
+                       FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource GoldBrush}"
+                       Text="No drawbacks selected."/>
+        </Border>
+
         <!-- Create custom drawback -->
-        <Border Grid.Row="2" Margin="0,6,0,0" Padding="8,6"
+        <Border Grid.Row="3" Margin="0,6,0,0" Padding="8,6"
                 Background="{StaticResource EBgBrush}" CornerRadius="2">
             <StackPanel>
                 <TextBlock Text="Create Custom Drawback"
                            FontSize="10" FontWeight="Bold"
                            Foreground="{StaticResource GoldBrush}"
-                           Margin="0,0,0,4"/>
+                           Margin="0,0,0,5"/>
                 <Grid Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="44"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="Name"
@@ -67,26 +99,43 @@
                                VerticalAlignment="Center"/>
                     <TextBox Grid.Column="1" x:Name="CustomNameBox" FontSize="10"/>
                 </Grid>
-                <Grid Margin="0,0,0,6">
+                <Grid Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="44"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="0" Text="Desc"
                                Foreground="{StaticResource DimBrush}" FontSize="9"
                                VerticalAlignment="Top" Margin="0,2,0,0"/>
                     <TextBox Grid.Column="1" x:Name="CustomDescBox"
-                             FontSize="10" Height="44"
+                             FontSize="10" Height="42"
                              AcceptsReturn="True" TextWrapping="Wrap"
                              VerticalScrollBarVisibility="Auto"/>
                 </Grid>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44"/>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Cost"
+                               Foreground="{StaticResource DimBrush}" FontSize="9"
+                               VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" x:Name="CustomCostBox"
+                             Text="2" FontSize="10" Width="50"
+                             HorizontalAlignment="Left"/>
+                    <TextBlock Grid.Column="2"
+                               Text="pts refunded  (1 = minor, 2 = moderate, 3 = severe)"
+                               Foreground="{StaticResource DimBrush}" FontSize="9"
+                               VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </Grid>
                 <Button Content="+ Add Custom" HorizontalAlignment="Left"
-                        Padding="6,2" FontSize="9" Click="AddCustom_Click"/>
+                        Padding="8,3" FontSize="9" Click="AddCustom_Click"/>
             </StackPanel>
         </Border>
 
         <!-- Footer -->
-        <Button Grid.Row="3" Content="Close"
+        <Button Grid.Row="4" Content="Close"
                 HorizontalAlignment="Right" Width="80"
                 Margin="0,8,0,0" Click="Close_Click"/>
     </Grid>

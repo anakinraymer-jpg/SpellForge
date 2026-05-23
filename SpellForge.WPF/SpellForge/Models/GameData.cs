@@ -18,7 +18,7 @@ public record ElementDef(
 public record CapstoneDef(string Name, string Desc, string Glyph, string Ring, string Color);
 public record ElementOverride(string Modification, string Desc);
 public record ModDef(string Cat, int Cost, int Max, string Desc);
-public record NegModDef(string Name, string Desc);
+public record NegModDef(string Name, string Desc, int Cost = 2);
 public record LevelEntry(int Lo, int Hi, string Name, string Color);
 
 public static class GameData
@@ -592,28 +592,35 @@ public static class GameData
         };
 
     // ── Negative modifiers ────────────────────────────────────────
+    // Each drawback reduces the spell's total point cost by its Cost value.
+    // Rule: drawbacks may not refund more than half the spell's gross (pre-drawback) cost.
     public static readonly IReadOnlyList<NegModDef> DefaultNegativeMods = new List<NegModDef>
     {
-        new("Unstable Casting",   "15% chance to misfire — spell targets a random creature in range."),
-        new("Mana Burn",          "Caster takes 1d6 psychic damage each time this spell is cast."),
-        new("Verbal Tell",        "Spell cannot be cast silently; the activation word is always audible."),
-        new("Material Cost",      "Requires a 50gp material component that is consumed on casting."),
-        new("Concentration Lock", "While this spell is active, no other concentration spell can be maintained."),
-        new("Telegraphed",        "Targets receive one full round of warning before the spell activates."),
-        new("Backlash",           "Caster is stunned for 1 round after casting this spell."),
-        new("Soul Cost",          "Caster ages 1 year each time this spell is cast (magical aging)."),
-        new("Brittle Focus",      "Any damage to the caster automatically breaks concentration."),
-        new("Conspicuous Aura",   "Spell leaves a glowing magical residue visible for 1 hour after use."),
-        new("Exhausting",         "Caster gains 1 level of exhaustion immediately after casting."),
-        new("Wild Surge",         "Roll on the wild magic surge table in addition to normal effect."),
-        new("Fragile Ward",       "Any physical hit against the caster ends the spell instantly."),
-        new("Obvious Display",    "Casting requires a dramatic 6-second visible somatic performance."),
-        new("Cooldown",           "This spell cannot be cast again for 1d4 rounds after use."),
-        new("Mind Fog",           "Caster has disadvantage on all Intelligence checks until next rest."),
-        new("Tethered Power",     "Spell ends if caster moves more than 30 ft from the point of casting."),
-        new("Corrupting Touch",   "Caster suffers 1 point of permanent Constitution reduction."),
-        new("Screaming Glyph",    "Caster's voice becomes magically amplified for 1 hour after casting."),
-        new("Fate Debt",          "The caster's next saving throw is automatically failed, no roll."),
+        // ── Minor (1 pt) — narrative flavour, negligible mechanical impact
+        new("Verbal Tell",        "Spell cannot be cast silently; the activation word is always audible.",          1),
+        new("Conspicuous Aura",   "Spell leaves a glowing magical residue visible for 1 hour after use.",          1),
+        new("Screaming Glyph",    "Caster's voice becomes magically amplified for 1 hour after casting.",          1),
+        new("Obvious Display",    "Casting requires a dramatic 6-second visible somatic performance.",             1),
+
+        // ── Moderate (2 pts) — meaningful tactical drawbacks
+        new("Unstable Casting",   "15% chance to misfire — spell targets a random creature in range.",             2),
+        new("Mana Burn",          "Caster takes 1d6 psychic damage each time this spell is cast.",                 2),
+        new("Material Cost",      "Requires a 50gp material component that is consumed on casting.",               2),
+        new("Concentration Lock", "While this spell is active, no other concentration spell can be maintained.",   2),
+        new("Telegraphed",        "Targets receive one full round of warning before the spell activates.",         2),
+        new("Brittle Focus",      "Any damage to the caster automatically breaks concentration.",                  2),
+        new("Wild Surge",         "Roll on the wild magic surge table in addition to normal effect.",              2),
+        new("Fragile Ward",       "Any physical hit against the caster ends the spell instantly.",                 2),
+        new("Cooldown",           "This spell cannot be cast again for 1d4 rounds after use.",                     2),
+        new("Mind Fog",           "Caster has disadvantage on all Intelligence checks until next rest.",           2),
+        new("Tethered Power",     "Spell ends if caster moves more than 30 ft from the point of casting.",        2),
+
+        // ── Severe (3 pts) — major mechanical or permanent penalties
+        new("Backlash",           "Caster is stunned for 1 round after casting this spell.",                       3),
+        new("Soul Cost",          "Caster ages 1 year each time this spell is cast (magical aging).",              3),
+        new("Exhausting",         "Caster gains 1 level of exhaustion immediately after casting.",                 3),
+        new("Corrupting Touch",   "Caster suffers 1 point of permanent Constitution reduction per casting.",       3),
+        new("Fate Debt",          "The caster's next saving throw is automatically failed, no roll.",              3),
     };
 
     // ── Level table ───────────────────────────────────────────────

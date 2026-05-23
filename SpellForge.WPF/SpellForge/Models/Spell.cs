@@ -82,14 +82,35 @@ public partial class Spell : ObservableObject
         }
     }
 
+    // Total points refunded by active drawbacks (before the 50% cap).
+    [JsonIgnore]
+    public int DrawbackRefund
+    {
+        get
+        {
+            int refund = 0;
+            foreach (var key in DrawbackBuys.Keys)
+            {
+                if (key.StartsWith("neg/"))
+                {
+                    var name   = key[4..];
+                    var found  = GameData.DefaultNegativeMods.FirstOrDefault(m => m.Name == name);
+                    refund    += found?.Cost ?? CustomNegMods.FirstOrDefault(m => m.Name == name)?.Cost ?? 2;
+                }
+            }
+            return refund;
+        }
+    }
+
+    // Rule: drawback refunds may not exceed 50% of gross (pre-drawback) spell cost.
     [JsonIgnore]
     public bool IsComplete
     {
         get
         {
-            int db = DrawbackBuys.Count;
-            if (db == 0) return true;
-            return (NormalItemCount - db) > db;
+            if (DrawbackBuys.Count == 0) return true;
+            int gross = TotalPoints + DrawbackRefund;   // total before drawbacks applied
+            return DrawbackRefund <= Math.Max(1, gross / 2);
         }
     }
 
@@ -140,10 +161,18 @@ public partial class Spell : ObservableObject
                     if (nd != null) pts += nd.Cost * cnt;
                 }
             }
-            // Subtract drawback costs
+            // ── Subtract drawback refunds ─────────────────────────
+            int grossPts = pts;
             foreach (var key in DrawbackBuys.Keys)
             {
-                if (key.StartsWith("ability/"))
+                if (key.StartsWith("neg/"))
+                {
+                    // Standard / custom narrative drawbacks
+                    var name  = key[4..];
+                    var found = GameData.DefaultNegativeMods.FirstOrDefault(m => m.Name == name);
+                    pts -= found?.Cost ?? CustomNegMods.FirstOrDefault(m => m.Name == name)?.Cost ?? 2;
+                }
+                else if (key.StartsWith("ability/"))
                 {
                     var parts = key.Split('/', 3);
                     if (parts.Length == 3 &&
@@ -160,6 +189,10 @@ public partial class Spell : ObservableObject
                 else if (key.StartsWith("ringmod/"))
                     pts -= 1;
             }
+            // Enforce 50% cap: drawbacks can refund at most half of gross cost
+            int maxRefund = Math.Max(0, grossPts / 2);
+            int actualRefund = grossPts - pts;
+            if (actualRefund > maxRefund) pts = grossPts - maxRefund;
             return Math.Max(0, pts);
         }
     }
@@ -196,6 +229,7 @@ public partial class Spell : ObservableObject
         OnPropertyChanged(nameof(LevelName));
         OnPropertyChanged(nameof(LevelProgress));
         OnPropertyChanged(nameof(NormalItemCount));
+        OnPropertyChanged(nameof(DrawbackRefund));
         OnPropertyChanged(nameof(IsComplete));
     }
 }
