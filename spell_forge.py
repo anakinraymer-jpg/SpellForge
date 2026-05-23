@@ -549,13 +549,13 @@ DEFAULT_GLOBAL_MODS: Dict[str,dict] = {
     "Area: Multi-Target":{"cat":"Area","cost":2,"max":5,"desc":"Choose up to 3 targets. Each purchase adds 2 more."},
     "Area: Aura Self":{"cat":"Area","cost":2,"max":3,"desc":"Radiates 10ft from caster. Each purchase adds 10ft."},
     "Area: Zone 60ft":{"cat":"Area","cost":4,"max":1,"desc":"60-foot radius sphere."},
-    "Power: Weak d4":{"cat":"Power","cost":0,"max":1,"desc":"Minimal effect."},
-    "Power: Moderate d6":{"cat":"Power","cost":2,"max":1,"desc":"Standard combat-grade power."},
-    "Power: Strong d8":{"cat":"Power","cost":4,"max":1,"desc":"Above-average effect."},
-    "Power: Powerful d10":{"cat":"Power","cost":6,"max":1,"desc":"Significant and threatening."},
-    "Power: Mighty d12":{"cat":"Power","cost":8,"max":1,"desc":"Devastating single-hit power."},
-    "Power: Epic 2d10":{"cat":"Power","cost":10,"max":1,"desc":"Legendary magnitude."},
-    "Extra Damage Die":{"cat":"Power","cost":2,"max":10,"desc":"Add one additional damage die per purchase."},
+    "Power: Weak (d4)":{"cat":"Power","cost":0,"max":1,"desc":"Minimal effect — level dice are downgraded to d4."},
+    "Power: Moderate (d6)":{"cat":"Power","cost":2,"max":1,"desc":"Standard power — level dice remain d6."},
+    "Power: Strong (d8)":{"cat":"Power","cost":4,"max":1,"desc":"Above-average — level dice upgraded to d8."},
+    "Power: Powerful (d10)":{"cat":"Power","cost":6,"max":1,"desc":"Significant — level dice upgraded to d10."},
+    "Power: Mighty (d12)":{"cat":"Power","cost":8,"max":1,"desc":"Devastating — level dice upgraded to d12."},
+    "Power: Epic (d20)":{"cat":"Power","cost":10,"max":1,"desc":"Legendary magnitude — level dice upgraded to d20."},
+    "Power Surge":{"cat":"Power","cost":2,"max":10,"desc":"Each purchase adds a flat +1 bonus to all spell effect rolls."},
     "Cast: Free Action":{"cat":"Casting","cost":3,"max":1,"desc":"No action economy cost."},
     "Cast: Bonus Action":{"cat":"Casting","cost":2,"max":1,"desc":"Uses your bonus action."},
     "Cast: Standard":{"cat":"Casting","cost":0,"max":1,"desc":"Uses your primary action."},
@@ -641,6 +641,9 @@ class Spell:
     # Each: {"if_text": str, "then_text": str}
     when_then_conditions: List[dict] = field(default_factory=list)
     # Each: {"when_text": str, "then_text": str}
+    # Dice assigned to schools: list of school name strings ("" = unassigned).
+    # Length is auto-synced to num_level_dice on every redraw.
+    dice_assignments: List[str] = field(default_factory=list)
 
     @property
     def all_schools(self):
@@ -719,6 +722,20 @@ class Spell:
 
     @property
     def level_info(self): return pts_to_level(self.total_points)
+
+    @property
+    def num_level_dice(self):
+        """One d6 per level threshold reached (0 at Cantrip, 1 at 1st Level, …)."""
+        idx, _, _ = self.level_info
+        return idx  # level index 0 = Cantrip (0 dice), 1 = 1st Level (1 die), etc.
+
+    def sync_dice_assignments(self):
+        """Grow or trim dice_assignments to match num_level_dice."""
+        n = self.num_level_dice
+        if len(self.dice_assignments) < n:
+            self.dice_assignments += [""] * (n - len(self.dice_assignments))
+        elif len(self.dice_assignments) > n:
+            self.dice_assignments = self.dice_assignments[:n]
 
     @property
     def active_connections(self):
@@ -1063,6 +1080,7 @@ class MagicCircleCanvas(tk.Canvas):
         self._draw_center_hub()
         self._draw_drawback_rings()
         self._draw_conditions_ring()
+        self._draw_dice_pips(R)
         self._draw_status_bar(W,H)
 
     def _draw_deep_bg(self,R):
@@ -1788,11 +1806,66 @@ class MagicCircleCanvas(tk.Canvas):
                          fill=self._b(c, '#ffffff', 0.88), font=('TkFixedFont', 8))
             self._hit_zones.append((rx, ry, 10, lambda: None, tip, None))
 
+    def _draw_dice_pips(self, R):
+        """Draw one d6 pip per level threshold outside the outer ring.
+        Pips orbit at R*1.065. Each can be clicked to cycle school assignment."""
+        s = self.spell
+        s.sync_dice_assignments()
+        n = s.num_level_dice
+        if n == 0:
+            return
+
+        school_list = list(SCHOOLS.keys())
+        pip_r_world = 8          # pip radius in world units
+        orbit_r = R * 1.065      # just outside the outer border ring
+
+        for i in range(n):
+            # Evenly space around the full circle, starting at top (270°)
+            angle = 270.0 + i * (360.0 / n)
+            wx, wy = self._wpt(0, 0, orbit_r, angle)
+
+            assigned = s.dice_assignments[i] if i < len(s.dice_assignments) else ""
+            if assigned and assigned in SCHOOLS:
+                fill_col   = SCHOOLS[assigned]["color"]
+                outline_col = self._b(fill_col, "#ffffff", 0.50)
+                label_col  = self._b(fill_col, "#ffffff", 0.85)
+                tip = f"Die {i+1}  ·  d6  ·  {assigned}\n(click to reassign)"
+            else:
+                fill_col   = self._f("#aabbcc", 0.18)
+                outline_col = self._f("#aabbcc", 0.55)
+                label_col  = self._f("#aabbcc", 0.70)
+                tip = f"Die {i+1}  ·  d6  ·  unassigned\n(click to assign to a school)"
+
+            # Pip body
+            self._circle_w(wx, wy, pip_r_world, fill=fill_col, outline="")
+            self._ring_w(wx, wy, pip_r_world, outline_col, w=2)
+            # d6 face dot
+            self._text_w(wx, wy, text="⚄", fill=label_col, font=("TkDefaultFont", 7))
+
+            # Click → cycle: "" → school0 → school1 → … → schoolN-1 → ""
+            def _pip_cb(idx=i):
+                da = s.dice_assignments
+                cur = da[idx] if idx < len(da) else ""
+                if cur == "" or cur not in school_list:
+                    nxt = school_list[0]
+                else:
+                    ci = school_list.index(cur)
+                    nxt = school_list[ci + 1] if ci + 1 < len(school_list) else ""
+                if idx < len(da):
+                    da[idx] = nxt
+                if self._on_change:
+                    self._on_change()
+                self._redraw()
+
+            self._hit_zones.append((wx, wy, pip_r_world + 4, _pip_cb, tip, None))
+
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
+        nd=s.num_level_dice
+        dice_str=f"  ·  {nd}d6" if nd>0 else ""
         cx,cy=self._tc(0,self.OUTER_R+14)
         self.create_text(cx,cy,
-                         text=f"{lvl}  ·  {pts} pts  ·  {self._zoom:.2f}×  [scroll=zoom  R-drag=pan]",
+                         text=f"{lvl}  ·  {pts} pts{dice_str}  ·  {self._zoom:.2f}×  [scroll=zoom  R-drag=pan]",
                          fill=self._b("#445566",col,0.7),font=("Georgia",9,"italic"))
         if s.drawback_buys and not s.is_complete:
             wx,wy=self._tc(0,self.OUTER_R+26)
