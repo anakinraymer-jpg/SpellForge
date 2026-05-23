@@ -220,3 +220,38 @@ sys.modules['tkinter'] = tk
 ```
 
 See the conversation history for complete working stub implementations.
+
+---
+
+## Git Workflow
+
+### Branching strategy
+- **`master`** — stable, always buildable. All completed features land here.
+- **`feature/<short-name>`** — one branch per logical feature (e.g. `feature/right-click-drawbacks`). Branch from master, merge back when done.
+- **`fix/<short-name>`** — for targeted bug fixes.
+
+Claude Code manages branch creation, commits, and merges. When starting a new chunk of work it will:
+1. Create an appropriately named branch off master.
+2. Commit incrementally with structured messages as work progresses.
+3. Merge (fast-forward where possible, or a merge commit with a summary) back to master when the feature is complete and building clean.
+
+### Commit message format
+```
+<Scope>: <imperative summary under 72 chars>
+
+- Bullet details explaining *what* changed and *why*
+- One bullet per logical sub-change
+- Reference any rules or constraints that drove the decision
+```
+
+**Scopes in use:** `Canvas`, `Models`, `ViewModels`, `Views`, `GameData`, `Spell`, `Build`
+
+### Rules
+- Every commit must build with 0 errors before it is recorded.
+- The `master` branch is **never force-pushed**.
+- Squash is used only to clean up noisy WIP commits before merging a feature branch.
+
+### Git executable
+```
+C:\Users\anaki\Documents\Git\Git\cmd\git.exe
+```
