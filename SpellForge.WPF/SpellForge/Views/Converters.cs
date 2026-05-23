@@ -46,11 +46,13 @@ public class TruncateTextConverter : IValueConverter
     public object Convert(object value, Type _, object __, CultureInfo ___)
     {
         if (value is not string s || string.IsNullOrEmpty(s)) return "";
-        // Strip modifiers from inside brackets
+        // Strip element suffix inside brackets
         int bracket = s.IndexOf('[');
         if (bracket > 0) s = s[..bracket].Trim();
-        // Take up to the first space after 4 chars, max 12 chars
-        int sp = s.IndexOf(' ', 4);
+        if (string.IsNullOrEmpty(s)) return "";
+        // Find first space after position min(4, length), max 12 chars total
+        int startSearch = Math.Min(4, s.Length);
+        int sp = s.IndexOf(' ', startSearch);
         return sp > 0 && sp < 12 ? s[..sp] : s.Length > 12 ? s[..12] : s;
     }
 
