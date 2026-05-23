@@ -48,25 +48,32 @@
             <ItemsControl ItemsSource="{Binding RingMods}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="0,2">
+                        <Grid Margin="0,2"
+                              ToolTip="{Binding DiceHintScale}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="28"/>
                                 <ColumnDefinition Width="28"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Label + dot display -->
-                            <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Label}"
-                                           FontSize="10"
-                                           Foreground="{Binding ColorBrush}"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding CountDisplay}"
-                                           FontSize="10" FontWeight="Bold"
-                                           Foreground="{StaticResource TextBrush}"
-                                           Margin="8,0,0,0"
-                                           VerticalAlignment="Center"/>
+                            <!-- Label + dot display + C&S value hint -->
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Label}"
+                                               FontSize="10"
+                                               Foreground="{Binding ColorBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding CountDisplay}"
+                                               FontSize="10" FontWeight="Bold"
+                                               Foreground="{StaticResource TextBrush}"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding DiceHintText}"
+                                           FontSize="8" FontStyle="Italic"
+                                           Foreground="{Binding ColorBrush}" Opacity="0.6"
+                                           Visibility="{Binding DiceHintText,
+                                             Converter={StaticResource EmptyToCollapsed}}"/>
                             </StackPanel>
 
                             <!-- Decrement -->

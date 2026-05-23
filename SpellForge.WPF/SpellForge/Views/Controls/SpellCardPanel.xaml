@@ -1,0 +1,405 @@
+<UserControl x:Class="SpellForge.Views.Controls.SpellCardPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <UserControl.Resources>
+        <Style x:Key="SectionHead" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="8"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#556677"/>
+            <Setter Property="Margin"     Value="0,10,0,3"/>
+        </Style>
+        <Style x:Key="StatLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="9"/>
+            <Setter Property="Foreground" Value="#778899"/>
+            <Setter Property="Width"      Value="70"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontSize"     Value="10"/>
+            <Setter Property="Foreground"   Value="#e8dfc8"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="10,8,10,12">
+
+            <!-- ══ HEADER ══════════════════════════════════ -->
+            <Border Background="#0d1220"
+                    BorderBrush="#334455" BorderThickness="0,0,0,1"
+                    Padding="6,7,6,9">
+                <StackPanel>
+                    <!-- Name + tier badge -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding SpellName}"
+                                   FontFamily="Georgia" FontSize="16" FontWeight="Bold"
+                                   Foreground="#e8dfc8"/>
+                        <Border Grid.Column="1"
+                                Padding="7,2" CornerRadius="3"
+                                Background="#161e2e" BorderThickness="1"
+                                BorderBrush="{Binding TierColorBrush}"
+                                VerticalAlignment="Center" Margin="6,0,0,0">
+                            <TextBlock Text="{Binding TierText}"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="{Binding TierColorBrush}"/>
+                        </Border>
+                    </Grid>
+
+                    <!-- Schools -->
+                    <TextBlock Text="{Binding SchoolsLine}"
+                               FontSize="9" Foreground="#8899aa"
+                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                    <!-- Alignment · Elements -->
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                        <TextBlock Text="{Binding AlignmentText}"
+                                   FontSize="9" FontWeight="Bold"
+                                   Foreground="{Binding AlignmentColorBrush}"/>
+                        <TextBlock Text="  ·  "
+                                   FontSize="9" Foreground="#446677"
+                                   Visibility="{Binding ElementsLine,
+                                     Converter={StaticResource EmptyToCollapsed}}"/>
+                        <TextBlock Text="{Binding ElementsLine}"
+                                   FontSize="9" Foreground="#88aacc"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding ElementsLine,
+                                     Converter={StaticResource EmptyToCollapsed}}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ══ CORE PROPERTIES ════════════════════════ -->
+            <TextBlock Text="CORE PROPERTIES" Style="{StaticResource SectionHead}"/>
+
+            <Border Background="#0c1418" CornerRadius="3" Padding="8,6"
+                    BorderBrush="#1e3040" BorderThickness="1">
+                <StackPanel>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Action"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding ActionText}" Foreground="#aabbcc"/>
+                    </Grid>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Casts"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding CastsText}"/>
+                    </Grid>
+
+                    <Grid Margin="0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}"
+                                   Text="Effect" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding EffectText}"
+                                   FontSize="15" FontWeight="Bold"
+                                   Foreground="{StaticResource GoldBrush}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Duration"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding DurationText}"/>
+                    </Grid>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Range"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding RangeText}"/>
+                    </Grid>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Area"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding AreaText}"/>
+                    </Grid>
+
+                    <Grid Margin="0,1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource StatLabel}" Text="Somatics"/>
+                        <TextBlock Grid.Column="1" Style="{StaticResource StatValue}"
+                                   Text="{Binding SomaticsText}"
+                                   FontStyle="Italic" Foreground="#8899aa"/>
+                    </Grid>
+
+                </StackPanel>
+            </Border>
+
+            <!-- ══ SCHOOL → CORE INTERCONNECT ════════════ -->
+            <TextBlock Text="SCHOOL → CORE DIMENSIONS"
+                       Style="{StaticResource SectionHead}"
+                       Visibility="{Binding HasSchoolContribs,
+                         Converter={StaticResource BoolToVisible}}"/>
+
+            <Border Background="#0c1418" CornerRadius="3" Padding="6,5"
+                    BorderBrush="#1e3040" BorderThickness="1"
+                    Visibility="{Binding HasSchoolContribs,
+                      Converter={StaticResource BoolToVisible}}">
+                <StackPanel>
+                    <!-- Column headers -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="40"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="School"
+                                   FontSize="8" FontWeight="Bold" Foreground="#445566"/>
+                        <TextBlock Grid.Column="1" Text="Reach"
+                                   FontSize="8" FontWeight="Bold" Foreground="#ff8888"
+                                   TextAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="Hold"
+                                   FontSize="8" FontWeight="Bold" Foreground="#88ee88"
+                                   TextAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Spread"
+                                   FontSize="8" FontWeight="Bold" Foreground="#8899ff"
+                                   TextAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="Bite"
+                                   FontSize="8" FontWeight="Bold" Foreground="#ffd080"
+                                   TextAlignment="Center"/>
+                    </Grid>
+
+                    <!-- Per-school rows -->
+                    <ItemsControl ItemsSource="{Binding SchoolContribs}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="44"/>
+                                        <ColumnDefinition Width="44"/>
+                                        <ColumnDefinition Width="44"/>
+                                        <ColumnDefinition Width="40"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Symbol}"
+                                                   FontSize="11" Margin="0,0,4,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{Binding ColorBrush}"/>
+                                        <TextBlock Text="{Binding School}"
+                                                   FontSize="9" VerticalAlignment="Center"
+                                                   Foreground="{Binding ColorBrush}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Range, Converter={StaticResource IntToPips}}"
+                                               FontSize="9" TextAlignment="Center"
+                                               Foreground="#cc8888" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding Duration, Converter={StaticResource IntToPips}}"
+                                               FontSize="9" TextAlignment="Center"
+                                               Foreground="#88cc88" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding Area, Converter={StaticResource IntToPips}}"
+                                               FontSize="9" TextAlignment="Center"
+                                               Foreground="#8899cc" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding Power, Converter={StaticResource IntToPips}}"
+                                               FontSize="9" TextAlignment="Center"
+                                               Foreground="#ccaa60" VerticalAlignment="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- MAX summary row -->
+                    <Border BorderBrush="#2a4455" BorderThickness="0,1,0,0"
+                            Margin="0,5,0,0" Padding="0,5,0,0">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="40"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="MAX →"
+                                           FontSize="8" FontWeight="Bold" Foreground="#445566"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding MaxRange, Converter={StaticResource IntToPips}}"
+                                           FontSize="9" TextAlignment="Center"
+                                           FontWeight="Bold" Foreground="#ff8888"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding MaxDuration, Converter={StaticResource IntToPips}}"
+                                           FontSize="9" TextAlignment="Center"
+                                           FontWeight="Bold" Foreground="#88ee88"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="{Binding MaxArea, Converter={StaticResource IntToPips}}"
+                                           FontSize="9" TextAlignment="Center"
+                                           FontWeight="Bold" Foreground="#8899ff"/>
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding MaxPower, Converter={StaticResource IntToPips}}"
+                                           FontSize="9" TextAlignment="Center"
+                                           FontWeight="Bold" Foreground="#ffd080"/>
+                            </Grid>
+                            <!-- Resolved value labels -->
+                            <Grid Margin="0,2,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="40"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="= "
+                                           FontSize="8" Foreground="#334455"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding RangeText, Converter={StaticResource TruncateText}}"
+                                           FontSize="7" TextAlignment="Center"
+                                           Foreground="#aa6666" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding DurationText, Converter={StaticResource TruncateText}}"
+                                           FontSize="7" TextAlignment="Center"
+                                           Foreground="#66aa66" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="{Binding AreaText, Converter={StaticResource TruncateText}}"
+                                           FontSize="7" TextAlignment="Center"
+                                           Foreground="#6677aa" TextWrapping="Wrap"/>
+                                <TextBlock Grid.Column="4"
+                                           Text="{Binding EffectText, Converter={StaticResource TruncateText}}"
+                                           FontSize="7" TextAlignment="Center"
+                                           Foreground="#aa8844" TextWrapping="Wrap"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- ══ ACTIVE EFFECTS ═════════════════════════ -->
+            <TextBlock Text="ACTIVE EFFECTS"
+                       Style="{StaticResource SectionHead}"
+                       Visibility="{Binding HasEffects,
+                         Converter={StaticResource BoolToVisible}}"/>
+
+            <ItemsControl ItemsSource="{Binding SchoolEffects}"
+                          Visibility="{Binding HasEffects,
+                            Converter={StaticResource BoolToVisible}}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,3">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding Glyph}"
+                                       FontSize="12" HorizontalAlignment="Center"
+                                       VerticalAlignment="Top" Margin="0,1,0,0"
+                                       Foreground="{Binding ColorBrush}"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="10" FontWeight="Bold"
+                                           TextWrapping="Wrap"
+                                           Foreground="{Binding ColorBrush}"/>
+                                <TextBlock Text="{Binding Desc}"
+                                           FontSize="9" FontStyle="Italic"
+                                           Foreground="{StaticResource DimBrush}"
+                                           TextWrapping="Wrap" Margin="0,1,0,0"
+                                           Visibility="{Binding Desc,
+                                             Converter={StaticResource EmptyToCollapsed}}"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- ══ LIMITATIONS ════════════════════════════ -->
+            <TextBlock Text="LIMITATIONS"
+                       Style="{StaticResource SectionHead}"
+                       Visibility="{Binding HasLimitations,
+                         Converter={StaticResource BoolToVisible}}"/>
+
+            <Border Background="#160d10" CornerRadius="3" Padding="8,5"
+                    BorderBrush="#3a1a22" BorderThickness="1"
+                    Visibility="{Binding HasLimitations,
+                      Converter={StaticResource BoolToVisible}}">
+                <ItemsControl ItemsSource="{Binding Limitations}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="◌ " Foreground="#aaaacc" FontSize="10"/>
+                                <TextBlock Text="{Binding}"
+                                           FontSize="10" Foreground="#cc9999"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <!-- ══ UNSTABLE / INFERNAL FLAG ═══════════════ -->
+            <Border Background="#1a0812" CornerRadius="3" Padding="8,7"
+                    Margin="0,8,0,0" BorderThickness="1"
+                    BorderBrush="{Binding UnstableColorBrush}"
+                    Visibility="{Binding HasUnstable,
+                      Converter={StaticResource BoolToVisible}}">
+                <TextBlock Text="{Binding UnstableText}"
+                           FontSize="10" FontWeight="Bold"
+                           Foreground="{Binding UnstableColorBrush}"
+                           TextWrapping="Wrap"/>
+            </Border>
+            <Border Background="#1a0812" CornerRadius="3" Padding="8,7"
+                    Margin="0,4,0,0" BorderThickness="1"
+                    BorderBrush="{Binding UnstableColorBrush}"
+                    Visibility="{Binding HasInfernal,
+                      Converter={StaticResource BoolToVisible}}">
+                <TextBlock Text="{Binding UnstableText}"
+                           FontSize="10" FontWeight="Bold"
+                           Foreground="{Binding UnstableColorBrush}"
+                           TextWrapping="Wrap"/>
+            </Border>
+
+            <!-- ══ FOOTER ══════════════════════════════════ -->
+            <Border BorderBrush="#334455" BorderThickness="0,1,0,0"
+                    Margin="0,14,0,4" Padding="0,8,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding PointsText}"
+                               FontSize="11" FontWeight="Bold"
+                               Foreground="{StaticResource GoldBrush}"/>
+                    <TextBlock Text="  ·  " FontSize="11" Foreground="#446677"/>
+                    <TextBlock Text="{Binding TierText}"
+                               FontSize="11" FontWeight="Bold"
+                               Foreground="{Binding TierColorBrush}"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
