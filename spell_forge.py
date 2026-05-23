@@ -2739,6 +2739,8 @@ class SpellForgeApp(tk.Tk):
         ttk.Button(br,text="🗑",command=self._ldel,style="D.TButton").pack(side=tk.LEFT,padx=2)
         dsc=self._sf(nb); nb.add(dsc["outer"],text="  Drawbacks  ")
         self._build_drawbacks_tab(dsc["inner"])
+        psc=self._sf(nb); nb.add(psc["outer"],text="  ⚄ Dice  ")
+        self._build_pips_tab(psc["inner"])
 
     def _build_drawbacks_tab(self,f):
         # ── Drawbacks Taken ──
@@ -2772,6 +2774,69 @@ class SpellForgeApp(tk.Tk):
         ttk.Button(nbf,text="✎ Edit",command=self._nm_edit).pack(side=tk.LEFT,padx=2)
         ttk.Button(nbf,text="✕ Remove",command=self._nm_remove,style="D.TButton").pack(side=tk.LEFT,padx=2)
         self._refresh_neg_mods()
+
+    def _build_pips_tab(self, f):
+        BG=self.BG; PBG=self.PBG; GOLD=self.GOLD; SUB=self.SUB
+        # ── Header ──
+        tk.Label(f,text="⚄  Dice Pool",bg=BG,fg=GOLD,
+                 font=("Georgia",11,"bold italic")).pack(pady=(10,2))
+        self._pip_info_lbl=tk.Label(f,text="",bg=BG,fg=SUB,
+                                    font=("Georgia",8,"italic"))
+        self._pip_info_lbl.pack(pady=(0,6))
+        # ── Scrollable die rows ──
+        self._pip_rows_frame=tk.Frame(f,bg=BG)
+        self._pip_rows_frame.pack(fill=tk.BOTH,expand=True,padx=6)
+        # ── Footer ──
+        bf=tk.Frame(f,bg=BG); bf.pack(fill=tk.X,padx=6,pady=6)
+        ttk.Button(bf,text="✕  Clear All",command=self._pips_clear_all,
+                   style="D.TButton").pack(side=tk.LEFT,padx=2)
+        self._refresh_pips()
+
+    def _refresh_pips(self):
+        if not hasattr(self,'_pip_rows_frame'): return
+        s=self.spell; s.sync_dice_assignments()
+        n=s.num_level_dice
+        # Update summary label
+        if hasattr(self,'_pip_info_lbl'):
+            _,lvl,_=s.level_info
+            if n==0: self._pip_info_lbl.configure(text=f"{lvl}  —  no dice yet")
+            else:    self._pip_info_lbl.configure(text=f"{n}d6    {lvl}")
+        # Rebuild rows
+        for w in self._pip_rows_frame.winfo_children(): w.destroy()
+        if n==0:
+            tk.Label(self._pip_rows_frame,
+                     text="Spend points to reach 1st Level\nfor your first d6.",
+                     bg=self.BG,fg=self.SUB,font=("Georgia",9,"italic"),
+                     justify="center").pack(pady=24)
+            return
+        school_options=["— unassigned —"]+list(SCHOOLS.keys())
+        for i in range(n):
+            assigned=s.dice_assignments[i] if i<len(s.dice_assignments) else ""
+            sc_col=SCHOOLS[assigned]["color"] if assigned and assigned in SCHOOLS else "#445566"
+            row=tk.Frame(self._pip_rows_frame,bg=self.PBG,pady=3,padx=6)
+            row.pack(fill=tk.X,pady=2)
+            # Die number badge
+            tk.Label(row,text=f"⚄ {i+1:>2}",bg=self.PBG,fg=sc_col,
+                     font=("TkFixedFont",9,"bold"),width=5,anchor="w").pack(side=tk.LEFT)
+            # School combobox
+            var=tk.StringVar(value=assigned if assigned else "— unassigned —")
+            combo=ttk.Combobox(row,textvariable=var,values=school_options,
+                               state="readonly",width=17,font=("Georgia",8))
+            combo.pack(side=tk.LEFT,padx=(6,4))
+            def _pick(e,v=var,idx=i):
+                val=v.get()
+                self.spell.dice_assignments[idx]="" if val.startswith("—") else val
+                self._refresh()
+            combo.bind("<<ComboboxSelected>>",_pick)
+            # Unassign button
+            def _clear(idx=i):
+                self.spell.dice_assignments[idx]=""; self._refresh()
+            ttk.Button(row,text="✕",command=_clear,
+                       style="D.TButton",width=2).pack(side=tk.LEFT)
+
+    def _pips_clear_all(self):
+        n=self.spell.num_level_dice
+        self.spell.dice_assignments=[""]*(n); self._refresh()
 
     def _refresh_drawbacks(self):
         if not hasattr(self,'_db_list'): return
@@ -3125,6 +3190,7 @@ class SpellForgeApp(tk.Tk):
         self._refresh_ifthen()
         self._refresh_whenthen()
         self._refresh_effects()
+        self._refresh_pips()
     def _ref_conn(self):
         if not hasattr(self,'ct'): return
         conns=self.spell.active_connections
