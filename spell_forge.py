@@ -1807,8 +1807,8 @@ class MagicCircleCanvas(tk.Canvas):
             self._hit_zones.append((rx, ry, 10, lambda: None, tip, None))
 
     def _draw_dice_pips(self, R):
-        """Draw one d6 pip per level threshold outside the outer ring.
-        Pips orbit at R*1.065. Each can be clicked to cycle school assignment."""
+        """Draw one d6 pip per level threshold in a ring around the middle of the circle.
+        Pips orbit at R*0.50 (inner geometry boundary). Each can be clicked to cycle school assignment."""
         s = self.spell
         s.sync_dice_assignments()
         n = s.num_level_dice
@@ -1816,8 +1816,11 @@ class MagicCircleCanvas(tk.Canvas):
             return
 
         school_list = list(SCHOOLS.keys())
-        pip_r_world = 8          # pip radius in world units
-        orbit_r = R * 1.065      # just outside the outer border ring
+        pip_r_world = 7          # pip radius in world units
+        orbit_r = R * 0.50       # inner geometry boundary ring — middle of the circle
+
+        # Faint dashed track ring so the pip ring reads as intentional
+        self._ring_w(0, 0, orbit_r, self._f("#aabbcc", 0.18), w=1, dash=(2, 6))
 
         for i in range(n):
             # Evenly space around the full circle, starting at top (270°)
@@ -1857,7 +1860,7 @@ class MagicCircleCanvas(tk.Canvas):
                     self._on_change()
                 self._redraw()
 
-            self._hit_zones.append((wx, wy, pip_r_world + 4, _pip_cb, tip, None))
+            self._hit_zones.append((wx, wy, pip_r_world + 3, _pip_cb, tip, None))
 
     def _draw_status_bar(self,W,H):
         s=self.spell; _,lvl,col=s.level_info; pts=s.total_points
