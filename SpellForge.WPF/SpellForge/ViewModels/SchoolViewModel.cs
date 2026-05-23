@@ -22,9 +22,35 @@ public partial class RingModRowVM : ObservableObject
     public SolidColorBrush ColorBrush { get; }
     public int Max => 3;
 
+    // ── C&S dimension labels per pip level (0-3) ─────────────────
+    private static readonly IReadOnlyDictionary<string, string[]> DiceHints =
+        new Dictionary<string, string[]>
+        {
+            ["Range"]    = ["Touch", "Near 10ft", "Far 60ft", "Distant 300ft+"],
+            ["Duration"] = ["Flash", "Next turn", "Scene", "Watch (hours)"],
+            ["Area"]     = ["Single", "Cone 15ft", "Burst 30ft", "Zone 60ft"],
+            ["Power"]    = ["D6", "D8", "D10", "D12"],
+        };
+
+    /// <summary>Shows the C&amp;S value unlocked by the current count (e.g. "Far 60ft").</summary>
+    public string DiceHintText =>
+        DiceHints.TryGetValue(_group, out var hints) && Count < hints.Length
+            ? hints[Count]
+            : "";
+
+    /// <summary>Full scale for tooltip, e.g. "Touch → Near 10ft → Far 60ft → Distant 300ft+".</summary>
+    public string DiceHintScale =>
+        DiceHints.TryGetValue(_group, out var hints)
+            ? string.Join(" → ", hints)
+            : "";
+
     [ObservableProperty] private int _count;
 
-    partial void OnCountChanged(int value) => OnPropertyChanged(nameof(CountDisplay));
+    partial void OnCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(CountDisplay));
+        OnPropertyChanged(nameof(DiceHintText));
+    }
 
     public string CountDisplay => Count switch
     {

@@ -12,9 +12,10 @@ namespace SpellForge.ViewModels;
 
 public partial class SpellViewModel : ViewModelBase
 {
-    [ObservableProperty] private Spell _spell = new();
-    [ObservableProperty] private string _statusText = "Ready";
-    [ObservableProperty] private string _currentFilePath = "";
+    [ObservableProperty] private Spell       _spell          = new();
+    [ObservableProperty] private string      _statusText     = "Ready";
+    [ObservableProperty] private string      _currentFilePath = "";
+    [ObservableProperty] private SpellCardVM _spellCard      = new(new());
 
     // ── Library (static reference data) ──────────────────────────
     public IReadOnlyList<LibrarySchoolItem>    LibrarySchools   { get; }
@@ -286,6 +287,7 @@ public partial class SpellViewModel : ViewModelBase
         try
         {
             Spell.NotifyAllChanged();
+            SpellCard = new SpellCardVM(Spell);
             OnPropertyChanged(nameof(SpellEffectsSummary));
             OnPropertyChanged(nameof(ActiveDrawbacks));
             RefreshSynergies();
