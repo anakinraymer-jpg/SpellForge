@@ -188,6 +188,30 @@ public partial class Spell : ObservableObject
                 }
                 else if (key.StartsWith("ringmod/"))
                     pts -= 1;
+                else if (key.StartsWith("elemnode/"))
+                {
+                    var kparts = key.Split('/', 3);
+                    if (kparts.Length == 3 &&
+                        GameData.Elements.TryGetValue(kparts[1], out var eld))
+                    {
+                        var nd = eld.Nodes.FirstOrDefault(x => x.Name == kparts[2]);
+                        if (nd != null) pts -= nd.Cost;
+                    }
+                }
+                else if (key.StartsWith("subelemnode/"))
+                {
+                    var kparts   = key.Split('/', 3);
+                    if (kparts.Length == 3)
+                    {
+                        var subParts = kparts[1].Split(',');
+                        if (subParts.Length == 2 &&
+                            GameData.SubelementNodes.TryGetValue((subParts[0], subParts[1]), out var defs))
+                        {
+                            var nd = defs.FirstOrDefault(x => x.Name == kparts[2]);
+                            if (nd != null) pts -= nd.Cost;
+                        }
+                    }
+                }
             }
             // Enforce 50% cap: drawbacks can refund at most half of gross cost
             int maxRefund = Math.Max(0, grossPts / 2);

@@ -48,9 +48,10 @@ public class MagicCircleCanvas : FrameworkElement
     private double _oy   = 0;
     private bool   _centered = false;
     private Point? _panStart;
+    private bool   _panMoved;
 
     // ── Hit testing ──────────────────────────────────────────────
-    private record HitRegion(Point Center, double Radius, string Left, string Right, Action? OnClick);
+    private record HitRegion(Point Center, double Radius, string Left, string Right, Action? OnClick, Action? OnRightClick = null);
     private readonly List<HitRegion> _hits = new();
     private string? _hoverLeft;
     private string? _hoverRight;
@@ -109,10 +110,10 @@ public class MagicCircleCanvas : FrameworkElement
         s.NotifyAllChanged();
     }
 
-    private void Hit(double wx, double wy, double worldR, string left, string right = "", Action? onClick = null)
+    private void Hit(double wx, double wy, double worldR, string left, string right = "", Action? onClick = null, Action? onRightClick = null)
     {
         var sc = Tc(wx, wy);
-        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 12), left, right, onClick));
+        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 12), left, right, onClick, onRightClick));
     }
 
     // Return the smallest (most specific) matching region so pip hits
@@ -130,6 +131,7 @@ public class MagicCircleCanvas : FrameworkElement
     protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
     {
         _panStart = e.GetPosition(this);
+        _panMoved = false;
         CaptureMouse();
     }
     protected override void OnMouseMove(MouseEventArgs e)
@@ -138,11 +140,17 @@ public class MagicCircleCanvas : FrameworkElement
 
         if (_panStart.HasValue && e.RightButton == MouseButtonState.Pressed)
         {
-            _ox += _mousePos.X - _panStart.Value.X;
-            _oy += _mousePos.Y - _panStart.Value.Y;
-            _panStart = _mousePos;
-            _hoverLeft = null; _hoverRight = null;
-            InvalidateVisual();
+            double ddx = _mousePos.X - _panStart.Value.X;
+            double ddy = _mousePos.Y - _panStart.Value.Y;
+            if (Math.Sqrt(ddx * ddx + ddy * ddy) >= 5)
+            {
+                _panMoved  = true;
+                _ox       += ddx;
+                _oy       += ddy;
+                _panStart  = _mousePos;
+                _hoverLeft = null; _hoverRight = null;
+                InvalidateVisual();
+            }
             return;
         }
 
@@ -176,6 +184,16 @@ public class MagicCircleCanvas : FrameworkElement
 
     protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
     {
+        if (!_panMoved)
+        {
+            Focus();
+            var hit = FindHit(e.GetPosition(this));
+            if (hit?.OnRightClick != null)
+            {
+                hit.OnRightClick();
+                e.Handled = true;
+            }
+        }
         _panStart = null;
         ReleaseMouseCapture();
     }
@@ -744,17 +762,33 @@ public class MagicCircleCanvas : FrameworkElement
                     double offset = nn > 1 ? -half + k * (2 * half / (nn - 1)) : 0;
                     var (nwx, nwy) = Wpt(0, 0, rNode, aM + offset);
                     bool bought = boughtNodes.TryGetValue(edata.Nodes[k].Name, out int bc) && bc > 0;
-                    DrawElemNode(nwx, nwy, edata.Nodes[k].Glyph, ec, bought ? 6 : 4, bought);
-                    var capEl = el; var capNode = edata.Nodes[k]; var capBc = bc;
+                    var capEl    = el; var capNode = edata.Nodes[k]; var capBc = bc;
                     var capEdata = edata;
+                    string capEnKey   = $"elemnode/{capEl}/{capNode.Name}";
+                    bool   enDrawback = bought && s.DrawbackBuys.ContainsKey(capEnKey);
+                    DrawElemNode(nwx, nwy, capNode.Glyph, ec, bought ? 6 : 4, bought, enDrawback);
+                    string enLeft = enDrawback
+                        ? $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)  ⚠ Drawback\nLevel: {capBc}/3\n{capNode.Desc}\nRefunds −{capNode.Cost} pt  ·  Right-click to remove"
+                        : bought
+                            ? $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)\nLevel: {capBc}/3\n{capNode.Desc}\nRight-click: mark as drawback"
+                            : $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)\nLevel: {capBc}/3\n{capNode.Desc}";
+                    Action? enRC = bought
+                        ? () => MutateSpell(sp => {
+                            if (sp.DrawbackBuys.ContainsKey(capEnKey)) sp.DrawbackBuys.Remove(capEnKey);
+                            else sp.DrawbackBuys[capEnKey] = capNode.Name;
+                          })
+                        : null;
                     Hit(nwx, nwy, bought ? 6 : 4,
-                        $"{capNode.Glyph} {capNode.Name}  ({capNode.Cost} pt)\nLevel: {capBc}/3\n{capNode.Desc}",
+                        enLeft,
                         $"Element: {capEdata.Symbol} {capEl}\n{capEdata.Desc}",
                         () => MutateSpell(sp => {
                             if (!sp.ElementNodes.ContainsKey(capEl)) sp.ElementNodes[capEl] = new();
                             int cur = sp.ElementNodes[capEl].TryGetValue(capNode.Name, out int v) ? v : 0;
-                            sp.ElementNodes[capEl][capNode.Name] = cur >= 3 ? 0 : cur + 1;
-                        }));
+                            int nv  = cur >= 3 ? 0 : cur + 1;
+                            sp.ElementNodes[capEl][capNode.Name] = nv;
+                            if (nv == 0) sp.DrawbackBuys.Remove(capEnKey);
+                        }),
+                        enRC);
                 }
             }
         }
@@ -805,32 +839,57 @@ public class MagicCircleCanvas : FrameworkElement
                 {
                     var (snx, sny) = Wpt(0, 0, k % 2 == 0 ? rIn + 14 : rOut - 14, jAng + (k - 1) * 10.0);
                     bool bse = bsub.TryGetValue(seNodes[k].Name, out int bsc) && bsc > 0;
-                    DrawElemNode(snx, sny, seNodes[k].Glyph, mc, 5, bse);
-                    var capSeKey = keyStr; var capSen = seNodes[k]; var capBsc = bsc;
+                    var capSeKey   = keyStr; var capSen = seNodes[k]; var capBsc = bsc;
+                    string capSeDbKey  = $"subelemnode/{capSeKey}/{capSen.Name}";
+                    bool   seDrawback  = bse && s.DrawbackBuys.ContainsKey(capSeDbKey);
+                    DrawElemNode(snx, sny, capSen.Glyph, mc, 5, bse, seDrawback);
                     string pairLabel = $"{pair.Value.Item1} + {pair.Value.Item2}";
                     string connRight = GameData.ElementConnections.TryGetValue(pair.Value, out string? connDesc)
                         ? $"Connection: {pairLabel}\n{connDesc}" : $"Connection: {pairLabel}";
+                    string seLeft = seDrawback
+                        ? $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)  ⚠ Drawback\n{pairLabel}  ·  Level: {capBsc}/3\n{capSen.Desc}\nRefunds −{capSen.Cost} pt  ·  Right-click to remove"
+                        : bse
+                            ? $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}  ·  Level: {capBsc}/3\n{capSen.Desc}\nRight-click: mark as drawback"
+                            : $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}  ·  Level: {capBsc}/3\n{capSen.Desc}";
+                    Action? seRC = bse
+                        ? () => MutateSpell(sp => {
+                            if (sp.DrawbackBuys.ContainsKey(capSeDbKey)) sp.DrawbackBuys.Remove(capSeDbKey);
+                            else sp.DrawbackBuys[capSeDbKey] = capSen.Name;
+                          })
+                        : null;
                     Hit(snx, sny, 5,
-                        $"{capSen.Glyph} {capSen.Name}  ({capSen.Cost} pt)\n{pairLabel}  ·  Level: {capBsc}/3\n{capSen.Desc}",
+                        seLeft,
                         connRight,
                         () => MutateSpell(sp => {
                             if (!sp.SubelementNodes.ContainsKey(capSeKey)) sp.SubelementNodes[capSeKey] = new();
                             int cur = sp.SubelementNodes[capSeKey].TryGetValue(capSen.Name, out int v) ? v : 0;
-                            sp.SubelementNodes[capSeKey][capSen.Name] = cur >= 3 ? 0 : cur + 1;
-                        }));
+                            int nv  = cur >= 3 ? 0 : cur + 1;
+                            sp.SubelementNodes[capSeKey][capSen.Name] = nv;
+                            if (nv == 0) sp.DrawbackBuys.Remove(capSeDbKey);
+                        }),
+                        seRC);
                 }
             }
         }
     }
 
-    private void DrawElemNode(double wx, double wy, string symbol, string color, double r, bool bought)
+    private void DrawElemNode(double wx, double wy, string symbol, string color, double r, bool bought, bool drawback = false)
     {
-        CircleW(wx, wy, r, Br(color, bought ? 0.55 : 0.18));
-        RingW(wx, wy, r, bought ? color : ColorHelper.Blend(BgHex, color, 0.45), bought ? 2.0 : 1.0);
-        if (bought) RingWF(wx, wy, r * 1.35, color, 0.25);
-        TextW(wx, wy, symbol,
-              bought ? color : ColorHelper.Blend(BgHex, color, 0.55),
-              Math.Max(6, (int)(r * 0.9)));
+        if (drawback)
+        {
+            // Hollow white ring — drawback pip
+            CircleW(wx, wy, r, Br(color, 0.10));
+            RingWB(wx, wy, r, "#ffffff", "#aaaacc", 0.70, 2.5);
+        }
+        else
+        {
+            CircleW(wx, wy, r, Br(color, bought ? 0.55 : 0.18));
+            RingW(wx, wy, r, bought ? color : ColorHelper.Blend(BgHex, color, 0.45), bought ? 2.0 : 1.0);
+            if (bought) RingWF(wx, wy, r * 1.35, color, 0.25);
+            TextW(wx, wy, symbol,
+                  bought ? color : ColorHelper.Blend(BgHex, color, 0.55),
+                  Math.Max(6, (int)(r * 0.9)));
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -885,27 +944,48 @@ public class MagicCircleCanvas : FrameworkElement
             int cnt  = abDict.TryGetValue(abn, out int cv) ? cv : 0;
             int seed = ((abn.Sum(ch => (int)ch) % GameData.RunesAll.Length)
                         + GameData.RunesAll.Length) % GameData.RunesAll.Length;
-            string rune = GameData.RunesAll[seed].ToString();
+            string rune     = GameData.RunesAll[seed].ToString();
+            var capAbSch    = school; var capAbn = abn;
+            var abDef       = sd.Abilities[capAbn];
+            string capAbKey = $"ability/{capAbSch}/{capAbn}";
+            bool abDrawback = cnt > 0 && s.DrawbackBuys.ContainsKey(capAbKey);
             if (cnt > 0)
             {
-                CircleW(rx, ry, 3, Br(c, 0.65));
-                TextWB(rx, ry, rune, c, "#ffffff", 0.82, Math.Max(6, (int)(r * 0.20)), isFixed: true);
+                if (abDrawback)
+                    RingWB(rx, ry, 3, "#ffffff", "#aaaacc", 0.70, 2.5);
+                else
+                {
+                    CircleW(rx, ry, 3, Br(c, 0.65));
+                    TextWB(rx, ry, rune, c, "#ffffff", 0.82, Math.Max(6, (int)(r * 0.20)), isFixed: true);
+                }
             }
             else
             {
                 CircleW(rx, ry, 2, Br(c, 0.28 * dim));
                 TextWF(rx, ry, rune, c, 0.50 * dim, Math.Max(5, (int)(r * 0.16)), isFixed: true);
             }
-            var capAbSch = school; var capAbn = abn; var capAbCnt = cnt;
-            var abDef = sd.Abilities[abn];
+            string abLeft = abDrawback
+                ? $"⬥ {abn}  [{school}]  ⚠ Drawback\nCost: {abDef.Cost} pt  ·  Level: {cnt}/3\n{abDef.Desc}\nRefunds −{abDef.Cost} pt  ·  Right-click to remove"
+                : cnt > 0
+                    ? $"⬥ {abn}  [{school}]\nCost: {abDef.Cost} pt each  ·  Level: {cnt}/3\n{abDef.Desc}\nRight-click: mark as drawback (−{abDef.Cost} pt)"
+                    : $"⬥ {abn}  [{school}]\nCost: {abDef.Cost} pt each  ·  Level: {cnt}/3\n{abDef.Desc}";
+            Action? abRC = cnt > 0
+                ? () => MutateSpell(sp => {
+                    if (sp.DrawbackBuys.ContainsKey(capAbKey)) sp.DrawbackBuys.Remove(capAbKey);
+                    else sp.DrawbackBuys[capAbKey] = capAbn;
+                  })
+                : null;
             Hit(rx, ry, Math.Max(r * 0.14, 6),
-                $"⬥ {abn}  [{school}]\nCost: {abDef.Cost} pt each  ·  Level: {cnt}/3\n{abDef.Desc}",
+                abLeft,
                 $"School: {sd.Symbol} {school}\n{sd.Desc}",
                 () => MutateSpell(sp => {
                     if (!sp.SchoolAbilities.ContainsKey(capAbSch)) sp.SchoolAbilities[capAbSch] = new();
                     int cur = sp.SchoolAbilities[capAbSch].TryGetValue(capAbn, out int v) ? v : 0;
-                    sp.SchoolAbilities[capAbSch][capAbn] = cur >= 3 ? 0 : cur + 1;
-                }));
+                    int nv  = cur >= 3 ? 0 : cur + 1;
+                    sp.SchoolAbilities[capAbSch][capAbn] = nv;
+                    if (nv == 0) sp.DrawbackBuys.Remove(capAbKey);
+                }),
+                abRC);
         }
 
         // Ring-mod rune ring
@@ -921,25 +1001,49 @@ public class MagicCircleCanvas : FrameworkElement
             {
                 var (rx2, ry2) = Wpt(wx, wy, r * 0.64, (gi * 3 + slot) * 30.0);
                 string rune    = runes[Math.Min(slot, runes.Length - 1)];
-                if (slot < fillCnt)
+                bool   slotOn  = slot < fillCnt;
+                var capRmSch   = school; var capGrp = grp; var capSlot = slot; var capFill = fillCnt;
+                string capRmKey   = $"ringmod/{capRmSch}/{capGrp}/{capSlot}";
+                bool   rmDrawback = slotOn && s.DrawbackBuys.ContainsKey(capRmKey);
+                if (slotOn)
                 {
-                    CircleW(rx2, ry2, 3, Br(gc, 0.55));
-                    TextWB(rx2, ry2, rune, gc, "#ffffff", 0.75, Math.Max(5, (int)(r * 0.20)), isFixed: true);
+                    if (rmDrawback)
+                        RingWB(rx2, ry2, 3, "#ffffff", "#aaaacc", 0.70, 2.5);
+                    else
+                    {
+                        CircleW(rx2, ry2, 3, Br(gc, 0.55));
+                        TextWB(rx2, ry2, rune, gc, "#ffffff", 0.75, Math.Max(5, (int)(r * 0.20)), isFixed: true);
+                    }
                 }
                 else
                 {
                     CircleW(rx2, ry2, 2, Br(gc, 0.22 * dim));
                     TextWF(rx2, ry2, rune, gc, 0.42 * dim, Math.Max(5, (int)(r * 0.15)), isFixed: true);
                 }
-                var capRmSch = school; var capGrp = grp; var capSlot = slot; var capFill = fillCnt;
                 string rmLabel2 = sd.RingMods.TryGetValue(grp, out var rl2) ? rl2 : grp;
+                string rmLeft   = rmDrawback
+                    ? $"◈ {rmLabel2}  [{school}]  Slot {slot + 1}/3  ⚠ Drawback\nCurrent: {fillCnt}  ·  Refunds −1 pt\nRight-click to remove drawback"
+                    : slotOn
+                        ? $"◈ {rmLabel2}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}\nRight-click: mark as drawback (−1 pt)"
+                        : $"◈ {rmLabel2}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}";
+                Action? rmRC = slotOn
+                    ? () => MutateSpell(sp => {
+                        if (sp.DrawbackBuys.ContainsKey(capRmKey)) sp.DrawbackBuys.Remove(capRmKey);
+                        else sp.DrawbackBuys[capRmKey] = capRmKey;
+                      })
+                    : null;
                 Hit(rx2, ry2, Math.Max(r * 0.14, 6),
-                    $"◈ {rmLabel2}  [{school}]  Slot {slot + 1}/3\nCurrent: {fillCnt}  ·  Click to set {(fillCnt == slot + 1 ? slot : slot + 1)}",
+                    rmLeft,
                     $"School: {sd.Symbol} {school}\n{sd.Desc}\n{(cap ? "⚜ Capstone Active!" : "Max all 4 ring mods at 3 for capstone")}",
                     () => MutateSpell(sp => {
                         if (!sp.RingMods.ContainsKey(capRmSch)) sp.RingMods[capRmSch] = new();
-                        sp.RingMods[capRmSch][capGrp] = capFill == capSlot + 1 ? capSlot : capSlot + 1;
-                    }));
+                        int nv = capFill == capSlot + 1 ? capSlot : capSlot + 1;
+                        sp.RingMods[capRmSch][capGrp] = nv;
+                        // Clean up orphaned ringmod drawbacks for slots now unfilled
+                        for (int s2 = nv; s2 < 3; s2++)
+                            sp.DrawbackBuys.Remove($"ringmod/{capRmSch}/{capGrp}/{s2}");
+                    }),
+                    rmRC);
             }
         }
 
@@ -1080,25 +1184,46 @@ public class MagicCircleCanvas : FrameworkElement
                 int cnt  = s.GlobalMods.TryGetValue(catMods[j].Key, out int v2) ? v2 : 0;
                 int seed = ((catMods[j].Key.Sum(ch => (int)ch) % GameData.RunesAll.Length)
                             + GameData.RunesAll.Length) % GameData.RunesAll.Length;
-                string rune = GameData.RunesAll[seed].ToString();
+                string rune      = GameData.RunesAll[seed].ToString();
+                var capModKey    = catMods[j].Key; var capModDef = catMods[j].Value; var capModCnt = cnt;
+                string capModDbKey  = $"mod/{capModKey}";
+                bool   modDrawback  = cnt > 0 && s.DrawbackBuys.ContainsKey(capModDbKey);
                 if (cnt > 0)
                 {
-                    CircleW(rx, ry, 3, Br(gc, 0.65));
-                    TextWB(rx, ry, rune, gc, "#ffffff", 0.80, Math.Max(5, (int)(ModCR * 0.30)), isFixed: true);
+                    if (modDrawback)
+                        RingWB(rx, ry, 3, "#ffffff", "#aaaacc", 0.70, 2.5);
+                    else
+                    {
+                        CircleW(rx, ry, 3, Br(gc, 0.65));
+                        TextWB(rx, ry, rune, gc, "#ffffff", 0.80, Math.Max(5, (int)(ModCR * 0.30)), isFixed: true);
+                    }
                 }
                 else
                 {
                     CircleW(rx, ry, 2, Br(gc, 0.14));
                     TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(ModCR * 0.26)), isFixed: true);
                 }
-                var capModKey = catMods[j].Key; var capModDef = catMods[j].Value; var capModCnt = cnt;
+                string modLeft = modDrawback
+                    ? $"◈ {capModKey}  [{cat}]  ⚠ Drawback\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}\nRefunds −{capModDef.Cost} pt  ·  Right-click to remove"
+                    : cnt > 0
+                        ? $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}\nRight-click: mark as drawback (−{capModDef.Cost} pt)"
+                        : $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}";
+                Action? modRC = cnt > 0
+                    ? () => MutateSpell(sp => {
+                        if (sp.DrawbackBuys.ContainsKey(capModDbKey)) sp.DrawbackBuys.Remove(capModDbKey);
+                        else sp.DrawbackBuys[capModDbKey] = capModKey;
+                      })
+                    : null;
                 Hit(rx, ry, 7,
-                    $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}",
+                    modLeft,
                     $"Category: {cat}\nLevel: {s.LevelName}\nTotal pts: {s.TotalPoints}",
                     () => MutateSpell(sp => {
                         int cur = sp.GlobalMods.TryGetValue(capModKey, out int v) ? v : 0;
-                        sp.GlobalMods[capModKey] = cur >= capModDef.Max ? 0 : cur + 1;
-                    }));
+                        int nv  = cur >= capModDef.Max ? 0 : cur + 1;
+                        sp.GlobalMods[capModKey] = nv;
+                        if (nv == 0) sp.DrawbackBuys.Remove(capModDbKey);
+                    }),
+                    modRC);
             }
         }
     }
@@ -1193,12 +1318,15 @@ public class MagicCircleCanvas : FrameworkElement
             string lbl = name.Length > 0 ? name[0].ToString().ToUpper() : "?";
             TextWB(rx, ry, lbl, costHex, "#ffffff", 0.80, Math.Max(5, (int)(ringR * 0.80)), isFixed: true);
 
-            // Hit region — hover shows full drawback info
+            // Hit region — hover shows full drawback info; right-click removes
             var capName = name; var capCost = cost; var capDesc = def?.Desc ?? "";
+            string capNegKey = $"neg/{capName}";
             Hit(rx, ry, ringR,
-                $"✕ {capName}  (−{capCost} pt)\n{capDesc}",
+                $"✕ {capName}  (−{capCost} pt)\n{capDesc}\nRight-click to remove drawback",
                 $"Drawbacks Active: {n}\nTotal Refund: −{s.DrawbackRefund} pts\n" +
-                $"Rule: refund capped at 50% of gross cost");
+                $"Rule: refund capped at 50% of gross cost",
+                null,
+                () => MutateSpell(sp => sp.DrawbackBuys.Remove(capNegKey)));
         }
     }
 
