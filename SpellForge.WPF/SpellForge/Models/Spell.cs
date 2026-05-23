@@ -224,7 +224,7 @@ public partial class Spell : ObservableObject
     }
 
     [JsonIgnore]
-    public int NumLevelDice => GameData.LevelTableIndex(TotalPoints);
+    public int NumLevelDice => GameData.LevelTableIndex(TotalPoints) + 1;
 
     /// <summary>Grow or trim DiceAssignments to match NumLevelDice.</summary>
     public void SyncDiceAssignments()
