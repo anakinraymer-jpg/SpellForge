@@ -1133,40 +1133,58 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawCenterHub()
     {
+        var s   = Spell!;
         double r    = CenterR;
         var cats    = GameData.CatColors.Keys.ToList();
         int nc      = cats.Count;
         double seg  = 360.0 / nc;
 
-        CircleW(0, 0, r, Br("#1a1208", 0.60));
-        RingWF(0, 0, r * 0.42, "#6688aa", 0.18);
+        // Determine whether a primary school is occupying the centre
+        bool hasPrimary = !string.IsNullOrEmpty(s.PrimarySchoolResolved);
 
-        for (int i = 0; i < nc; i++)
+        if (!hasPrimary)
         {
-            var (x1, y1) = Wpt(0, 0, r * 0.30, i * seg);
-            var (x2, y2) = Wpt(0, 0, r * 0.92, i * seg);
-            LineWF(x1, y1, x2, y2, "#aaaacc", 0.12);
+            // ── Interior content (hidden when primary school is centred) ──
+            CircleW(0, 0, r, Br("#1a1208", 0.60));  // dark fill
+            RingWF(0, 0, r * 0.42, "#6688aa", 0.18);
+
+            for (int i = 0; i < nc; i++)
+            {
+                var (x1, y1) = Wpt(0, 0, r * 0.30, i * seg);
+                var (x2, y2) = Wpt(0, 0, r * 0.92, i * seg);
+                LineWF(x1, y1, x2, y2, "#aaaacc", 0.12);
+            }
         }
 
-        var s   = Spell!;
-        int pts = s.TotalPoints;
+        // ── Level info ───────────────────────────────────────────────────
+        int pts    = s.TotalPoints;
         int lvlIdx = Math.Min(GameData.LevelTable.Count - 1,
                               GameData.LevelTable.TakeWhile(e => e.Hi < pts).Count());
-        var lvl   = GameData.LevelTable[lvlIdx];
+        var lvl    = GameData.LevelTable[lvlIdx];
         double rGem = r * 0.28;
 
-        CircleW(0, 0, rGem * 1.35, Br(lvl.Color, 0.25));
-        RingWB(0, 0, rGem * 1.35, lvl.Color, "#ffffff", 0.40, 2);
+        if (!hasPrimary)
+        {
+            // Level gem drawn at the very centre
+            CircleW(0, 0, rGem * 1.35, Br(lvl.Color, 0.25));
+            RingWB(0, 0, rGem * 1.35, lvl.Color, "#ffffff", 0.40, 2);
 
-        if      (lvlIdx <= 9)  TextW(0, 0, lvlIdx == 0 ? "C" : lvlIdx.ToString(), lvl.Color, Math.Max(18, (int)(rGem * 1.5)));
-        else if (lvlIdx == 10) DrawFistW(0, 0, rGem, "#FFD700");
-        else if (lvlIdx == 11) DrawCrownW(0, 0, rGem, "#FFD700");
-        else if (lvlIdx == 12) DrawWingsW(0, 0, rGem, "#FFFFFF");
-        else if (lvlIdx == 13) DrawSunW(0, 0, rGem, "#FFFFFF");
-        else                   DrawStarsW(0, 0, rGem, "#FFFFFF");
+            if      (lvlIdx <= 9)  TextW(0, 0, lvlIdx == 0 ? "C" : lvlIdx.ToString(), lvl.Color, Math.Max(18, (int)(rGem * 1.5)));
+            else if (lvlIdx == 10) DrawFistW(0, 0, rGem, "#FFD700");
+            else if (lvlIdx == 11) DrawCrownW(0, 0, rGem, "#FFD700");
+            else if (lvlIdx == 12) DrawWingsW(0, 0, rGem, "#FFFFFF");
+            else if (lvlIdx == 13) DrawSunW(0, 0, rGem, "#FFFFFF");
+            else                   DrawStarsW(0, 0, rGem, "#FFFFFF");
 
-        TextWB(0, rGem * 1.92, lvl.Name.ToUpper(), lvl.Color, "#aabbdd", 0.50, 5, isFixed: true);
+            TextWB(0, rGem * 1.92, lvl.Name.ToUpper(), lvl.Color, "#aabbdd", 0.50, 5, isFixed: true);
+        }
+        else
+        {
+            // Level name sits just below the hub ring so it stays readable
+            TextWB(0, r + 14, lvl.Name.ToUpper(), lvl.Color, "#aabbdd", 0.50, 5, isFixed: true);
+        }
 
+        // ── Hub outer rim — always drawn ─────────────────────────────────
         RingWB(0, 0, r, "#e8d8a0", "#ffffff", 0.55, 2);
         RingWF(0, 0, r * 0.94, "#6688aa", 0.20);
 
@@ -1178,11 +1196,15 @@ public class MagicCircleCanvas : FrameworkElement
 
         for (int i = 0; i < cats.Count; i++)
         {
-            string gc = GameData.CatColors[cats[i]];
-            double aS = i * seg, midA = aS + seg / 2;
+            string gc  = GameData.CatColors[cats[i]];
+            double aS  = i * seg, midA = aS + seg / 2;
             ArcRingWF(0, 0, r, aS, seg - 3, gc, 0.50, 3);
-            var (lx, ly) = Wpt(0, 0, r * 0.87, midA);
-            TextWF(lx, ly, GameData.ModRunes[cats[i]][0], gc, 0.65, 6, isFixed: true, angle: -(midA - 90));
+            if (!hasPrimary)
+            {
+                // Category rune labels only when centre is empty
+                var (lx, ly) = Wpt(0, 0, r * 0.87, midA);
+                TextWF(lx, ly, GameData.ModRunes[cats[i]][0], gc, 0.65, 6, isFixed: true, angle: -(midA - 90));
+            }
         }
     }
 
