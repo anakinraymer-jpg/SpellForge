@@ -732,28 +732,23 @@ public class MagicCircleCanvas : FrameworkElement
             string mid   = ColorHelper.Blend(GameData.Schools[schools[i]].Color,
                                               GameData.Schools[schools[j]].Color, 0.5);
 
-            // Control point pulled 42% toward origin — inward bow toward centre
-            double midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
-            double distMid = Math.Sqrt(midX * midX + midY * midY);
-            double ctrlX, ctrlY;
-            if (distMid > 1)
-            {
-                ctrlX = midX * 0.58;
-                ctrlY = midY * 0.58;
-            }
-            else
-            {
-                // Chord passes through centre — deflect perpendicularly
-                double chord = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-                ctrlX = midX - (y2 - y1) / chord * 80;
-                ctrlY = midY + (x2 - x1) / chord * 80;
-            }
+            // Arc bows outward along the school ring — guaranteed midpoint at 1.15× ring radius
+            double nodeRing = OuterR * 0.82;
+            double ang1 = Math.Atan2(y1, x1);
+            double ang2 = Math.Atan2(y2, x2);
+            double da   = ang2 - ang1;
+            if (da >  Math.PI) da -= 2 * Math.PI;
+            if (da < -Math.PI) da += 2 * Math.PI;
+            double avgAng = ang1 + da / 2.0;
+            // Desired curve midpoint: angular bisector, 15% outside the school ring
+            double mx = Math.Cos(avgAng) * nodeRing * 1.15;
+            double my = Math.Sin(avgAng) * nodeRing * 1.15;
+            // Back-solve for quadratic Bézier control so that B(0.5) == (mx, my):
+            //   B(0.5) = 0.25·A + 0.5·ctrl + 0.25·B  =>  ctrl = 2·M − 0.5·(A+B)
+            double ctrlX = 2 * mx - 0.5 * (x1 + x2);
+            double ctrlY = 2 * my - 0.5 * (y1 + y2);
             QuadBezW(x1, y1, ctrlX, ctrlY, x2, y2,
                      cap ? PnF("#FFD700", 0.55, 2, true) : PnF(mid, 0.30, 2));
-
-            // Rune at quadratic Bézier midpoint (t=0.5) = 0.25*A + 0.5*C + 0.25*B
-            double mx = 0.25 * x1 + 0.5 * ctrlX + 0.25 * x2;
-            double my = 0.25 * y1 + 0.5 * ctrlY + 0.25 * y2;
             int seed    = ((schools[i] + schools[j]).Sum(c => (int)c) % GameData.RunesAll.Length
                            + GameData.RunesAll.Length) % GameData.RunesAll.Length;
             TextWF(mx, my, GameData.RunesAll[seed].ToString(),
