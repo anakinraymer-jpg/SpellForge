@@ -128,7 +128,93 @@ Higher-cost or more complex spells may impose additional casting conditions defi
 
 ---
 
-## 6. Drawback Refunds — 50 % Cap
+## 6. Player Health — Equipment, Skills, and Attrition
+
+### The Health Track
+
+A player character's health is not a number — it is a list of **what they still have**.
+
+| Slot type | Count | Description |
+|---|---|---|
+| **Equipment** | up to 10 | Weapons, armour, tools, and carried items |
+| **Skills** | up to 10 | Trained abilities, techniques, and expertise |
+| **Total** | up to 20 | All markable slots combined |
+
+Each slot is either **intact** (available, functional) or **crossed off** (lost or broken for this encounter / session).  
+**Destroyed** equipment is a special case — it is permanently removed from the character sheet entirely, not just crossed off.
+
+A character with every slot crossed off is fully incapacitated. The GM determines whether this means unconscious, captured, or dead based on context.
+
+---
+
+### Attrition
+
+Damage is dealt as **Attrition** — a category of harm that removes or degrades the character's resources rather than reducing a hit-point total.  
+There are five grades, from least to most severe:
+
+---
+
+#### ① Basic Attrition
+> *"You take a hit, but you choose how."*
+
+**The player** crosses off any **1** slot of their choice — either one equipment or one skill.
+
+This is the most controlled form of attrition: the player decides what they sacrifice to absorb the blow.
+
+---
+
+#### ② Flesh Attrition
+> *"The wound is personal — your training falters."*
+
+**Randomly select** 1 **skill** and cross it off.
+
+Roll a die (or draw randomly) among all intact skill slots. That skill is lost.
+
+---
+
+#### ③ Equipment Attrition
+> *"Your gear takes the punishment."*
+
+**Randomly select** 1 **equipment** and cross it off.
+
+Roll a die (or draw randomly) among all intact equipment slots. That item is broken or lost.
+
+---
+
+#### ④ Destroy Attrition
+> *"Something is gone forever, and you're bleeding."*
+
+Two things happen simultaneously:
+
+1. **Randomly select** 1 **equipment** — it is **permanently destroyed** (remove it from the character sheet entirely; it cannot be recovered).
+2. **Randomly select** 1 **skill** — cross it off.
+
+This is the harshest single-hit attrition type. The destroyed equipment loss is absolute.
+
+---
+
+#### ⑤ Brutal Attrition
+> *"Everything goes wrong at once."*
+
+Roll **1d6**. Cross off that many slots, chosen **randomly** from *all* intact equipment and skills combined.
+
+Distribute rolls across the combined pool (e.g. 10 intact equipment + 7 intact skills = 17-slot pool; roll 1d17 repeatedly without replacement until the 1d6 count is reached).
+
+---
+
+### Attrition Summary
+
+| Type | Slots lost | How selected | Permanent? |
+|---|---|---|---|
+| **Basic** | 1 equipment *or* 1 skill | Player chooses | No |
+| **Flesh** | 1 skill | Random | No |
+| **Equipment** | 1 equipment | Random | No |
+| **Destroy** | 1 equipment + 1 skill | Both random | Equipment yes; skill no |
+| **Brutal** | 1d6 total (equipment + skills) | Random | No |
+
+---
+
+## 7. Drawback Refunds — 50 % Cap
 
 Drawbacks refund points, making a spell cheaper but more restricted. Refunds are capped at **50 % of the spell's gross cost** (cost before any drawback credit).
 
@@ -136,7 +222,7 @@ This cap is enforced inside `Spell.TotalPoints` so it applies automatically ever
 
 ---
 
-## 7. Validation Summary
+## 8. Validation Summary
 
 The **✦ Calculator** panel in the right pane shows:
 
@@ -149,7 +235,7 @@ Warnings are informational — the app does not prevent saving or using a spell 
 
 ---
 
-## 8. Design Philosophy
+## 9. Design Philosophy
 
 These rules exist to keep SpellForge builds *interesting*, not to strangle creativity:
 
