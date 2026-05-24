@@ -560,15 +560,6 @@ public class MagicCircleCanvas : FrameworkElement
                 null, new Point(sx, sy), sr, sr);
         }
 
-        // ── 5 theme glows at their outer-ring positions ───────────
-        for (int t = 0; t < _themeNames.Length; t++)
-        {
-            string tc    = _themeColors[t];
-            var (gx, gy) = Wpt(0, 0, R * 0.88, _themeAngles[t]);
-            CircleW(gx, gy, R * 0.30, Br(tc, 0.04));
-            CircleW(gx, gy, R * 0.14, Br(tc, 0.07));
-        }
-
         // ── Inner vignette rings (cool tint, not warm) ───────────
         foreach (var (frac, alpha) in new[] { (0.88, 0.07), (0.65, 0.05), (0.40, 0.04) })
             RingWF(0, 0, R * frac, "#2244aa", alpha);
@@ -732,7 +723,7 @@ public class MagicCircleCanvas : FrameworkElement
             string mid   = ColorHelper.Blend(GameData.Schools[schools[i]].Color,
                                               GameData.Schools[schools[j]].Color, 0.5);
 
-            // Arc bows outward along the school ring — guaranteed midpoint at 1.15× ring radius
+            // Arc bows inward — guaranteed midpoint at 75% of ring radius
             double nodeRing = OuterR * 0.82;
             double ang1 = Math.Atan2(y1, x1);
             double ang2 = Math.Atan2(y2, x2);
@@ -740,9 +731,9 @@ public class MagicCircleCanvas : FrameworkElement
             if (da >  Math.PI) da -= 2 * Math.PI;
             if (da < -Math.PI) da += 2 * Math.PI;
             double avgAng = ang1 + da / 2.0;
-            // Desired curve midpoint: angular bisector, 15% outside the school ring
-            double mx = Math.Cos(avgAng) * nodeRing * 1.15;
-            double my = Math.Sin(avgAng) * nodeRing * 1.15;
+            // Desired curve midpoint: angular bisector, 25% inside the school ring
+            double mx = Math.Cos(avgAng) * nodeRing * 0.75;
+            double my = Math.Sin(avgAng) * nodeRing * 0.75;
             // Back-solve for quadratic Bézier control so that B(0.5) == (mx, my):
             //   B(0.5) = 0.25·A + 0.5·ctrl + 0.25·B  =>  ctrl = 2·M − 0.5·(A+B)
             double ctrlX = 2 * mx - 0.5 * (x1 + x2);
