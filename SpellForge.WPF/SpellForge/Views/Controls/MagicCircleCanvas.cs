@@ -15,7 +15,7 @@ public class MagicCircleCanvas : FrameworkElement
     private const double NodeRPri   = 24.0;
     private const double NodeRSec   = 20.0;
     // Modifier ring: orbit and circle radius are R-relative, defined in DrawModRing
-    private const string BgHex      = "#1a1208";
+    private const string BgHex      = "#07070e";  // deep space void
 
     // ── Global zoom actions ──────────────────────────────────────
     public static Action? GlobalZoomIn;
@@ -519,44 +519,46 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawDeepBg(double R, double W, double H)
     {
-        const string dark  = "#1a1208";
-        const string aged  = "#3d2b10";
-        const string mid   = "#251808";
-        const string parch = "#2c1f08";
+        // ── Deep void base ────────────────────────────────────────
+        _dc.DrawRectangle(Br(BgHex), null, new Rect(0, 0, W, H));
 
-        _dc.DrawRectangle(Br(parch), null, new Rect(0, 0, W, H));
-
+        // Subtle radial brightening toward the circle centre
+        const string mid = "#0e0e1c";
         for (int i = 12; i >= 1; i--)
-            CircleW(0, 0, R * 1.55 * i / 12, Br(B(dark, mid, (1.0 - (double)i / 12) * 0.55)));
+            CircleW(0, 0, R * 1.55 * i / 12, Br(B(BgHex, mid, (1.0 - (double)i / 12) * 0.45)));
 
+        // Faint containment rings (cool blue-violet)
         foreach (var (frac, sw, alpha) in new[] {
-            (1.50, 4.0, 0.45), (1.28, 2.0, 0.30), (1.08, 3.0, 0.22), (0.88, 1.0, 0.18) })
-            RingW(0, 0, R * frac, F("#0a0600", alpha), sw);
+            (1.50, 4.0, 0.30), (1.28, 2.0, 0.20), (1.08, 3.0, 0.15) })
+            RingW(0, 0, R * frac, F("#2233aa", alpha), sw);
 
-        var cp1 = Pn(F("#120c04", 1.0), 1);
-        var cp2 = Pn(F("#1e1408", 1.0), 1);
-        _dc.DrawLine(cp1, new Point(W * 0.02, H * 0.12), new Point(W * 0.18, H * 0.02));
-        _dc.DrawLine(cp1, new Point(W * 0.82, H * 0.98), new Point(W * 0.98, H * 0.82));
-        _dc.DrawLine(cp2, new Point(W * 0.05, H * 0.90), new Point(W * 0.25, H * 0.98));
-        _dc.DrawLine(cp2, new Point(W * 0.75, H * 0.02), new Point(W * 0.95, H * 0.10));
-
-        var rng = new Random(42);
-        int fw = Math.Max(20, (int)W - 20), fh = Math.Max(20, (int)H - 20);
-        for (int i = 0; i < 18; i++)
+        // ── Star field (screen-space, pans/zooms independently) ──
+        var rng = new Random(17);
+        for (int i = 0; i < 90; i++)
         {
-            double fx = rng.Next(10, fw);
-            double fy = rng.Next(10, fh);
-            double fr = rng.Next(2, 9);
-            _dc.DrawEllipse(Br(B("#0a0600", "#2a1a08", 0.3 + rng.NextDouble() * 0.4)),
-                            null, new Point(fx, fy), fr, fr);
+            double sx = rng.NextDouble() * W;
+            double sy = rng.NextDouble() * H;
+            double sr = 0.3 + rng.NextDouble() * 1.4;
+            byte   sa = (byte)(25 + rng.Next(0, 140));
+            byte   br = (byte)(160 + rng.Next(0, 60));
+            _dc.DrawEllipse(
+                new SolidColorBrush(Color.FromArgb(sa,
+                    (byte)Math.Max(0, br - 20), br, (byte)Math.Min(255, br + 30))),
+                null, new Point(sx, sy), sr, sr);
         }
 
-        for (int i = 6; i >= 1; i--)
-            CircleW(0, 0, R * 0.92 * i / 6, Br(B(dark, aged, 0.07 * (7 - i))));
+        // ── 5 theme glows at their outer-ring positions ───────────
+        for (int t = 0; t < _themeNames.Length; t++)
+        {
+            string tc    = _themeColors[t];
+            var (gx, gy) = Wpt(0, 0, R * 0.88, _themeAngles[t]);
+            CircleW(gx, gy, R * 0.30, Br(tc, 0.04));
+            CircleW(gx, gy, R * 0.14, Br(tc, 0.07));
+        }
 
-        RingWF(0, 0, R * 0.88, "#4a3015", 0.08);
-        RingWF(0, 0, R * 0.65, "#4a3015", 0.08);
-        RingWF(0, 0, R * 0.40, "#4a3015", 0.08);
+        // ── Inner vignette rings (cool tint, not warm) ───────────
+        foreach (var (frac, alpha) in new[] { (0.88, 0.07), (0.65, 0.05), (0.40, 0.04) })
+            RingWF(0, 0, R * frac, "#2244aa", alpha);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -567,6 +569,12 @@ public class MagicCircleCanvas : FrameworkElement
     private static readonly string[] _themeNames  = ["Dark","Light","Nature","Planar","Arcane"];
     private static readonly double[] _themeAngles = [0.0, 72.0, 144.0, 216.0, 288.0];
     private static readonly double[] _themeOffsets = [-20.0, -10.0, 0.0, 10.0, 20.0];
+
+    // Representative color and symbol for each theme
+    private static readonly string[] _themeColors  =
+        ["#bb1133", "#ccbb33", "#338833", "#3355bb", "#4488aa"];
+    private static readonly string[] _themeSymbols =
+        ["☠", "✦", "⚘", "⌛", "ᚠ"];
 
     private Dictionary<string, (double x, double y)> ComputeNodePositions(double R)
     {
@@ -586,61 +594,109 @@ public class MagicCircleCanvas : FrameworkElement
         var s      = Spell!;
         var lvl    = s.LevelInfo;
         var active = new HashSet<string>(s.AllSchools);
-        string ink  = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
-        string ink2 = ColorHelper.Blend("#c8a060", "#aa8844", 0.45);
 
+        // Cool silver tones for dark-void background
+        string ink  = "#c0cce0";
+        string ink2 = "#3d5070";
+
+        double schoolR = R * 0.82;
+
+        // ── Theme sector fills (drawn first, behind rings) ────────
+        for (int t = 0; t < _themeNames.Length; t++)
+        {
+            string tc   = _themeColors[t];
+            double tA   = _themeAngles[t];
+            double aS   = tA - 24.0;
+            const double span = 48.0;
+            bool anyActive = GameData.SchoolThemes[_themeNames[t]].Any(sc => active.Contains(sc));
+
+            // Faint wedge fill in the school ring zone for this theme
+            WedgeWF(0, 0, schoolR * 0.93, schoolR + NodeRSec * 2.0, aS, aS + span, tc,
+                    anyActive ? 0.11 : 0.04);
+
+            // Colored arc on the outer label ring
+            ArcRingWF(0, 0, schoolR + NodeRSec * 1.85, aS, span, tc, anyActive ? 0.80 : 0.40, 2);
+
+            // Theme label in arc text
+            ArcTextW(0, 0, schoolR + NodeRSec * 2.60, _themeNames[t].ToUpper(),
+                     tA, tc, anyActive ? 5.5 : 4.5, 5.2);
+
+            // Theme separator radial lines at sector edges
+            foreach (double boundary in new[] { aS, aS + span })
+            {
+                var (bx1, by1) = Wpt(0, 0, schoolR * 0.92, boundary);
+                var (bx2, by2) = Wpt(0, 0, R * 0.975,      boundary);
+                LineWF(bx1, by1, bx2, by2, tc, 0.35, 1);
+            }
+        }
+
+        // ── Outer border rings ────────────────────────────────────
         RingW(0, 0, R,         ink,  3);
         RingW(0, 0, R * 0.978, ink2, 1);
 
+        // ── Tick marks (colored per theme zone) ──────────────────
         for (int i = 0; i < 72; i++)
         {
             double a  = i * 5.0;
             double sw = i % 6 == 0 ? 3.0 : 1.0;
             double r1 = R * (i % 6 == 0 ? 0.956 : 0.966);
-            var (x1, y1) = Wpt(0, 0, r1,       a);
+            var (x1, y1) = Wpt(0, 0, r1,        a);
             var (x2, y2) = Wpt(0, 0, R * 0.978, a);
-            LineW(x1, y1, x2, y2, ink2, sw);
+            string tickC = ThemeColorAt(a, ink2);
+            LineW(x1, y1, x2, y2, tickC, sw);
         }
 
-        double schoolR = R * 0.82;
-        RingW(0, 0, schoolR,                   ink2, 2);
-        RingW(0, 0, schoolR + NodeRSec * 1.40, ink2, 1);
+        // ── School ring ───────────────────────────────────────────
+        RingW(0, 0, schoolR, ink2, 2);
 
-        // Draw within-theme chord lines (connect adjacent + skip-one pairs per theme)
+        // ── Within-theme chord lines (each theme's color) ─────────
         for (int t = 0; t < _themeNames.Length; t++)
         {
+            string tc   = _themeColors[t];
             var schools = GameData.SchoolThemes[_themeNames[t]];
             var spts    = schools.Select(sc => pos[sc]).ToArray();
             for (int i = 0; i < spts.Length; i++)
                 for (int j = i + 1; j < spts.Length; j++)
-                    LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, ink2, 0.09);
+                    LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, tc, 0.14);
         }
-        // Draw cross-theme lines between theme centres only (faint)
+
+        // ── Cross-theme centre-to-centre lines (very faint) ───────
         for (int t1 = 0; t1 < _themeNames.Length; t1++)
         for (int t2 = t1 + 1; t2 < _themeNames.Length; t2++)
         {
             var (cx1, cy1) = Wpt(0, 0, schoolR, _themeAngles[t1]);
             var (cx2, cy2) = Wpt(0, 0, schoolR, _themeAngles[t2]);
-            LineWF(cx1, cy1, cx2, cy2, ink2, 0.04);
+            LineWF(cx1, cy1, cx2, cy2, ink2, 0.05);
         }
 
-        // Diamond markers at each school's actual position
+        // ── Diamond tick at each school's radial position ─────────
         foreach (var (school, (sx, sy)) in pos)
         {
-            var (dx, dy) = Wpt(sx, sy, NodeRSec * 1.55, 0); // just above the circle
-            // Use direction from origin to place the diamond outward
-            double ang = Math.Atan2(sy, sx) * 180.0 / Math.PI + 90.0;
-            var (mx, my) = Wpt(0, 0, schoolR + NodeRSec * 1.45, ang);
-            string c2   = GameData.Schools[school].Color;
-            string fill = active.Contains(school) ? c2 : ColorHelper.Blend(BgHex, c2, 0.30);
+            double ang   = Math.Atan2(sy, sx) * 180.0 / Math.PI + 90.0;
+            var (mx, my) = Wpt(0, 0, schoolR + NodeRSec * 1.95, ang);
+            string c2    = GameData.Schools[school].Color;
+            string fill  = active.Contains(school) ? c2 : ColorHelper.Blend(BgHex, c2, 0.28);
             TextW(mx, my, "◆", fill, 5);
         }
 
+        // ── Spell name arc text ────────────────────────────────────
         if (!string.IsNullOrEmpty(s.Name))
             ArcTextW(0, 0, R * 0.990, $" ✦ {s.Name.ToUpper()} ✦ {lvl.Name.ToUpper()} ✦ ",
                      0, lvl.Color, 6, 3.8);
 
         DrawConnectionLines(pos);
+    }
+
+    // Returns the theme color if angleDeg falls within any 48° theme sector, else fallback.
+    private static string ThemeColorAt(double angleDeg, string fallback)
+    {
+        angleDeg = ((angleDeg % 360) + 360) % 360;
+        for (int t = 0; t < _themeAngles.Length; t++)
+        {
+            double diff = Math.Abs(((angleDeg - _themeAngles[t] + 540) % 360) - 180);
+            if (diff <= 24.0) return _themeColors[t];
+        }
+        return fallback;
     }
 
     private void DrawConnectionLines(Dictionary<string, (double x, double y)> pos)
@@ -679,28 +735,69 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawMainGeometry(double R)
     {
-        var asc  = Spell!.AllSchools;
-        string c = asc.Count > 0 ? GameData.Schools[asc[0]].Color : "#8899bb";
+        var asc   = Spell!.AllSchools;
         double webR = R * 0.48;
 
-        RingWF(0, 0, R * 0.50, c, 0.18);
+        // Which themes are active?
+        var activeTheme = new bool[5];
+        for (int t = 0; t < _themeNames.Length; t++)
+            activeTheme[t] = GameData.SchoolThemes[_themeNames[t]].Any(asc.Contains);
 
-        var pts = Enumerable.Range(0, 10).Select(i => Wpt(0, 0, webR, i * 36.0)).ToArray();
-        for (int i = 0; i < 10; i++)
-            for (int j = i + 2; j < 10; j++)
-                LineWF(pts[i].x, pts[i].y, pts[j].x, pts[j].y, c, 0.08);
+        // Blend of all active school colors → neutral geometry tint
+        string blendC = asc.Count > 0
+            ? asc.Aggregate("#334466",
+                  (acc, sc) => ColorHelper.Blend(acc, GameData.Schools[sc].Color, 0.35))
+            : "#334466";
 
-        PolyNW(0, 0, webR, 5, fill: Br(c, 0.04), stroke: PnF(c, 0.22, 1));
-        PolyNW(0, 0, webR, 5, 36, stroke: PnF(c, 0.14, 1, true));
+        // Outer glow boundary ring
+        RingWF(0, 0, R * 0.50, blendC, 0.16);
 
-        foreach (var (frac, alpha) in new[] { (0.48, 0.18), (0.38, 0.14), (0.28, 0.12), (0.18, 0.10) })
-            RingWF(0, 0, R * frac, c, alpha);
+        // ── 5-point pentagram — vertices align with theme centres ──
+        var verts = _themeAngles.Select(a => Wpt(0, 0, webR, a)).ToArray();
 
-        PolyNW(0, 0, R * 0.42, 3,  stroke: PnF(c, 0.20, 1));
-        PolyNW(0, 0, R * 0.42, 3, 60, stroke: PnF(c, 0.16, 1, true));
-        PolyNW(0, 0, R * 0.45, 7,  stroke: PnF(c, 0.08, 1, true));
+        // Pentagon filled backdrop
+        PolyW(verts, Br(blendC, 0.04));
 
-        foreach (var (px, py) in pts) CircleW(px, py, 2, Br(c, 0.35));
+        // Pentagram chord web (every vertex to every other)
+        for (int i = 0; i < 5; i++)
+        for (int j = i + 1; j < 5; j++)
+        {
+            string edgeC = ColorHelper.Blend(_themeColors[i], _themeColors[j], 0.5);
+            bool either  = activeTheme[i] || activeTheme[j];
+            LineWF(verts[i].x, verts[i].y, verts[j].x, verts[j].y, edgeC, either ? 0.16 : 0.06);
+        }
+
+        // Pentagon outline (adjacent pairs only, slightly brighter)
+        for (int i = 0; i < 5; i++)
+        {
+            int j = (i + 1) % 5;
+            string edgeC = ColorHelper.Blend(_themeColors[i], _themeColors[j], 0.5);
+            LineWF(verts[i].x, verts[i].y, verts[j].x, verts[j].y, edgeC, 0.28);
+        }
+
+        // Concentric rings, fading inward
+        foreach (var (frac, alpha) in new[] { (0.48, 0.15), (0.38, 0.11), (0.28, 0.09), (0.18, 0.07) })
+            RingWF(0, 0, R * frac, blendC, alpha);
+
+        // Inner triangle pair (hexagram)
+        PolyNW(0, 0, R * 0.42, 3,     stroke: PnF(blendC, 0.22, 1));
+        PolyNW(0, 0, R * 0.42, 3, 60, stroke: PnF(blendC, 0.16, 1, true));
+
+        // ── Theme vertex markers — glow when theme is active ──────
+        for (int t = 0; t < 5; t++)
+        {
+            string tc  = _themeColors[t];
+            bool   act = activeTheme[t];
+            // Vertex dot
+            CircleW(verts[t].x, verts[t].y, act ? 5.0 : 2.0, Br(tc, act ? 0.92 : 0.28));
+            if (act)
+            {
+                // Glow halo + theme symbol
+                RingWF(verts[t].x, verts[t].y, 9.0, tc, 0.50, 1);
+                RingWF(verts[t].x, verts[t].y, 14.0, tc, 0.18, 1, true);
+                TextWF(verts[t].x, verts[t].y, _themeSymbols[t], tc, 0.85, 6);
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════
@@ -720,7 +817,7 @@ public class MagicCircleCanvas : FrameworkElement
         double sec   = 360.0 / n;
         double gap   = n > 1 ? 1.5 : 0.0;
 
-        string border = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.50);
+        string border = "#b0c0d8";   // cool silver for dark background
         RingW(0, 0, rIn,  border, 2);
         RingW(0, 0, rOut, border, 2);
 
@@ -957,7 +1054,7 @@ public class MagicCircleCanvas : FrameworkElement
         double r  = NodeRPri * s.CircleSizes.GetValueOrDefault(school, 1.0);
         bool cap  = s.CapstoneActive(school);
         double dim = act ? 1.0 : 0.20;
-        string ink = ColorHelper.Blend("#e8d8a0", "#ffffff", 0.55);
+        string ink = "#c0cce0";  // cool silver for dark background
 
         int abBought = s.SchoolAbilities.TryGetValue(school, out var abD)
             ? abD.Values.Sum() : 0;
@@ -1167,8 +1264,8 @@ public class MagicCircleCanvas : FrameworkElement
         if (!hasPrimary)
         {
             // ── Interior content (hidden when primary school is centred) ──
-            CircleW(0, 0, r, Br("#1a1208", 0.60));  // dark fill
-            RingWF(0, 0, r * 0.42, "#6688aa", 0.18);
+            CircleW(0, 0, r, Br(BgHex));               // void fill
+            RingWF(0, 0, r * 0.42, "#5577bb", 0.22);
 
             for (int i = 0; i < nc; i++)
             {
@@ -1207,13 +1304,13 @@ public class MagicCircleCanvas : FrameworkElement
         }
 
         // ── Hub outer rim — always drawn ─────────────────────────────────
-        RingWB(0, 0, r, "#e8d8a0", "#ffffff", 0.55, 2);
-        RingWF(0, 0, r * 0.94, "#6688aa", 0.20);
+        RingWB(0, 0, r, "#8899cc", "#ffffff", 0.55, 2);
+        RingWF(0, 0, r * 0.94, "#5577bb", 0.22);
 
         for (int i = 0; i < 16; i++)
         {
             var (dx, dy) = Wpt(0, 0, r * 0.91, i * (360.0 / 16));
-            CircleW(dx, dy, i % 4 == 0 ? 2.0 : 1.0, Br("#aabbdd", 0.40));
+            CircleW(dx, dy, i % 4 == 0 ? 2.0 : 1.0, Br("#99aacc", 0.55));
         }
 
         for (int i = 0; i < cats.Count; i++)
