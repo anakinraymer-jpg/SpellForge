@@ -1092,22 +1092,8 @@ public class MagicCircleCanvas : FrameworkElement
             RingW(wx, wy,  r * 1.30, "#FFD700", 2);
         }
 
-        // Themed outer ring: 8 school glyphs at 45° intervals with arc connectors
-        {
-            var    glyphs = GameData.SchoolGlyphs[school];
-            int    gSize  = Math.Max(6, (int)(r * 0.30));
-            double arcA   = act ? 0.65 : 0.18;
-            double txtA   = act ? 0.90 : 0.30;
-            double arcW   = act ? 1.5  : 0.8;
-            const double gap = 9.0;   // degrees of clear space either side of each glyph
-            for (int i = 0; i < 8; i++)
-            {
-                double a = i * 45.0;
-                ArcRingWF(wx, wy, r, a + gap, 45.0 - gap * 2, c, arcA, arcW);
-                var (gx, gy) = Wpt(wx, wy, r, a);
-                TextWF(gx, gy, glyphs[i], c, txtA, gSize, isFixed: true);
-            }
-        }
+        RingW(wx, wy, r,         act ? ColorHelper.Blend(ink, c, 0.35)
+                                      : ColorHelper.Blend(BgHex, c, 0.22), act ? 2.0 : 1.0);
         RingWF(wx, wy, r * 0.92, c, 0.30 * dim);
 
         // Ability rune ring
