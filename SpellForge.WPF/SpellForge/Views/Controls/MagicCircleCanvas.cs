@@ -250,6 +250,19 @@ public class MagicCircleCanvas : FrameworkElement
     private void LineWF(double x1, double y1, double x2, double y2, string hex, double alpha, double w = 1)
         => LineW(x1, y1, x2, y2, PnF(hex, alpha, w));
 
+    private void QuadBezW(double x1, double y1, double cx, double cy,
+                           double x2, double y2, Pen pen)
+    {
+        var geom = new StreamGeometry();
+        using (var ctx = geom.Open())
+        {
+            ctx.BeginFigure(Tc(x1, y1), false, false);
+            ctx.QuadraticBezierTo(Tc(cx, cy), Tc(x2, y2), true, false);
+        }
+        geom.Freeze();
+        _dc.DrawGeometry(null, pen, geom);
+    }
+
     private void PolyW(IEnumerable<(double, double)> worldPts, Brush? fill = null, Pen? stroke = null)
     {
         var pts = worldPts.Select(p => Tc(p.Item1, p.Item2)).ToList();
@@ -719,9 +732,28 @@ public class MagicCircleCanvas : FrameworkElement
             string mid   = ColorHelper.Blend(GameData.Schools[schools[i]].Color,
                                               GameData.Schools[schools[j]].Color, 0.5);
 
-            LineW(x1, y1, x2, y2, cap ? PnF("#FFD700", 0.55, 2, true) : PnF(mid, 0.30, 2));
+            // Control point pulled 42% toward origin — inward bow toward centre
+            double midX = (x1 + x2) / 2, midY = (y1 + y2) / 2;
+            double distMid = Math.Sqrt(midX * midX + midY * midY);
+            double ctrlX, ctrlY;
+            if (distMid > 1)
+            {
+                ctrlX = midX * 0.58;
+                ctrlY = midY * 0.58;
+            }
+            else
+            {
+                // Chord passes through centre — deflect perpendicularly
+                double chord = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+                ctrlX = midX - (y2 - y1) / chord * 80;
+                ctrlY = midY + (x2 - x1) / chord * 80;
+            }
+            QuadBezW(x1, y1, ctrlX, ctrlY, x2, y2,
+                     cap ? PnF("#FFD700", 0.55, 2, true) : PnF(mid, 0.30, 2));
 
-            double mx   = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            // Rune at quadratic Bézier midpoint (t=0.5) = 0.25*A + 0.5*C + 0.25*B
+            double mx = 0.25 * x1 + 0.5 * ctrlX + 0.25 * x2;
+            double my = 0.25 * y1 + 0.5 * ctrlY + 0.25 * y2;
             int seed    = ((schools[i] + schools[j]).Sum(c => (int)c) % GameData.RunesAll.Length
                            + GameData.RunesAll.Length) % GameData.RunesAll.Length;
             TextWF(mx, my, GameData.RunesAll[seed].ToString(),
@@ -1051,7 +1083,9 @@ public class MagicCircleCanvas : FrameworkElement
         var sd    = GameData.Schools[school];
         string c  = sd.Color;
         bool act  = activeSet.Contains(school);
-        double r  = NodeRPri * s.CircleSizes.GetValueOrDefault(school, 1.0);
+        double r  = isPrimary
+            ? CenterR * 0.52
+            : NodeRPri * s.CircleSizes.GetValueOrDefault(school, 1.0);
         bool cap  = s.CapstoneActive(school);
         double dim = act ? 1.0 : 0.20;
         string ink = "#c0cce0";  // cool silver for dark background
