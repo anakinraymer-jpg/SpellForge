@@ -40,6 +40,10 @@ public partial class Spell : ObservableObject
     // when-then conditions
     public ObservableCollection<ConditionEntry> WhenThenConditions { get; set; } = new();
 
+    // ── Rule constants ────────────────────────────────────────────
+    public const int MaxSchools  = 3;
+    public const int MaxElements = 3;   // already enforced in UI; mirrored here for validation
+
     // ── Derived properties ────────────────────────────────────────
     [JsonIgnore]
     public IReadOnlyList<string> AllSchools
@@ -58,6 +62,61 @@ public partial class Spell : ObservableObject
             return result;
         }
     }
+
+    // ── Ring-mod cap helpers ──────────────────────────────────────
+    /// <summary>Sum of all ring-mod pips currently purchased across all schools.</summary>
+    [JsonIgnore]
+    public int TotalRingMods
+    {
+        get
+        {
+            int n = 0;
+            foreach (var groups in RingMods.Values)
+                foreach (var cnt in groups.Values)
+                    n += cnt;
+            return n;
+        }
+    }
+
+    /// <summary>Points spent on non-ring-mod items (abilities, global mods, elements…).
+    /// Used to compute RingModCap without ring mods inflating their own cap.</summary>
+    [JsonIgnore]
+    public int BasePoints => TotalPoints - TotalRingMods;
+
+    /// <summary>Maximum total ring-mod pips the spell may have.
+    /// = LevelTableIndex(BasePoints) × 3, clamped to [2, 36].
+    /// Cantrip base (index 0) gives cap 2, Omnipotent base (index 14) gives cap 36 (=12 ring × 3 max).</summary>
+    [JsonIgnore]
+    public int RingModCap => Math.Clamp(GameData.LevelTableIndex(BasePoints) * 3, 2, 36);
+
+    /// <summary>How many more ring-mod pips may still be purchased.</summary>
+    [JsonIgnore]
+    public int RingModsRemaining => Math.Max(0, RingModCap - TotalRingMods);
+
+    // ── Validation ────────────────────────────────────────────────
+    /// <summary>Human-readable list of rule violations.  Empty = legal spell.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<string> ValidationWarnings
+    {
+        get
+        {
+            var w = new List<string>();
+            int sc = AllSchools.Count;
+            if (sc > MaxSchools)
+                w.Add($"Too many schools  ({sc} active / {MaxSchools} max)");
+            int el = Elements.Values.Count(v => v != null);
+            if (el > MaxElements)
+                w.Add($"Too many elements  ({el} active / {MaxElements} max)");
+            int rm = TotalRingMods;
+            if (rm > RingModCap)
+                w.Add($"Ring mods exceed cap  ({rm} used / {RingModCap} allowed at base level)");
+            return w;
+        }
+    }
+
+    /// <summary>True when no rule violations are present.</summary>
+    [JsonIgnore]
+    public bool IsValid => ValidationWarnings.Count == 0;
 
     [JsonIgnore]
     public int NormalItemCount
@@ -255,6 +314,13 @@ public partial class Spell : ObservableObject
         OnPropertyChanged(nameof(NormalItemCount));
         OnPropertyChanged(nameof(DrawbackRefund));
         OnPropertyChanged(nameof(IsComplete));
+        // Ring-mod cap & validation
+        OnPropertyChanged(nameof(TotalRingMods));
+        OnPropertyChanged(nameof(BasePoints));
+        OnPropertyChanged(nameof(RingModCap));
+        OnPropertyChanged(nameof(RingModsRemaining));
+        OnPropertyChanged(nameof(ValidationWarnings));
+        OnPropertyChanged(nameof(IsValid));
     }
 }
 

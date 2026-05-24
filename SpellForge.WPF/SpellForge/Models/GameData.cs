@@ -658,4 +658,13 @@ public static class GameData
             if (pts <= entry.Hi) return entry;
         return LevelTable[^1];
     }
+
+    /// <summary>0-based index into LevelTable for the given pts value.
+    /// Cantrip = 0, Omnipotent = 14.  Used to compute ring-mod cap.</summary>
+    public static int LevelTableIndex(int pts)
+    {
+        for (int i = 0; i < LevelTable.Count; i++)
+            if (pts <= LevelTable[i].Hi) return i;
+        return LevelTable.Count - 1;
+    }
 }

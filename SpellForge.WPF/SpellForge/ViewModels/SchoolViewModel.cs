@@ -56,14 +56,25 @@ public partial class RingModRowVM : ObservableObject
         Count = v;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanIncrement))]
     private void Increment()
     {
-        if (Count >= 3) return;
+        if (!CanIncrement()) return;
         Count++;
         EnsureDict();
         _spell.RingMods[_school][_group] = Count;
         _onChange();
+    }
+
+    private bool CanIncrement()
+    {
+        if (Count >= 3) return false;
+        // School cap: adding the first pip to this school would activate a new school
+        bool alreadyActive = _spell.AllSchools.Contains(_school);
+        if (!alreadyActive && _spell.AllSchools.Count >= Spell.MaxSchools) return false;
+        // Ring-mod cap: no more pips allowed at current base level
+        if (_spell.TotalRingMods >= _spell.RingModCap) return false;
+        return true;
     }
 
     [RelayCommand]
@@ -77,7 +88,11 @@ public partial class RingModRowVM : ObservableObject
     }
 
     /// <summary>Re-read count from the current spell instance.</summary>
-    public void Refresh() => ReadCount();
+    public void Refresh()
+    {
+        ReadCount();
+        IncrementCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Point this row at a new spell and callback.</summary>
     public void Rebuild(Spell newSpell, Action newOnChange)
@@ -142,14 +157,23 @@ public partial class AbilityRowVM : ObservableObject
         Count = v;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanIncrement))]
     private void Increment()
     {
-        if (Count >= 3) return;
+        if (!CanIncrement()) return;
         Count++;
         EnsureDict();
         _spell.SchoolAbilities[_school][_name] = Count;
         _onChange();
+    }
+
+    private bool CanIncrement()
+    {
+        if (Count >= 3) return false;
+        // School cap: purchasing the first ability in this school would activate a new school
+        bool alreadyActive = _spell.AllSchools.Contains(_school);
+        if (!alreadyActive && _spell.AllSchools.Count >= Spell.MaxSchools) return false;
+        return true;
     }
 
     [RelayCommand]
@@ -163,7 +187,11 @@ public partial class AbilityRowVM : ObservableObject
     }
 
     /// <summary>Re-read count from the current spell instance.</summary>
-    public void Refresh() => ReadCount();
+    public void Refresh()
+    {
+        ReadCount();
+        IncrementCommand.NotifyCanExecuteChanged();
+    }
 
     /// <summary>Point this row at a new spell and callback.</summary>
     public void Rebuild(Spell newSpell, Action newOnChange)

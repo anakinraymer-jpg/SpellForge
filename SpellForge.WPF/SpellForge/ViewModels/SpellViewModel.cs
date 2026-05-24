@@ -279,6 +279,15 @@ public partial class SpellViewModel : ViewModelBase
     // ── Active drawbacks list ─────────────────────────────────────
     public IEnumerable<string> ActiveDrawbacks => Spell.DrawbackBuys.Values;
 
+    // ── Validation visibility helpers ─────────────────────────────
+    /// <summary>Collapsed when all limits are OK; Visible when at least one warning exists.</summary>
+    public Visibility ValidationWarningsVisibility =>
+        Spell.IsValid ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>Visible when all limits are OK; Collapsed when there are warnings.</summary>
+    public Visibility NoWarningsVisibility =>
+        Spell.IsValid ? Visibility.Visible : Visibility.Collapsed;
+
     private void RefreshDerived()
     {
         if (_isRefreshing) return;
@@ -288,6 +297,8 @@ public partial class SpellViewModel : ViewModelBase
             Spell.NotifyAllChanged();
             OnPropertyChanged(nameof(SpellEffectsSummary));
             OnPropertyChanged(nameof(ActiveDrawbacks));
+            OnPropertyChanged(nameof(ValidationWarningsVisibility));
+            OnPropertyChanged(nameof(NoWarningsVisibility));
             RefreshSynergies();
             foreach (var vm in SchoolViewModels) vm.Refresh();
             foreach (var cat in GlobalModCategories)
