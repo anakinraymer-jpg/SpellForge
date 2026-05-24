@@ -87,7 +87,48 @@ Each ring mod group maxes at 3 pips (hardcoded), so 12 ring groups × 3 pips = 3
 
 ---
 
-## 5. Drawback Refunds — 50 % Cap
+## 5. Combat Time — Phases and Rounds
+
+### Structure
+
+| Unit | Length |
+|---|---|
+| **Phase** | The smallest unit of in-combat time — one character's turn |
+| **Round** | 5 Phases |
+
+Every participant in an encounter acts on their Phase. Once all 5 Phases of a Round have resolved, a new Round begins.
+
+### What you may do on your Phase
+
+Choose **one** of the following:
+
+| Option | What you do | Side effect |
+|---|---|---|
+| **Move** | Travel up to your movement speed | None |
+| **Action** | Perform one action (see below) | None |
+| **Hurry** | Move *and* take one action | All enemies gain **+5 to attack** for 1 round |
+
+> **Hurry** represents reckless haste — you expose openings while rushing. The +5 attack bonus applies to *all* enemies currently in the encounter for the remainder of the current round (i.e., until the next Round begins).
+
+### Actions
+
+An Action is a deliberate, focused act. Exactly one may be taken per Phase (without Hurrying):
+
+| Action | Description |
+|---|---|
+| **Make an attack** | Attempt to strike a target with a weapon or unarmed blow |
+| **Use a skill** | Apply a trained ability (Stealth, Persuasion, Athletics, etc.) |
+| **Cast a spell** | Invoke a prepared SpellForge spell |
+| **Discreet action** | Any focused activity that requires full attention but is not inherently aggressive (pick a lock, tend a wound, examine an object, etc.) |
+
+### Casting spells in combat
+
+Casting a spell uses your entire Action for that Phase. A Hurried cast is legal — the caster moves and casts in one Phase — but grants all enemies +5 to attack for the round, reflecting the loss of focus.  
+Higher-cost or more complex spells may impose additional casting conditions defined in the spell's **Conditions** field.
+
+---
+
+## 6. Drawback Refunds — 50 % Cap
 
 Drawbacks refund points, making a spell cheaper but more restricted. Refunds are capped at **50 % of the spell's gross cost** (cost before any drawback credit).
 
@@ -95,7 +136,7 @@ This cap is enforced inside `Spell.TotalPoints` so it applies automatically ever
 
 ---
 
-## 6. Validation Summary
+## 7. Validation Summary
 
 The **✦ Calculator** panel in the right pane shows:
 
@@ -108,7 +149,7 @@ Warnings are informational — the app does not prevent saving or using a spell 
 
 ---
 
-## 7. Design Philosophy
+## 8. Design Philosophy
 
 These rules exist to keep SpellForge builds *interesting*, not to strangle creativity:
 
