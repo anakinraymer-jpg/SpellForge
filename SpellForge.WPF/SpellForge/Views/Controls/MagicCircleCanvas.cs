@@ -1385,7 +1385,12 @@ public class MagicCircleCanvas : FrameworkElement
         var s   = Spell!;
         var lvl = s.LevelInfo;
         string col = ColorHelper.Blend("#445566", lvl.Color, 0.7);
-        string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
+        // Include attrition type when set
+        var attrDef = GameData.AttritionTypes.FirstOrDefault(a => a.Name == s.AttritionType);
+        string attrPart = (attrDef != null && attrDef.Name != "None")
+            ? $"  ·  {attrDef.Symbol} {attrDef.Name} Attrition"
+            : "";
+        string txt = $"{lvl.Name}  ·  {s.TotalPoints} pts{attrPart}  ·  {_zoom:F2}×  [scroll=zoom  R-drag=pan]";
         var ft  = new FormattedText(txt, CultureInfo.CurrentCulture,
                                     FlowDirection.LeftToRight, _tfGeo, 9 * _zoom, Br(col), 1.0);
         var cp  = Tc(0, OuterR + 14);

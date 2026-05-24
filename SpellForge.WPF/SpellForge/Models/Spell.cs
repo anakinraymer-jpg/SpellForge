@@ -6,8 +6,11 @@ namespace SpellForge.Models;
 
 public partial class Spell : ObservableObject
 {
-    [ObservableProperty] private string _name = "Unnamed Spell";
+    [ObservableProperty] private string _name        = "Unnamed Spell";
     [ObservableProperty] private string _description = "";
+    /// <summary>Which attrition grade this spell applies on a successful hit.
+    /// One of the names in <see cref="GameData.AttritionTypes"/> (default "None").</summary>
+    [ObservableProperty] private string _attritionType = "None";
 
     // school → {abilityName → count}
     public Dictionary<string, Dictionary<string, int>> SchoolAbilities { get; set; } = new();

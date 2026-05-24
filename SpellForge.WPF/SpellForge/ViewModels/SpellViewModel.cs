@@ -279,6 +279,15 @@ public partial class SpellViewModel : ViewModelBase
     // ── Active drawbacks list ─────────────────────────────────────
     public IEnumerable<string> ActiveDrawbacks => Spell.DrawbackBuys.Values;
 
+    // ── Attrition ─────────────────────────────────────────────────
+    /// <summary>Ordered list of attrition type names for ComboBox binding.</summary>
+    public IReadOnlyList<string> AttritionTypeOptions { get; } =
+        GameData.AttritionTypes.Select(a => a.Name).ToList();
+
+    /// <summary>Full definition for the currently selected attrition type.</summary>
+    public AttritionDef? SelectedAttritionDef =>
+        GameData.AttritionTypes.FirstOrDefault(a => a.Name == Spell.AttritionType);
+
     // ── Validation visibility helpers ─────────────────────────────
     /// <summary>Collapsed when all limits are OK; Visible when at least one warning exists.</summary>
     public Visibility ValidationWarningsVisibility =>
@@ -299,6 +308,7 @@ public partial class SpellViewModel : ViewModelBase
             OnPropertyChanged(nameof(ActiveDrawbacks));
             OnPropertyChanged(nameof(ValidationWarningsVisibility));
             OnPropertyChanged(nameof(NoWarningsVisibility));
+            OnPropertyChanged(nameof(SelectedAttritionDef));
             RefreshSynergies();
             foreach (var vm in SchoolViewModels) vm.Refresh();
             foreach (var cat in GlobalModCategories)

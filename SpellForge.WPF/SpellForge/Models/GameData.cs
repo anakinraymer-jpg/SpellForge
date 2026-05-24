@@ -21,6 +21,9 @@ public record ModDef(string Cat, int Cost, int Max, string Desc);
 public record NegModDef(string Name, string Desc, int Cost = 2);
 public record LevelEntry(int Lo, int Hi, string Name, string Color);
 
+/// <summary>One of the five attrition grades (severity 0–4).</summary>
+public record AttritionDef(string Name, string Symbol, string Desc, string Color, int Severity);
+
 public static class GameData
 {
     // ── Runes ──────────────────────────────────────────────────
@@ -33,18 +36,37 @@ public static class GameData
 
     public static readonly IReadOnlyDictionary<string, string[]> ModRunes = new Dictionary<string, string[]>
     {
-        ["Range"]    = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
-        ["Duration"] = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
-        ["Area"]     = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
-        ["Power"]    = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
-        ["Casting"]  = ["ᛇ","ᚲ","ᚢ","ᛦ","ᛡ","⊛"],
-        ["Special"]  = ["ᛥ","ᛣ","ᛤ","ᛢ","ᛰ","⊚"],
+        ["Range"]     = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
+        ["Duration"]  = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
+        ["Area"]      = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
+        ["Power"]     = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
+        ["Casting"]   = ["ᛇ","ᚲ","ᚢ","ᛦ","ᛡ","⊛"],
+        ["Special"]   = ["ᛥ","ᛣ","ᛤ","ᛢ","ᛰ","⊚"],
+        ["Attrition"] = ["⊖","⚸","⚙","☠","✸","⊗"],
     };
 
     public static readonly IReadOnlyDictionary<string, string> CatColors = new Dictionary<string, string>
     {
-        ["Range"]    = "#ff6060", ["Duration"] = "#60ee88", ["Area"]    = "#6088ff",
-        ["Power"]    = "#ffd060", ["Casting"]  = "#ff88ff", ["Special"] = "#88ffff",
+        ["Range"]     = "#ff6060", ["Duration"]  = "#60ee88", ["Area"]    = "#6088ff",
+        ["Power"]     = "#ffd060", ["Casting"]   = "#ff88ff", ["Special"] = "#88ffff",
+        ["Attrition"] = "#ff7744",
+    };
+
+    // ── Attrition types (severity 0 → 4) ───────────────────────
+    public static readonly IReadOnlyList<AttritionDef> AttritionTypes = new List<AttritionDef>
+    {
+        new("None",      "—",  "No attrition on hit.",
+            "#666666", 0),
+        new("Basic",     "⊖",  "Target player crosses off any 1 equipment or skill of their choice.",
+            "#aaaaaa", 1),
+        new("Flesh",     "⚸",  "1 randomly selected skill is crossed off.",
+            "#88aaff", 2),
+        new("Equipment", "⚙",  "1 randomly selected equipment is crossed off.",
+            "#ffaa44", 3),
+        new("Destroy",   "☠",  "1 random equipment is permanently destroyed; 1 random skill is crossed off.",
+            "#ff6666", 4),
+        new("Brutal",    "✸",  "Roll 1d6; that many random slots (equipment + skills combined) are crossed off.",
+            "#ff2222", 5),
     };
 
     public static readonly string[] RingGroups = ["Range", "Duration", "Area", "Power"];
@@ -571,12 +593,12 @@ public static class GameData
             ["Power: Mighty d12"]    = new("Power",    8, 1, "Devastating single-hit power."),
             ["Power: Epic 2d10"]     = new("Power",   10, 1, "Legendary magnitude."),
             ["Extra Damage Die"]     = new("Power",    2,10, "Add one additional damage die per purchase."),
-            ["Cast: Free Action"]    = new("Casting",  3, 1, "No action economy cost."),
-            ["Cast: Bonus Action"]   = new("Casting",  2, 1, "Uses your bonus action."),
-            ["Cast: Standard"]       = new("Casting",  0, 1, "Uses your primary action."),
-            ["Cast: Full Round"]     = new("Casting", -1, 1, "Entire round to cast; DC +1."),
-            ["Cast: 1 Min Ritual"]   = new("Casting", -2, 1, "1-minute ritual."),
-            ["Cast: 10 Min Ritual"]  = new("Casting", -3, 1, "10-minute deep ritual. Range and area doubled."),
+            ["Cast: Free Action"]    = new("Casting",  3, 1, "No action cost; does not consume your Action for the phase."),
+            ["Cast: Hurried"]        = new("Casting",  1, 1, "Cast and move in one phase; all enemies gain +5 to attack for the round."),
+            ["Cast: Standard"]       = new("Casting",  0, 1, "Uses your Action for the phase (normal combat casting)."),
+            ["Cast: Full Round"]     = new("Casting", -1, 1, "Channels across all 5 phases of 1 round; enemies gain +5 to attack while casting."),
+            ["Cast: 1 Min Ritual"]   = new("Casting", -2, 1, "12-round ritual; cannot be interrupted without breaking the spell."),
+            ["Cast: 10 Min Ritual"]  = new("Casting", -3, 1, "120-round deep ritual; range and area doubled on completion."),
             ["Silent Spell"]         = new("Special",  1, 1, "Removes verbal component."),
             ["Still Spell"]          = new("Special",  1, 1, "Removes somatic component."),
             ["Subtle Spell"]         = new("Special",  2, 1, "Both verbal and somatic suppressed."),
@@ -589,6 +611,16 @@ public static class GameData
             ["Triggered Delay"]      = new("Special",  2, 3, "Delay until trigger (up to 24hr per purchase)."),
             ["Volley"]               = new("Special",  2, 3, "Each purchase adds one additional volley strike."),
             ["Extended Range"]       = new("Special",  1, 5, "Double the spell's range per purchase."),
+            // ── Attrition modifiers ───────────────────────────────
+            ["Attrition: Escalate"]  = new("Attrition", 2, 4,
+                "Upgrade the spell's attrition type by 1 grade per purchase " +
+                "(None → Basic → Flesh → Equipment → Destroy → Brutal)."),
+            ["Attrition: Controlled"] = new("Attrition", 2, 1,
+                "Target player chooses which slot(s) to lose, regardless of attrition type. " +
+                "Converts random selection into player choice."),
+            ["Attrition: Repeat"]    = new("Attrition", 3, 3,
+                "Apply the spell's attrition an additional time per purchase " +
+                "(each application rolled/resolved separately)."),
         };
 
     // ── Negative modifiers ────────────────────────────────────────

@@ -67,6 +67,27 @@
                                 <TextBox Text="{Binding Spell.Description, UpdateSourceTrigger=PropertyChanged}"
                                          AcceptsReturn="True" Height="80" TextWrapping="Wrap"
                                          VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"/>
+
+                                <!-- ── Attrition type ─────────────────────────────── -->
+                                <TextBlock Text="Attrition on Hit"
+                                           Foreground="{StaticResource DimBrush}" Margin="0,0,0,2"/>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox Grid.Column="0" Width="110"
+                                              ItemsSource="{Binding AttritionTypeOptions}"
+                                              SelectedItem="{Binding Spell.AttritionType, Mode=TwoWay}"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding SelectedAttritionDef.Desc}"
+                                               FontSize="9" FontStyle="Italic"
+                                               Foreground="{StaticResource DimBrush}"
+                                               TextWrapping="Wrap"
+                                               VerticalAlignment="Center"
+                                               Margin="8,0,0,0"/>
+                                </Grid>
+
                                 <TextBlock Text="Spell Effects" Style="{StaticResource PaneHeader}"/>
                                 <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="4">
                                     <TextBlock Text="{Binding SpellEffectsSummary}"
