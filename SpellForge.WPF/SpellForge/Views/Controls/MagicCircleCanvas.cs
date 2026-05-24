@@ -653,26 +653,6 @@ public class MagicCircleCanvas : FrameworkElement
         // ── School ring ───────────────────────────────────────────
         RingW(0, 0, schoolR, ink2, 2);
 
-        // ── Within-theme chord lines (each theme's color) ─────────
-        for (int t = 0; t < _themeNames.Length; t++)
-        {
-            string tc   = _themeColors[t];
-            var schools = GameData.SchoolThemes[_themeNames[t]];
-            var spts    = schools.Select(sc => pos[sc]).ToArray();
-            for (int i = 0; i < spts.Length; i++)
-                for (int j = i + 1; j < spts.Length; j++)
-                    LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, tc, 0.14);
-        }
-
-        // ── Cross-theme centre-to-centre lines (very faint) ───────
-        for (int t1 = 0; t1 < _themeNames.Length; t1++)
-        for (int t2 = t1 + 1; t2 < _themeNames.Length; t2++)
-        {
-            var (cx1, cy1) = Wpt(0, 0, schoolR, _themeAngles[t1]);
-            var (cx2, cy2) = Wpt(0, 0, schoolR, _themeAngles[t2]);
-            LineWF(cx1, cy1, cx2, cy2, ink2, 0.05);
-        }
-
         // ── Diamond tick at each school's radial position ─────────
         foreach (var (school, (sx, sy)) in pos)
         {
@@ -1253,7 +1233,6 @@ public class MagicCircleCanvas : FrameworkElement
             string capC = cd.Color;
             CircleW(wx, wy, r * 0.26, Br(capC, 0.28));
             TextW(wx, wy, cd.Glyph, capC, Math.Max(14, (int)(r * 0.58)));
-            TextW(wx, wy + r * 1.52, $"⚜ {cd.Name} ⚜", capC, 5);
         }
 
         // Label: below the circle normally; above the hub ring when centred
