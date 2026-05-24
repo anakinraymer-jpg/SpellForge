@@ -74,61 +74,146 @@ public static class GameData
     // ── School glyphs (8 per school) ────────────────────────────
     public static readonly IReadOnlyDictionary<string, string[]> SchoolGlyphs = new Dictionary<string, string[]>
     {
-        ["Evocation"]     = ["⚡","✸","✺","☄","⊕","⊗","∞","✦"],
-        ["Transmutation"] = ["⚗","⚙","⌬","◈","⍟","⎔","⬡","⌾"],
-        ["Enchantment"]   = ["✿","❀","⚜","☙","❧","✤","❆","⚘"],
-        ["Space"]         = ["◉","⌖","◎","⍥","⍉","⌀","⊞","⊟"],
-        ["Divination"]    = ["⊚","◬","⌭","⍚","⍛","⍜","◌","◍"],
-        ["Time"]          = ["⌛","⍨","⍩","⍪","⍫","⍬","⍭","⌬"],
-        ["Necromancy"]    = ["☽","☾","☠","☿","♄","⚸","⊗","✝"],
-        ["Conjuration"]   = ["★","✩","✪","✫","✬","✭","✮","✯"],
-        ["Illusion"]      = ["◆","⬡","⬢","△","▽","◭","◮","◈"],
-        ["Abjuration"]    = ["⛨","⛊","⊕","◧","◨","◩","◪","⊠"],
+        // Dark Magic
+        ["Blood"]      = ["⬥","⬦","♥","♦","⊕","⊗","✸","◈"],
+        ["Death"]      = ["☠","☽","☾","⚰","⊗","☿","♄","✝"],
+        ["Shadow"]     = ["◗","◖","◐","◑","◌","◍","◎","◉"],
+        ["Undeath"]    = ["⚰","☠","☽","⚸","⊗","♄","◈","✝"],
+        ["Curse"]      = ["⊗","⊛","⊚","⊝","⊞","⊟","⊠","⊡"],
+        // Light Magic
+        ["Healing"]    = ["✚","✙","✛","✜","⊕","☉","✦","◉"],
+        ["Shielding"]  = ["⛨","⛊","⊕","◧","◨","◩","◪","⊠"],
+        ["Banishment"] = ["⊘","◎","⊙","☉","✦","⊕","⊗","◌"],
+        ["Radiance"]   = ["☀","✦","☉","✸","⊕","◎","⊛","✺"],
+        ["Revelation"] = ["◎","◉","⊚","⍜","⍚","⍛","⌭","◌"],
+        // Nature Magic
+        ["Elemental"]  = ["⌬","⊕","⊗","◈","⊙","⍥","◎","⊛"],
+        ["Plants"]     = ["⚘","❀","✿","☙","❧","⊕","◌","⬡"],
+        ["Animals"]    = ["♞","♜","♟","⊕","◌","◈","★","✦"],
+        ["Aura"]       = ["◌","◍","◎","◉","⊕","⊗","⊙","⊛"],
+        ["Storm"]      = ["⚡","⍉","⍥","△","⌀","◉","⍨","⌬"],
+        // Planar Magic
+        ["Time"]       = ["⌛","⍨","⍩","⍪","⍫","⍬","⍭","⌬"],
+        ["Space"]      = ["◉","⌖","◎","⍥","⍉","⌀","⊞","⊟"],
+        ["Summon"]     = ["★","✩","✪","✫","✬","✭","✮","✯"],
+        ["Dream"]      = ["◑","◐","◌","◍","⊚","⍜","⍛","◎"],
+        ["Void"]       = ["∅","⌀","◯","⊘","⊙","⊗","◎","⊞"],
+        // Arcane Magic
+        ["Names"]      = ["ᚠ","ᚢ","ᚦ","ᚨ","ᚱ","ᚲ","ᚷ","ᚹ"],
+        ["Leyline"]    = ["⍟","⊛","⊕","◉","⍥","⌀","◎","⊙"],
+        ["Eldritch"]   = ["⊛","⊗","⊙","◈","⍚","⍜","⌭","◬"],
+        ["Chaos"]      = ["⁂","✸","⊗","⌬","◈","△","⊛","✺"],
+        ["Law"]        = ["⊞","⊟","⊠","⊡","◧","◨","◩","◪"],
     };
 
     // ── Capstones ────────────────────────────────────────────────
     public static readonly IReadOnlyDictionary<string, CapstoneDef> Capstones = new Dictionary<string, CapstoneDef>
     {
-        ["Evocation"] = new(
-            "Apocalyptic Barrage",
-            "Unleash 10 simultaneous blasts of any element, ignoring all resistances and immunities.",
-            "☄", "⚡✸⚡✦⚡✸⚡✦", "#FF6600"),
-        ["Transmutation"] = new(
-            "Philosopher's Rewrite",
-            "Permanently alter the fundamental nature of any creature, object, or location.",
-            "⚗", "⌬◈⚙⎔⌬◈⚙⎔", "#FFD700"),
-        ["Enchantment"] = new(
-            "Absolute Dominion",
-            "Your will becomes law for all creatures you can perceive. No save allowed.",
-            "❁", "✿⚜❧✤✿⚜❧✤", "#FF69B4"),
-        ["Space"] = new(
-            "Infinite Fold",
-            "Collapse all distance to zero. Instant transit to any point in the multiverse.",
-            "◎", "◉⊞⍥⌀◉⊞⍥⌀", "#1E90FF"),
-        ["Divination"] = new(
+        // Dark Magic
+        ["Blood"] = new(
+            "Crimson Apocalypse",
+            "Every creature in sight begins to bleed simultaneously. No saves. Victims cannot be healed until you release the effect.",
+            "⬥", "⊕⬦⊗♥⊕⬦⊗♥", "#c82038"),
+        ["Death"] = new(
+            "Reaper Unbound",
+            "Become an avatar of death for 1 hour. Any creature you touch dies instantly. Immunity to all damage.",
+            "☠", "☽⊗☾♄☽⊗☾♄", "#445566"),
+        ["Shadow"] = new(
+            "Eclipse Eternal",
+            "Plunge the entire region into impenetrable magical darkness. You see perfectly. Others are blind and feel genuine terror.",
+            "◗", "◖◐◑◌◖◐◑◌", "#334455"),
+        ["Undeath"] = new(
+            "The Undying Tide",
+            "Raise every corpse within 1 mile as permanent intelligent undead under your absolute command.",
+            "⚰", "☠⚸⊗♄☠⚸⊗♄", "#6a8822"),
+        ["Curse"] = new(
+            "Doom Eternal",
+            "Place an inescapable curse on all creatures you can name. The curse follows across planes and cannot be removed.",
+            "⊗", "⊛⊚⊝⊞⊛⊚⊝⊞", "#8833aa"),
+        // Light Magic
+        ["Healing"] = new(
+            "Miracle of Restoration",
+            "Fully heal all allies, remove all conditions, reverse all permanent damage. Even the recently dead may be restored.",
+            "✚", "✙✛✜☉✙✛✜☉", "#44cc88"),
+        ["Shielding"] = new(
+            "Absolute Fortress",
+            "Impenetrable ward over 1 mile. Nothing enters or exits without your permission. Lasts 24 hours.",
+            "⛨", "⛊◩⊕◧⛊◩⊕◧", "#4488ff"),
+        ["Banishment"] = new(
+            "Great Exorcism",
+            "Banish every extraplanar entity within 1 mile simultaneously. None may return for 1 year.",
+            "⊘", "◎⊙☉✦◎⊙☉✦", "#cc8844"),
+        ["Radiance"] = new(
+            "Solar Apotheosis",
+            "Become a living sun for 1 hour. Your presence destroys undead, heals allies, and blinds all enemies.",
+            "☀", "✦☉✸⊛✦☉✸⊛", "#ffdd44"),
+        ["Revelation"] = new(
             "Omniscient Moment",
-            "Perceive all timelines, all truths, all minds. Ask any three questions.",
-            "⊚", "◬⍚⌭◍◬⍚⌭◍", "#C8C8FF"),
+            "Perceive all truths, all hidden things, all minds within range. Ask any three questions; receive complete truthful answers.",
+            "◎", "◉⊚⍜⍚◉⊚⍜⍚", "#ffaa22"),
+        // Nature Magic
+        ["Elemental"] = new(
+            "Primal Convergence",
+            "Summon all four primal elements simultaneously. Control a catastrophic elemental storm that reshapes the landscape.",
+            "⌬", "⊕⊗◈⊙⊕⊗◈⊙", "#ff8833"),
+        ["Plants"] = new(
+            "World Tree",
+            "Raise an immense World Tree that roots the area in life. All allies regenerate; all enemies are entangled permanently.",
+            "⚘", "❀✿☙❧❀✿☙❧", "#44aa44"),
+        ["Animals"] = new(
+            "Call of the Wild",
+            "Every beast within 50 miles answers your call, arriving within 1 hour. They obey absolutely and fight to the death.",
+            "♞", "♜♟⊕◌♜♟⊕◌", "#aa6633"),
+        ["Aura"] = new(
+            "Convergent Field",
+            "Merge all party auras into one overwhelming field. Allies are invincible; enemies are repelled and weakened.",
+            "◌", "◍◎◉⊕◍◎◉⊕", "#88ccaa"),
+        ["Storm"] = new(
+            "Tempest God",
+            "Full control over weather in 10-mile radius for 1 hour. Call lightning at will; immunity to all weather effects.",
+            "⚡", "⍉⍥△⌀⍉⍥△⌀", "#6677cc"),
+        // Planar Magic
         ["Time"] = new(
             "Temporal Supremacy",
-            "Stop time for up to 1 hour. Act freely while the world is frozen.",
-            "⌛", "⍭⍩⍪⍨⍭⍩⍪⍨", "#00CED1"),
-        ["Necromancy"] = new(
-            "Death Transcendence",
-            "Become unkillable for 24 hours. Raise all slain as permanent undead servants.",
-            "☠", "☽☾☿♄☽☾☿♄", "#9400D3"),
-        ["Conjuration"] = new(
-            "Grand Summoning",
-            "Summon up to 20 CR20 entities from any plane, permanently bound and obedient.",
-            "★", "✮✭✬✩✮✭✬✩", "#32CD32"),
-        ["Illusion"] = new(
-            "Reality Overwrite",
-            "Replace all sensory reality for every creature within 1 mile with your constructed world.",
-            "◆", "◈△▽⬡◈△▽⬡", "#FF8C00"),
-        ["Abjuration"] = new(
-            "Absolute Sanctuary",
-            "Impenetrable ward over 1 mile. Nothing enters or exits without your permission.",
-            "⛨", "◩⊕⛊◧◩⊕⛊◧", "#C0C0C0"),
+            "Stop time for up to 1 hour. Act freely while the world is frozen. Cannot be countered.",
+            "⌛", "⍭⍩⍪⍨⍭⍩⍪⍨", "#8888ff"),
+        ["Space"] = new(
+            "Infinite Fold",
+            "Collapse all distance to zero. Instant transit to any point in the multiverse. Move anything to anywhere.",
+            "◉", "⊞⍥⌀⌖⊞⍥⌀⌖", "#445599"),
+        ["Summon"] = new(
+            "Grand Convocation",
+            "Summon up to 20 CR20 entities from any plane, permanently bound and obedient to your will.",
+            "★", "✮✭✬✩✮✭✬✩", "#cc66aa"),
+        ["Dream"] = new(
+            "Dreamweave Reality",
+            "Force all creatures in range into a shared dream. You control every element of that reality absolutely.",
+            "◑", "◐◌◍⊚◐◌◍⊚", "#9966cc"),
+        ["Void"] = new(
+            "Singularity",
+            "Open a gravitational singularity that consumes everything in a 100ft radius. Nothing — matter or magic — survives.",
+            "∅", "⌀◯⊘⊗⌀◯⊘⊗", "#553388"),
+        // Arcane Magic
+        ["Names"] = new(
+            "The Unspoken Word",
+            "Speak a single True Name that binds all creatures who hear it. They cannot act against your will until released.",
+            "ᚠ", "ᚢᚦᚨᚱᚲᚢᚦᚨ", "#aabbcc"),
+        ["Leyline"] = new(
+            "Node Awakening",
+            "Awaken every dormant leyline in the region. Reshape the magical landscape; permanently alter the area's properties.",
+            "⍟", "⊛⊕◉⍥⊛⊕◉⍥", "#44aacc"),
+        ["Eldritch"] = new(
+            "Star Spawn Revelation",
+            "Tear the veil between realities. Entities from beyond flood through. Even allies must save or be driven mad.",
+            "⊛", "⊗⊙◈⍚⊗⊙◈⍚", "#cc8833"),
+        ["Chaos"] = new(
+            "Unmaking",
+            "Reality itself unravels in 100ft. All rules, physical laws, and magical effects suspend. Anything can happen.",
+            "⁂", "✸⊗⌬◈✸⊗⌬◈", "#ff5522"),
+        ["Law"] = new(
+            "Divine Edict",
+            "Declare one absolute law. All creatures in the region must obey it as physical compulsion. Lasts 24 hours.",
+            "⊞", "⊟⊠⊡◧⊟⊠⊡◧", "#8899aa"),
     };
 
     // ── Elements ─────────────────────────────────────────────────
@@ -291,221 +376,559 @@ public static class GameData
         };
 
     // ── Schools ───────────────────────────────────────────────────
+    /// <summary>Theme name → ordered list of its 5 school names.</summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> SchoolThemes =
+        new Dictionary<string, IReadOnlyList<string>>
+        {
+            ["Dark"]   = ["Blood","Death","Shadow","Undeath","Curse"],
+            ["Light"]  = ["Healing","Shielding","Banishment","Radiance","Revelation"],
+            ["Nature"] = ["Elemental","Plants","Animals","Aura","Storm"],
+            ["Planar"] = ["Time","Space","Summon","Dream","Void"],
+            ["Arcane"] = ["Names","Leyline","Eldritch","Chaos","Law"],
+        };
+
     public static readonly IReadOnlyList<string> SchoolOrder =
-        ["Evocation","Transmutation","Enchantment","Space","Divination",
-         "Time","Necromancy","Conjuration","Illusion","Abjuration"];
+        ["Blood","Death","Shadow","Undeath","Curse",
+         "Healing","Shielding","Banishment","Radiance","Revelation",
+         "Elemental","Plants","Animals","Aura","Storm",
+         "Time","Space","Summon","Dream","Void",
+         "Names","Leyline","Eldritch","Chaos","Law"];
 
     public static readonly IReadOnlyDictionary<string, SchoolDef> Schools = new Dictionary<string, SchoolDef>
     {
-        ["Evocation"] = new(
-            "#FF4500", "⚡", "Raw elemental force and energy projection",
-            "Evocation channels raw elemental forces into bolts, blasts, waves, and explosions. It rewards intensity, precision, and sheer power. Masters can fill a battlefield with cascading pillars of flame.",
+        // ── Dark Magic ────────────────────────────────────────────
+        ["Blood"] = new(
+            "#c82038", "⬥", "Manipulate blood and life force",
+            "Blood magic wields the very essence of life as a weapon. Blood mages drain foes to fuel their power, puppet victims through their own veins, and weave hemorrhages that no armour can stop.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Blast Range", ["Duration"] = "Burn Duration",
-                ["Area"]  = "Explosion Radius", ["Power"] = "Raw Damage",
+                ["Range"] = "Blood Range", ["Duration"] = "Hemorrhage Duration",
+                ["Area"]  = "Blood Field",  ["Power"]   = "Life Drain",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Damage Die Upgrade"]  = new(1, "Upgrade damage die one step per purchase (d4→d6→d8→d10→d12→2d6→2d8→2d10)."),
-                ["Elemental Type"]      = new(1, "Add a second elemental damage type per purchase."),
-                ["Penetrating Energy"]  = new(2, "Ignore resistance. Buy twice to ignore immunity."),
-                ["Splash Damage"]       = new(1, "Adjacent creatures take half damage. Each purchase extends splash 5ft."),
-                ["Lingering Burn"]      = new(2, "Target takes ongoing damage equal to spellcasting mod each turn."),
-                ["Escalating Power"]    = new(2, "Each sustained round adds +1 damage die."),
-                ["Chain Lightning"]     = new(3, "Energy arcs to another target at half damage on hit."),
-                ["Overload"]            = new(3, "Bonus action to double damage dice; suffer 1d6 backlash."),
-                ["Shaped Charge"]       = new(2, "Exclude creatures equal to casting mod from AoE."),
-                ["Critical Eruption"]   = new(2, "On critical hit, erupt outward hitting all within 5ft."),
+                ["Hemorrhage"]       = new(1, "Target bleeds: 1d4 damage per round until healed. Each purchase adds 1d4."),
+                ["Blood Drain"]      = new(2, "Gain temporary HP equal to damage dealt per purchase."),
+                ["Vital Strike"]     = new(1, "Gain +1 damage die against any target already bleeding per purchase."),
+                ["Blood Puppet"]     = new(2, "Control target on failed CON save. Each purchase extends duration 1 round."),
+                ["Crimson Armor"]    = new(2, "Animate surrounding blood as a shield; +2 AC per purchase."),
+                ["Blood Trace"]      = new(1, "Track any creature you have drawn blood from across any distance."),
+                ["Hemorrhagic Wave"] = new(2, "Erupt blood from a bleeding creature in a 15ft burst per purchase."),
+                ["Coagulate"]        = new(3, "Instantly stop all bleeding on a target, or force clotting in an enemy's wounds."),
+                ["Blood Pact"]       = new(3, "Bind two creatures; 50% of damage one takes transfers to the other."),
+                ["Exsanguinate"]     = new(4, "Drain all blood from a target. Instant death on failed CON save."),
             }),
-        ["Transmutation"] = new(
-            "#FFD700", "⚗", "Alter the properties of matter and creatures",
-            "Transmutation rewrites fundamental properties of matter and living beings. Stone becomes iron, lead becomes gold, a man becomes a beast. Deep mastery rewrites magic itself.",
+        ["Death"] = new(
+            "#445566", "☠", "Channel the power of death and entropy",
+            "Death magic taps into the inexorable force of mortality. Death mages sense the dying, drain life in a glance, and call down the mark of the Reaper on those their finger points at.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Transform Range", ["Duration"] = "Change Duration",
-                ["Area"]  = "Reshape Area", ["Power"] = "Transform Depth",
+                ["Range"] = "Death Reach", ["Duration"] = "Necrosis Duration",
+                ["Area"]  = "Death Field",  ["Power"]   = "Death Force",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Magnitude"]           = new(1, "Increase scale of transformation per purchase."),
-                ["Attribute Shift"]     = new(2, "Raise or lower a creature's ability score by 2 per purchase."),
-                ["Property Steal"]      = new(3, "Transfer a material property from one substance to another."),
-                ["Polymorph Depth"]     = new(2, "Transform deeper systems per purchase (skin→muscle→skeleton→spirit)."),
-                ["Reversal Ward"]       = new(2, "The transmutation resists dispelling per purchase."),
-                ["Rapid Reshape"]       = new(1, "Reduce casting time one step per purchase."),
-                ["Mass Transmute"]      = new(2, "Affect one additional target per purchase."),
-                ["Volatile Conversion"] = new(3, "Transmuted substance explodes after 1d4 rounds."),
-                ["Subtle Shift"]        = new(2, "Transmutation invisible to the eye."),
-                ["Permanent Alteration"]= new(4, "Change persists until magically removed."),
+                ["Death Touch"]    = new(1, "+1d6 necrotic damage per purchase on a successful hit."),
+                ["Life Sense"]     = new(1, "Sense all living creatures within range; know their HP totals."),
+                ["Decay"]          = new(2, "Rot objects and structures rapidly; deals extra damage to constructs."),
+                ["Soul Sight"]     = new(2, "See souls, spirits, and the recently dead as glowing forms."),
+                ["Death Knell"]    = new(2, "Instantly kill any target at or below 10% of their max HP."),
+                ["Necrotic Aura"]  = new(3, "Emit a 10ft aura dealing 1d6 necrotic per round to all nearby creatures."),
+                ["Speak With Dead"]= new(2, "Commune with a corpse dead for up to 1 week per purchase."),
+                ["Death Ward"]     = new(2, "Protected target stabilises at 0 HP once; rises with 1 HP per purchase."),
+                ["Reaper's Mark"]  = new(3, "Marked target suffers +50% damage from all sources until mark removed."),
+                ["Soul Harvest"]   = new(4, "Trap a soul on death; gain permanent +1 to all rolls per soul harvested."),
             }),
-        ["Enchantment"] = new(
-            "#FF69B4", "✿", "Influence minds and bind magical compulsions",
-            "Enchantment touches and rewrites the minds of thinking creatures. Enchanters weave compulsions, suggestions, fear, love, and obedience into the neural fabric of their targets.",
+        ["Shadow"] = new(
+            "#334455", "◗", "Shape darkness and move through shadows",
+            "Shadow magic treats darkness as a physical medium. Shadow mages slip between shadows as easily as stepping through a doorway, and can plunge a battlefield into void-black silence.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Charm Range", ["Duration"] = "Compulsion Duration",
-                ["Area"]  = "Mind Reach", ["Power"] = "Will Override",
+                ["Range"] = "Shadow Reach", ["Duration"] = "Darkness Duration",
+                ["Area"]  = "Shadow Field",  ["Power"]   = "Obscuration",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Compulsion Strength"] = new(1, "Raise DC to resist by 2 per purchase."),
-                ["Mind Depth"]          = new(2, "Reach deeper cognitive layers per purchase."),
-                ["Affect Immune Minds"] = new(3, "Bypass charm immunity categories per purchase."),
-                ["Persistent Whisper"]  = new(2, "Residual bias lingers after duration ends."),
-                ["Cascade Charm"]       = new(2, "On resistance, enchantment hops to nearest creature per purchase."),
-                ["Emotional Amplifier"] = new(2, "Layer an emotion onto the enchantment."),
-                ["Memory Edit"]         = new(3, "Alter or erase up to 1 minute of memory per purchase."),
-                ["Group Mind"]          = new(3, "Affect creatures equal to Charisma modifier simultaneously."),
-                ["Triggered Command"]   = new(2, "Lies dormant until trigger condition met."),
-                ["Soul Anchor"]         = new(4, "Persists across planar travel and mild death."),
+                ["Darkness"]        = new(1, "Create magical darkness in a 10ft radius per purchase; darkvision fails."),
+                ["Shadow Step"]     = new(1, "Teleport between any two areas of shadow up to 60ft per purchase."),
+                ["Umbral Cloak"]    = new(2, "Become invisible in dim light or darkness; auto-succeeds Stealth."),
+                ["Shadow Blade"]    = new(2, "Conjure a weapon of pure shadow: +1d8 psychic damage per purchase."),
+                ["Blinding Dark"]   = new(2, "Target blinded in magical darkness even with darkvision per purchase."),
+                ["Shadow Puppet"]   = new(3, "Animate a target's shadow to attack them: 1d6 psychic per round."),
+                ["Void Walk"]       = new(2, "Pass through solid objects by briefly entering the shadow plane."),
+                ["Shade Form"]      = new(3, "Become incorporeal for 1 round; immune to all physical damage."),
+                ["Nightmare Shroud"]= new(3, "Target simultaneously frightened and blinded until end of next turn."),
+                ["Eclipse"]         = new(4, "Plunge the entire battlefield into impenetrable magical darkness."),
             }),
-        ["Space"] = new(
-            "#1E90FF", "◉", "Bend, fold, and traverse spatial dimensions",
-            "Space magic treats physical dimensions as a medium to compress, stretch, fold, and redirect. A Space mage understands distance is a convention, not a law.",
+        ["Undeath"] = new(
+            "#6a8822", "⚰", "Raise and command the undead",
+            "Undeath magic tears the departed back from the grave and binds them to the caster's will. Masters of Undeath command armies of the risen and can walk the line of death themselves.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Portal Range", ["Duration"] = "Fold Duration",
-                ["Area"]  = "Rift Breadth", ["Power"] = "Spatial Distortion",
+                ["Range"] = "Reanimate Range", ["Duration"] = "Undead Duration",
+                ["Area"]  = "Corpse Field",     ["Power"]   = "Rot Force",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Teleport Range"]       = new(1, "Extend teleportation distance per purchase."),
-                ["Passengers"]           = new(1, "Bring one additional creature per purchase."),
-                ["Precision Targeting"]  = new(2, "Reduce teleportation error. Buy twice for perfect arrival."),
-                ["Spatial Compression"]  = new(2, "Compress an area; creatures squeezed take damage per purchase."),
-                ["Redirect"]             = new(2, "Micro-portal redirects incoming attack as a reaction."),
-                ["Dimensional Pocket"]   = new(2, "Extradimensional storage, capacity ×10 per purchase."),
-                ["Rift Anchor"]          = new(3, "Stable persistent portal between two locations."),
-                ["Blink Step"]           = new(1, "Teleport up to 15ft as part of movement per purchase."),
-                ["Gravity Override"]     = new(3, "Alter local gravity vector in a 20ft cube per purchase."),
-                ["Void Rift"]            = new(4, "Vacuum rift damages and pulls creatures each round."),
+                ["Reanimate"]       = new(1, "Raise a corpse as a zombie or skeleton. Each purchase unlocks a higher undead tier."),
+                ["Undead Control"]  = new(1, "Control one additional undead creature per purchase."),
+                ["Necrotic Infusion"]= new(2, "Empower a controlled undead: +1d6 damage or +2 AC per purchase."),
+                ["Corpse Explosion"] = new(2, "Detonate a corpse in a 10ft burst; 2d6 necrotic per purchase."),
+                ["Bone Shield"]      = new(2, "Animate bone fragments as armour; +2 AC per purchase."),
+                ["Death Speech"]     = new(1, "Controlled undead can speak and relay information to the caster."),
+                ["Dark Resurrection"]= new(3, "Raise a creature as intelligent undead retaining its memories."),
+                ["Undying Tide"]     = new(3, "Slain undead rise again after 1 round with half HP."),
+                ["Lichcraft"]        = new(4, "Transfer your soul to a phylactery; your body is destroyed but you persist."),
+                ["Undead Army"]      = new(4, "Raise all corpses in a 60ft radius simultaneously."),
             }),
-        ["Divination"] = new(
-            "#C8C8FF", "⊚", "Perceive hidden truths and future possibilities",
-            "Divination reveals what is hidden, distant, or yet to come. A Diviner who knows the enemy's position, weaknesses, and plans before battle has already won.",
+        ["Curse"] = new(
+            "#8833aa", "⊗", "Lay hexes, blights, and supernatural misfortune",
+            "Curse magic rewrites fate against a target. Curse mages stack misfortunes, wither vitality, and plant hexes that spread like plague. The most potent curses follow the marked across planes.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Scry Range", ["Duration"] = "Vision Duration",
-                ["Area"]  = "Sight Radius", ["Power"] = "Truth Penetration",
+                ["Range"] = "Curse Range", ["Duration"] = "Hex Duration",
+                ["Area"]  = "Blight Field", ["Power"]   = "Affliction",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Scry Range"]          = new(1, "Extend scrying range per purchase: building→city→continent→world→planes."),
-                ["Information Depth"]   = new(1, "Reveal deeper truth per purchase."),
-                ["Duration of Sight"]   = new(1, "Double divination window duration per purchase."),
-                ["Precognition Depth"]  = new(2, "See further into the future per purchase."),
-                ["Magical Detection"]   = new(1, "Identify magical auras in more detail per purchase."),
-                ["Truth Compulsion"]    = new(3, "Target cannot knowingly conceal information."),
-                ["Probability Map"]     = new(3, "See branching probability trees as percentages."),
-                ["Invisible Eye"]       = new(2, "Scrying sensor invisible and undetectable."),
-                ["Sense Emotion"]       = new(1, "Read surface emotions of creatures per purchase."),
-                ["Retrocognition"]      = new(3, "Read history of a location or object per purchase."),
+                ["Hex"]            = new(1, "Target has disadvantage on chosen ability checks per purchase."),
+                ["Misfortune"]     = new(2, "Target rolls all dice twice and takes the worse result."),
+                ["Wither"]         = new(1, "Reduce target's max HP by 1d6 per purchase until they rest."),
+                ["Cursed Mark"]    = new(2, "Curse transfers to the creature that kills the marked target."),
+                ["Binding Curse"]  = new(2, "Target cannot use one chosen ability or action per purchase."),
+                ["Plague Curse"]   = new(2, "Curse spreads to creatures that touch the afflicted target."),
+                ["Doom"]           = new(3, "Target dies at end of duration if curse not removed. No damage, just death."),
+                ["Entropy Curse"]  = new(3, "Target's equipment degrades: -1 to AC and attack rolls per round."),
+                ["Soul Blight"]    = new(3, "Permanently reduce a chosen ability score by 2 until magically cured."),
+                ["True Name Hex"]  = new(4, "Use target's true name to make the curse impossible to remove by normal means."),
             }),
-        ["Time"] = new(
-            "#00CED1", "⌛", "Manipulate the flow and fabric of time",
-            "Time magic manipulates temporal flow — slowing enemies, accelerating allies, reversing events, looping moments, or aging matter to dust. True Time mages step outside the timestream entirely.",
+
+        // ── Light Magic ───────────────────────────────────────────
+        ["Healing"] = new(
+            "#44cc88", "✚", "Restore vitality and cure afflictions",
+            "Healing magic mends flesh, banishes sickness, and recalls the dying from the edge. The most powerful Healers can reverse death itself, restoring the slain as if they had never fallen.",
             new Dictionary<string, string>
             {
-                ["Range"] = "Temporal Reach", ["Duration"] = "Effect Duration",
-                ["Area"]  = "Time Field", ["Power"] = "Chronos Force",
+                ["Range"] = "Heal Range", ["Duration"] = "Restoration Duration",
+                ["Area"]  = "Healing Field", ["Power"]  = "Mend Potency",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Time Slow Degree"]  = new(1, "Increase time dilation per purchase."),
-                ["Haste Degree"]      = new(1, "Increase time acceleration per purchase."),
-                ["Rewind Depth"]      = new(2, "Reverse time per action or round per purchase."),
-                ["Time Stop Duration"]= new(3, "Freeze time; each purchase adds one frozen round."),
-                ["Aging Strike"]      = new(2, "Age target 10 years per purchase."),
-                ["Loop Anchor"]       = new(3, "Create a time loop, max 3 repetitions base."),
-                ["Temporal Shield"]   = new(2, "Phase out of timestream to dodge as a reaction."),
-                ["Future Echo"]       = new(2, "See 1 round into own future; advantage on all rolls."),
-                ["Paradox Step"]      = new(4, "Act twice in one round via alternate timeline."),
-                ["Entropy Field"]     = new(3, "Objects and structures crumble per round."),
+                ["Restore HP"]         = new(1, "Heal 1d6 HP per purchase on a successful casting."),
+                ["Mend Wounds"]        = new(1, "Cure ongoing bleed, poison, or disease effects per purchase."),
+                ["Greater Heal"]       = new(2, "Add +1d8 to all healing rolls from this spell per purchase."),
+                ["Regeneration"]       = new(3, "Target regenerates 1d4 HP per round per purchase for the duration."),
+                ["Remove Condition"]   = new(2, "Cure one condition (blinded, poisoned, stunned, etc.) per purchase."),
+                ["Healing Aura"]       = new(2, "Radiate a 10ft healing aura; allies regain 1 HP per round per purchase."),
+                ["Revivify"]           = new(3, "Restore a creature to 1 HP if they died within the last round."),
+                ["Mass Heal"]          = new(3, "Simultaneously heal all allies in range for the full amount."),
+                ["Resurrection"]       = new(4, "Return a creature from death. They rise with half their max HP."),
+                ["True Restoration"]   = new(4, "Remove curses, diseases, permanent damage, and reverse magical aging."),
             }),
-        ["Necromancy"] = new(
-            "#9400D3", "☠", "Command life force, death, and undeath",
-            "Necromancy operates at the boundary between life and death. Necromancers drain life to fuel their power, reanimate corpses as tireless soldiers, and communicate with the departed.",
-            new Dictionary<string, string>
-            {
-                ["Range"] = "Death Range", ["Duration"] = "Undead Duration",
-                ["Area"]  = "Necrotic Field", ["Power"] = "Life Drain",
-            },
-            new Dictionary<string, AbilityDef>
-            {
-                ["Undead Tier"]          = new(1, "Unlock more powerful undead categories per purchase."),
-                ["Undead Count"]         = new(1, "Control one additional undead per purchase."),
-                ["Life Drain Potency"]   = new(1, "Add 1d6 necrotic damage per purchase; half to caster as THP."),
-                ["Soul Cage"]            = new(3, "Trap soul, prevent resurrection, extend per purchase."),
-                ["Death Ward"]           = new(2, "Creature stabilizes at 0 HP once per purchase, rises with 1 HP."),
-                ["Corpse Explosion"]     = new(2, "Detonate corpse as bonus action; increase per purchase."),
-                ["Deathsight"]           = new(1, "See HP auras; sense undead through walls per purchase."),
-                ["Bone Armor"]           = new(2, "+2 AC from bone fragments; +1 AC per purchase."),
-                ["Contagion Spread"]     = new(2, "Effect spreads from slain to nearby creatures per purchase."),
-                ["Phylactery Bond"]      = new(4, "Bind target's life to an object — cannot die while it exists."),
-            }),
-        ["Conjuration"] = new(
-            "#32CD32", "★", "Summon entities, objects, and substances",
-            "Conjuration reaches across space, dimensions, and planes to bring beings, objects, or materials to the caster. From practical conjuring of supplies to summoning archons and rifting planes.",
-            new Dictionary<string, string>
-            {
-                ["Range"] = "Summon Range", ["Duration"] = "Binding Duration",
-                ["Area"]  = "Conjure Area", ["Power"] = "Entity Tier",
-            },
-            new Dictionary<string, AbilityDef>
-            {
-                ["Summoned Tier"]    = new(1, "Unlock more powerful entity categories per purchase."),
-                ["Summoned Count"]   = new(1, "Summon one additional entity per purchase."),
-                ["Entity Duration"]  = new(1, "Extend how long summoned entities remain per purchase."),
-                ["Obedience Binding"]= new(2, "Entity cannot disobey direct commands per purchase."),
-                ["Material Conjure"] = new(1, "Conjure non-magical substance; double volume per purchase."),
-                ["Planar Anchor"]    = new(3, "Prevent entity from being dismissed or plane-shifted."),
-                ["Shared Senses"]    = new(2, "Telepathic link with summoned entity at unlimited range."),
-                ["Sacrifice Fuel"]   = new(2, "Spend HP to empower summoned entity per purchase."),
-                ["Rift Permanence"]  = new(4, "Summon portal remains open as two-way passage."),
-                ["Instant Recall"]   = new(2, "Dismiss all summoned entities simultaneously as bonus action."),
-            }),
-        ["Illusion"] = new(
-            "#FF8C00", "◆", "Craft false realities and deceive the senses",
-            "Illusion creates false sensory information that bypasses the conscious mind and registers as real. A master Illusionist can make phantom soldiers that trigger genuine fear responses.",
-            new Dictionary<string, string>
-            {
-                ["Range"] = "Illusion Reach", ["Duration"] = "Mirage Duration",
-                ["Area"]  = "Illusion Size", ["Power"] = "Belief Anchor",
-            },
-            new Dictionary<string, AbilityDef>
-            {
-                ["Sensory Channels"]     = new(1, "Add one sense per purchase (sight free; add sound, smell, touch, taste, pain)."),
-                ["Illusion Fidelity"]    = new(1, "Raise Investigation DC to detect by 3 per purchase."),
-                ["Illusion Size"]        = new(1, "Increase maximum size per purchase."),
-                ["Quasi-Reality"]        = new(3, "Illusion deals psychic damage to believers."),
-                ["Lingering Image"]      = new(2, "Remains after concentration ends, fading over 1 minute."),
-                ["Mirror Image"]         = new(2, "Create 1d4+1 illusory duplicates per purchase."),
-                ["Programmed Behaviour"] = new(2, "Illusion acts autonomously on a script per purchase."),
-                ["Invisibility Depth"]   = new(1, "Extend invisibility tier per purchase."),
-                ["Mass Hallucination"]   = new(3, "Affects all creatures with individually crafted versions."),
-                ["Reality Anchor"]       = new(4, "Even disbelievers still perceive it as real."),
-            }),
-        ["Abjuration"] = new(
-            "#C0C0C0", "⛨", "Ward, protect, banish, and negate magic",
-            "Abjuration erects barriers, creates wards, counters spells, banishes entities, and strips enchantments. An Abjurer who has prepared a location is effectively omnipotent within it.",
+        ["Shielding"] = new(
+            "#4488ff", "⛨", "Create magical barriers and protective wards",
+            "Shielding magic raises barriers between harm and the defended. Shield mages can wrap allies in impenetrable fields, reflect hostile spells, and make a fortress of any location.",
             new Dictionary<string, string>
             {
                 ["Range"] = "Ward Range", ["Duration"] = "Shield Duration",
-                ["Area"]  = "Ward Coverage", ["Power"] = "Barrier Strength",
+                ["Area"]  = "Barrier Coverage", ["Power"] = "Ward Strength",
             },
             new Dictionary<string, AbilityDef>
             {
-                ["Ward Strength"]      = new(1, "Add 10 HP or raise damage threshold by 5 per purchase."),
-                ["Counter Potency"]    = new(1, "+2 to dispel check per purchase."),
-                ["Ward Coverage"]      = new(1, "Extend ward area per purchase."),
-                ["Planar Exclusion"]   = new(2, "Bar one creature type or planar origin per purchase."),
-                ["Spell Reflection"]   = new(3, "Blocked spells reflect back at caster per purchase."),
-                ["Anti-Magic Shell"]   = new(4, "Suppress magical effects; extend radius per purchase."),
-                ["Alarm Trigger"]      = new(1, "Alert on trigger rather than blocking per purchase."),
-                ["Absorb Energy"]      = new(2, "Ward converts spell damage to temporary HP per purchase."),
-                ["Glyph of Warding"]   = new(2, "Store a spell in a glyph triggered by condition."),
-                ["Dimensional Lock"]   = new(3, "Prevent teleportation, planar travel, summoning in area."),
+                ["Ward"]           = new(1, "Create a magical barrier with 10 HP per purchase."),
+                ["Shield Bonus"]   = new(1, "+1 AC bonus to the target per purchase while the spell is active."),
+                ["Damage Reduction"]= new(2, "Reduce all incoming damage by 1d4 per purchase."),
+                ["Spell Reflect"]  = new(2, "Blocked spells reflect back at the caster per purchase."),
+                ["Aegis"]          = new(2, "Grant immunity to one chosen damage type per purchase."),
+                ["Sanctuary"]      = new(3, "Attackers must succeed on a WIS save or be unable to target protected creatures."),
+                ["Spell Barrier"]  = new(2, "Automatically attempt to counterspell one incoming spell per round."),
+                ["Iron Skin"]      = new(3, "Harden a creature's flesh; +5 AC and resistance to physical damage."),
+                ["Impenetrable"]   = new(4, "Grant full damage immunity for 1 round per purchase."),
+                ["Fortress"]       = new(4, "Create an immovable ward over an area; nothing passes in or out."),
+            }),
+        ["Banishment"] = new(
+            "#cc8844", "⊘", "Exorcise, dispel, and exile otherworldly forces",
+            "Banishment magic drives out what does not belong. Banishment mages are anathema to fiends, spirits, and the undead — and the most skilled can seal a planar intrusion permanently.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Banish Range", ["Duration"] = "Exile Duration",
+                ["Area"]  = "Holy Field",   ["Power"]    = "Banish Potency",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Exorcise"]       = new(1, "Drive out spirits, fiends, or celestials. Each purchase raises the CR cap."),
+                ["Holy Brand"]     = new(1, "Branded target takes +1d6 radiant damage per purchase on each hit."),
+                ["Turn Undead"]    = new(2, "Cause undead to flee on failed WIS save per purchase."),
+                ["Dispel Magic"]   = new(2, "End one active magical effect per purchase."),
+                ["Exile"]          = new(3, "Send a target to its home plane; it cannot voluntarily return."),
+                ["Holy Ground"]    = new(2, "Sanctify an area; undead and fiends cannot enter."),
+                ["True Strike"]    = new(2, "+5 to attack and damage rolls against unholy creatures per purchase."),
+                ["Consecrate"]     = new(2, "Nullify all dark magic in a zone for the duration."),
+                ["Planar Lock"]    = new(3, "Prevent all planar travel, teleportation, and summoning in area."),
+                ["Absolute Exile"] = new(4, "Banish target to a sealed demiplane; no means of return exists."),
+            }),
+        ["Radiance"] = new(
+            "#ffdd44", "☀", "Channel blinding light and purifying radiance",
+            "Radiance magic embodies light in its most overwhelming form. Radiance mages scorch the undead, blind foes with solar flares, and emit a presence so bright enemies crumble before them.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Light Range", ["Duration"] = "Radiance Duration",
+                ["Area"]  = "Illumination", ["Power"]   = "Sear Potency",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Light Beam"]      = new(1, "+1d6 radiant damage per purchase on a successful hit."),
+                ["Blinding Flash"]  = new(2, "Target blinded for 1 round on failed CON save per purchase."),
+                ["Illuminate"]      = new(1, "Reveal all invisible and hidden creatures in area per purchase radius."),
+                ["Searing Light"]   = new(2, "Deal double damage to undead, shadow creatures, and darkness-dwellers."),
+                ["Halo"]            = new(2, "Radiant aura; adjacent allies regain 1d4 HP per round per purchase."),
+                ["Solar Flare"]     = new(3, "AoE radiant burst; destroys all magical darkness in area."),
+                ["Purify"]          = new(2, "Remove poisons and diseases from targets in area per purchase."),
+                ["Beacon"]          = new(2, "All attacks against the marked target gain advantage for the duration."),
+                ["Sunburst"]        = new(3, "Massive radiant explosion; all in area blinded and take 4d6 radiant."),
+                ["Divine Radiance"] = new(4, "All your attacks become radiant and ignore resistance and immunity."),
+            }),
+        ["Revelation"] = new(
+            "#ffaa22", "◎", "Pierce illusions and reveal hidden truths",
+            "Revelation magic strips away deception. Revelation mages see through disguise, illusion, and lie — and can grant their allies the gift of perfect foresight in the moment before catastrophe.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Sight Range", ["Duration"] = "Vision Duration",
+                ["Area"]  = "Clarity Field", ["Power"]  = "Truth Depth",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Truth Sight"]       = new(1, "See invisible creatures, pierce illusions, and see true forms per purchase."),
+                ["Mind Read"]         = new(2, "Read the surface thoughts of a willing or failing target."),
+                ["Foresight"]         = new(2, "+5 bonus to AC and saving throws for 1 round per purchase."),
+                ["Expose Weakness"]   = new(2, "Reveal target's lowest saving throw; allies gain advantage against it."),
+                ["True Name"]         = new(3, "Learn a creature's true name; gain magical authority over it."),
+                ["Oracle Vision"]     = new(2, "See 1d4 rounds into the future per purchase; act on that knowledge."),
+                ["Magical Audit"]     = new(1, "Identify all magical effects, items, and auras on a target or area."),
+                ["See All"]           = new(3, "Gain 360-degree vision; you cannot be surprised."),
+                ["Revelation Burst"]  = new(3, "Strip all illusions and false identities from every creature in area."),
+                ["Omniscience"]       = new(4, "Ask one factual question; receive a complete and truthful answer."),
+            }),
+
+        // ── Nature Magic ──────────────────────────────────────────
+        ["Elemental"] = new(
+            "#ff8833", "⌬", "Wield the four primal elemental forces",
+            "Elemental magic channels the raw primal forces of fire, water, earth, and wind. Elemental mages freely switch between elements and can merge multiple forces into devastating combinations.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Element Range", ["Duration"] = "Force Duration",
+                ["Area"]  = "Element Field",  ["Power"]   = "Raw Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Element Channel"]     = new(1, "Add one additional elemental damage type to this spell per purchase."),
+                ["Primal Force"]        = new(1, "+1 damage die of the chosen element per purchase."),
+                ["Element Surge"]       = new(2, "Double the damage dice of one chosen element for this casting."),
+                ["Elemental Resilience"]= new(2, "Gain resistance to one element of your choice per purchase."),
+                ["Elemental Form"]      = new(3, "Transform into an elemental of chosen type for 1 minute."),
+                ["Elemental Summon"]    = new(2, "Call an elemental creature to serve you per purchase CR tier."),
+                ["Elemental Affinity"]  = new(2, "Chosen element spells cost 1 fewer point to cast per purchase."),
+                ["Wild Element"]        = new(3, "Unleash chaotic burst of all four elements simultaneously in area."),
+                ["Master Channel"]      = new(3, "Channel two different elements simultaneously in a single spell."),
+                ["Primal Manifestation"]= new(4, "Briefly manifest an avatar of primal elemental force in the area."),
+            }),
+        ["Plants"] = new(
+            "#44aa44", "⚘", "Grow, animate, and weaponise plant life",
+            "Plants magic commands living vegetation. Plants mages entangle enemies in sudden undergrowth, raise forests overnight, and breathe spores that confuse or poison any who inhale them.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Growth Range", ["Duration"] = "Entangle Duration",
+                ["Area"]  = "Growth Field",  ["Power"]   = "Root Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Entangle"]           = new(1, "Restrain targets in vines in a 10ft radius per purchase."),
+                ["Rapid Growth"]       = new(1, "Grow plants up to 10ft tall per purchase in seconds."),
+                ["Thornwall"]          = new(2, "Raise a wall of thorns; 2d4 piercing to any who pass through."),
+                ["Spore Cloud"]        = new(2, "Release a cloud of spores; confused or poisoned on failed CON save."),
+                ["Living Wood"]        = new(2, "Animate trees and wooden objects as servants per purchase."),
+                ["Photosynthetic Heal"]= new(2, "Restore HP to targets in sunlight; 1d6 per round per purchase."),
+                ["Root Network"]       = new(3, "Sense and communicate through plant root networks in area."),
+                ["Overgrowth"]         = new(3, "Cover a 30ft area in impassable dense growth instantly."),
+                ["Seed of Life"]       = new(3, "Plant a seed that grows into a protective healing tree over 1 minute."),
+                ["World Tree"]         = new(4, "Manifest a massive tree; all allies in area regenerate HP each round."),
+            }),
+        ["Animals"] = new(
+            "#aa6633", "♞", "Commune with and command beasts",
+            "Animals magic bridges the gap between civilised caster and wild beast. Animals mages speak with any creature, summon packs on a word, and can temporarily don the senses of an eagle or wolf.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Summon Range", ["Duration"] = "Bond Duration",
+                ["Area"]  = "Pack Field",    ["Power"]   = "Beast Power",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Beast Call"]    = new(1, "Summon animals of appropriate type per purchase CR tier."),
+                ["Animal Speech"] = new(1, "Speak with and fully understand all animals."),
+                ["Pack Tactics"]  = new(2, "Summoned animals gain pack-tactics advantage on attack rolls per purchase."),
+                ["Bestial Roar"]  = new(2, "Frighten all enemies in area on failed WIS save per purchase."),
+                ["Wild Sense"]    = new(1, "Gain one beast sense (scent, echolocation, infrared) per purchase."),
+                ["Beast Bond"]    = new(2, "Form a permanent telepathic bond with one animal companion."),
+                ["Feral Strike"]  = new(2, "Gain natural attacks of a chosen beast type; +1d6 per purchase."),
+                ["Alpha Command"] = new(3, "Any beast obeys single-word commands without taming or roll."),
+                ["Swarm Form"]    = new(3, "Transform into a swarm of insects for 1 minute; immune to single-target effects."),
+                ["Great Beast"]   = new(4, "Summon a legendary beast (dragon, roc, or kraken tier) to serve you."),
+            }),
+        ["Aura"] = new(
+            "#88ccaa", "◌", "Project and read magical aura fields",
+            "Aura magic senses and manipulates the invisible field that all living things emit. Aura mages heal allies through resonance, shatter enemy concentration, and expand their presence across a battlefield.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Aura Range", ["Duration"] = "Aura Duration",
+                ["Area"]  = "Aura Radius", ["Power"]   = "Aura Potency",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Aura Sense"]      = new(1, "Read the magical and emotional aura of any creature or object."),
+                ["Project Aura"]    = new(2, "Extend your aura outward to affect nearby creatures per purchase radius."),
+                ["Aura Shield"]     = new(2, "Your aura blocks all mind-affecting magic targeting you per purchase."),
+                ["Resonant Aura"]   = new(2, "Aura deals 1d4 damage to enemies that enter or start their turn in it."),
+                ["Cleansing Field"] = new(2, "Remove conditions from allies within your aura radius per purchase."),
+                ["Empowering Aura"] = new(3, "Allies within aura gain +1d4 to all attack and ability rolls per purchase."),
+                ["Aura Overload"]   = new(3, "Expand aura to 40ft radius and knock all enemies in it prone."),
+                ["Soul Reading"]    = new(2, "Read the alignment, intent, and deepest desire of a target via their aura."),
+                ["Aura Transfer"]   = new(3, "Give your protective aura entirely to another creature for the duration."),
+                ["Convergent Field"]= new(4, "Merge all allies' auras into one overwhelming field; enemies repelled."),
+            }),
+        ["Storm"] = new(
+            "#6677cc", "⚡", "Command lightning, thunder, and violent weather",
+            "Storm magic channels the raw energy of the sky. Storm mages call lightning with a gesture, send hurricanes to scatter armies, and ride the thunderhead as easily as walking.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Storm Range", ["Duration"] = "Tempest Duration",
+                ["Area"]  = "Storm Field",  ["Power"]   = "Lightning Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Lightning Bolt"]   = new(1, "+1d6 lightning damage per purchase on a successful hit."),
+                ["Thunderclap"]      = new(2, "Deafen and knock prone on failed CON save per purchase."),
+                ["Storm Stride"]     = new(1, "Move through storm or rain as a 40ft teleport per purchase."),
+                ["Gale Force"]       = new(2, "Wind pushes all targets in arc 20ft per purchase."),
+                ["Static Charge"]    = new(2, "Electrify target; next creature to hit it takes 1d6 lightning."),
+                ["Storm Sense"]      = new(1, "Perfect weather sense; you are immune to all storm and weather effects."),
+                ["Squall"]           = new(3, "Raise a localised storm in 30ft; ongoing lightning and hail each round."),
+                ["Chain Lightning"]  = new(2, "Lightning arcs to an additional target at half damage per purchase."),
+                ["Hurricane Force"]  = new(3, "Massive wind lifts all Large or smaller creatures off the ground."),
+                ["Tempest God"]      = new(4, "Full control over weather in a 10-mile radius for 1 hour."),
+            }),
+
+        // ── Planar Magic ──────────────────────────────────────────
+        ["Time"] = new(
+            "#8888ff", "⌛", "Manipulate the flow and fabric of time",
+            "Time magic bends the river of moments. Time mages slow enemies to a crawl, snap allies into blurs of action, unravel recent events, and at the peak of mastery, step entirely outside the timestream.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Temporal Reach", ["Duration"] = "Effect Duration",
+                ["Area"]  = "Time Field",      ["Power"]   = "Chronos Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Time Slow"]      = new(1, "Reduce target's speed and number of actions per purchase."),
+                ["Haste"]          = new(1, "Grant target extra speed and an additional action per purchase."),
+                ["Rewind"]         = new(2, "Reverse time on a target or object by 1 round per purchase."),
+                ["Time Stop"]      = new(3, "Freeze time; each purchase adds one additional frozen round."),
+                ["Age Strike"]     = new(2, "Age target 10 years per purchase (reversed by Remove Curse)."),
+                ["Time Loop"]      = new(3, "Create a time loop; max 3 repetitions base, +1 per purchase."),
+                ["Phase Step"]     = new(2, "Phase out of timestream as a reaction to avoid one attack."),
+                ["Future Echo"]    = new(2, "See 1 round into own future; gain advantage on all rolls this round."),
+                ["Paradox Step"]   = new(4, "Act twice in one round by borrowing time from an alternate timeline."),
+                ["Entropy Field"]  = new(3, "Objects and structures crumble at accelerated rate per round."),
+            }),
+        ["Space"] = new(
+            "#445599", "⍥", "Bend, fold, and traverse spatial dimensions",
+            "Space magic treats distance as a malleable medium. Space mages compress rooms, redirect incoming attacks through pocket rifts, and step between locations as a human steps through a door.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Portal Range", ["Duration"] = "Fold Duration",
+                ["Area"]  = "Rift Breadth",  ["Power"]   = "Spatial Distortion",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Blink"]               = new(1, "Teleport up to 30ft per purchase as part of movement."),
+                ["Portal"]              = new(2, "Open a stable portal between two points per purchase distance."),
+                ["Pocket Dimension"]    = new(2, "Access extradimensional storage; ×10 capacity per purchase."),
+                ["Spatial Compression"] = new(2, "Compress an area; creatures inside take damage per purchase."),
+                ["Redirect"]            = new(2, "Micro-portal redirects one incoming attack as a reaction."),
+                ["Gravity Shift"]       = new(3, "Alter local gravity vector in a 20ft cube per purchase."),
+                ["Dimensional Anchor"]  = new(3, "Prevent all teleportation and planar travel in zone."),
+                ["Phase Walk"]          = new(2, "Move through solid objects by briefly entering folded space."),
+                ["Void Rift"]           = new(4, "Open a vacuum rift; pulls creatures in and deals 2d8 per round."),
+                ["Infinite Fold"]       = new(4, "Collapse all distance to zero; teleport to any point instantly."),
+            }),
+        ["Summon"] = new(
+            "#cc66aa", "★", "Call entities, objects, and substances from afar",
+            "Summon magic reaches across planes to drag beings and materials into the caster's presence. Summon mages bind powerful entities with iron contracts and open permanent gates to distant realms.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Summon Range", ["Duration"] = "Binding Duration",
+                ["Area"]  = "Conjure Area",  ["Power"]   = "Entity Tier",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Call Creature"]    = new(1, "Summon a creature per purchase CR tier."),
+                ["Bind"]             = new(2, "Bound creature cannot disobey direct commands per purchase."),
+                ["Summon Count"]     = new(1, "Summon one additional creature simultaneously per purchase."),
+                ["Duration Bond"]    = new(1, "Extend how long summoned creatures remain per purchase."),
+                ["Shared Senses"]    = new(2, "Establish a telepathic link with one summoned creature at any range."),
+                ["Material Conjure"] = new(1, "Conjure a non-magical substance; double volume per purchase."),
+                ["Planar Gate"]      = new(3, "Open a two-way portal to a target plane."),
+                ["Sacrifice Empower"]= new(2, "Spend HP to empower a summoned creature; +1d6 to its attacks per purchase."),
+                ["Permanent Binding"]= new(4, "Summoned creature bound permanently with no duration limit."),
+                ["Legion Call"]      = new(4, "Summon up to 20 creatures simultaneously in a single casting."),
+            }),
+        ["Dream"] = new(
+            "#9966cc", "◑", "Enter and shape the realm of dreams",
+            "Dream magic bridges the waking world and the realm of sleep. Dream mages send their minds into others' dreams, create shared dreamscapes, and at the apex can tear dream matter into waking reality.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Dream Reach", ["Duration"] = "Vision Duration",
+                ["Area"]  = "Dream Field",  ["Power"]   = "Oneiric Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Sleep"]           = new(1, "Target falls asleep on failed WIS save per purchase."),
+                ["Enter Dream"]     = new(2, "Enter and experience a sleeping creature's active dream."),
+                ["Nightmare"]       = new(2, "Inflict a terrifying nightmare; target frightened on waking."),
+                ["Dream Send"]      = new(2, "Send a vivid message through a sleeping creature's dream."),
+                ["Lucid Walking"]   = new(2, "Physically move through the dream plane for 1 minute."),
+                ["Dream Cage"]      = new(3, "Trap a target in a looping dream; they are helpless until freed."),
+                ["Mass Sleep"]      = new(3, "Put all targets in area to sleep simultaneously per purchase."),
+                ["Dream Shaping"]   = new(2, "Construct and control a full dream-world environment."),
+                ["Dreamsteal"]      = new(3, "Extract a memory or trained skill from a sleeping target."),
+                ["Dreamweave Reality"]= new(4, "Manifest one element of a dream as a physical object or effect."),
+            }),
+        ["Void"] = new(
+            "#553388", "∅", "Harness nothingness and gravitational annihilation",
+            "Void magic commands the spaces between everything. Void mages suppress magic in a gesture, drag enemies into crushing singularities, and can walk the null space between planes unharmed.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Void Reach",  ["Duration"] = "Null Duration",
+                ["Area"]  = "Void Field",   ["Power"]   = "Entropy Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Null Field"]      = new(1, "Suppress all magic in a 10ft radius per purchase for duration."),
+                ["Annihilate"]      = new(2, "+1d8 void damage; double against non-magical objects per purchase."),
+                ["Dispel"]          = new(2, "End one active magical effect per purchase."),
+                ["Gravity Well"]    = new(2, "Pull all creatures within 30ft toward a chosen point per purchase."),
+                ["Void Touch"]      = new(2, "Strikes bypass all armour; target's armour AC bonus ignored."),
+                ["Entropic Decay"]  = new(3, "Target's max HP reduced by 10% each round for the duration."),
+                ["Null Cage"]       = new(3, "Imprison a target in void space; all magic fails while caged."),
+                ["Anti-Magic"]      = new(4, "Create a full anti-magic zone; no magic functions in area."),
+                ["Void Walk"]       = new(3, "Step into the void for 1 round; invisible and untargetable."),
+                ["Singularity"]     = new(4, "Massive gravitational collapse in 100ft; nothing survives."),
+            }),
+
+        // ── Arcane Magic ──────────────────────────────────────────
+        ["Names"] = new(
+            "#aabbcc", "ᚠ", "Bind reality through the power of true names",
+            "Names magic operates on the fundamental truth that everything that exists has a true name, and knowing it grants power. Names mages can bind, rename, curse, or erase a creature from existence.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Name Range", ["Duration"] = "Binding Duration",
+                ["Area"]  = "Naming Field", ["Power"]  = "True Name Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Name Bind"]      = new(2, "Speak a target's true name to compel compliance on failed CHA save."),
+                ["Rename"]         = new(3, "Alter a creature's name; this changes one of their core traits."),
+                ["Name Ward"]      = new(2, "Protect your own true name from being known, spoken, or used against you."),
+                ["Name Curse"]     = new(2, "Attach a curse to a target's name; it follows them across planes."),
+                ["Language Mastery"]= new(1, "Speak and understand any one language per purchase."),
+                ["Word of Power"]  = new(3, "Speak one word that stuns, sleeps, binds, or kills on failed save."),
+                ["Name Erase"]     = new(4, "Erase a target's name from all records and all living memory."),
+                ["Naming Magic"]   = new(2, "Speak a name for an object or creature to give it one new property."),
+                ["Babel Curse"]    = new(2, "Target can only speak in a language no one present understands."),
+                ["True Name Seal"] = new(4, "Lock a target's name in a seal; they cannot act against you while sealed."),
+            }),
+        ["Leyline"] = new(
+            "#44aacc", "⍟", "Tap into and redirect the world's magical veins",
+            "Leyline magic draws on the hidden channels of magical energy that run through every world. Leyline mages amplify their spells by tapping flowing power, and can reshape local magic permanently.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Line Range", ["Duration"] = "Channel Duration",
+                ["Area"]  = "Ley Field",   ["Power"]   = "Leyline Potency",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Line Tap"]     = new(1, "Draw power from the nearest leyline; boost the next spell cast this turn."),
+                ["Channel Flow"] = new(2, "Route leyline energy through your body; all spells empowered for 3 rounds."),
+                ["Line Sight"]   = new(1, "Detect and map all leylines in a 1-mile area."),
+                ["Energy Surge"] = new(2, "Leyline surge doubles the range or area of your next spell."),
+                ["Disrupt Line"] = new(3, "Sabotage a leyline; suppress magic for all others in zone for 1 hour."),
+                ["Line Anchor"]  = new(2, "Anchor to a leyline; maintain concentration spells without concentration checks."),
+                ["Convergence"]  = new(3, "Draw two leylines together; massive power surge empowers all spells for 1 minute."),
+                ["Ley Ward"]     = new(2, "Raise a self-sustaining ward powered by leyline; persists 1 hour without concentration."),
+                ["Line Master"]  = new(3, "Control a leyline; redirect its energy to empower allies or weapons."),
+                ["Node Awakening"]= new(4, "Awaken a dormant leyline node; transform the area's magical properties permanently."),
+            }),
+        ["Eldritch"] = new(
+            "#cc8833", "⊛", "Channel forces from beyond known reality",
+            "Eldritch magic draws power from the spaces outside reality. Eldritch mages wield force blasts that defy physics, warp geometry, and open rifts to the Far Realm from which sanity-breaking entities emerge.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Eldritch Range", ["Duration"] = "Aberrant Duration",
+                ["Area"]  = "Eldritch Field",  ["Power"]   = "Cosmic Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Eldritch Blast"]    = new(1, "+1d8 force damage per purchase; ignores armour type."),
+                ["Aberrant Form"]     = new(2, "Grow a monstrous feature (tentacle, eye, beak); gain its attack."),
+                ["Madness Touch"]     = new(2, "Target suffers a random madness effect on failed INT save per purchase."),
+                ["Void Gaze"]         = new(2, "Gaze attack; frightened and prone on failed WIS save."),
+                ["Reality Crack"]     = new(3, "Tear a rift to the Far Realm; aberrant entities may emerge."),
+                ["Mind Fracture"]     = new(2, "Shatter target's concentration; all active spells and effects end."),
+                ["Eldritch Shroud"]   = new(2, "Wrap yourself in eldritch energy; melee attackers take 1d6 force."),
+                ["Cosmic Horror"]     = new(3, "All creatures in area make WIS save or be incapacitated 1 round."),
+                ["Unnatural Geometry"]= new(3, "Warp space in area; movement costs double and distances are unpredictable."),
+                ["Star Spawn"]        = new(4, "Call an entity from beyond. It cannot be controlled and attacks all."),
+            }),
+        ["Chaos"] = new(
+            "#ff5522", "⁂", "Unleash wild magic and entropic randomness",
+            "Chaos magic is power without order. Chaos mages surf probability, detonate wild surges, and at the pinnacle can briefly unmake the rules that govern reality itself in their immediate vicinity.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Chaos Range", ["Duration"] = "Entropy Duration",
+                ["Area"]  = "Chaos Field",  ["Power"]   = "Wild Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Wild Surge"]        = new(1, "Trigger a random magical effect on target or in area per purchase."),
+                ["Chaos Bolt"]        = new(2, "Deal damage of a random type; rolls twice per purchase, take higher."),
+                ["Entropic Burst"]    = new(2, "Randomly remove one condition per purchase from any creature in area."),
+                ["Warp Reality"]      = new(3, "Reality briefly breaks; all rules suspended for 1 round in area."),
+                ["Probability Shift"] = new(2, "Force a reroll of any one die result per purchase; take either result."),
+                ["Luck Drain"]        = new(2, "Remove all luck bonuses from target; transfer them to yourself."),
+                ["Random Polymorph"]  = new(3, "Transform target into a random creature form on failed CON save."),
+                ["Cascade"]           = new(3, "Additional random magical effects erupt near target each round."),
+                ["Chaos Form"]        = new(4, "Embody pure chaos for 1 minute; immune to all targeted effects."),
+                ["Unmaking"]          = new(4, "Target partially unmade; loses one random ability score point each round."),
+            }),
+        ["Law"] = new(
+            "#8899aa", "⊞", "Impose absolute order and binding commands",
+            "Law magic encodes rules into the fabric of reality. Law mages bind enemies to stillness, compel truth, and can declare edicts that every creature in a region is physically incapable of breaking.",
+            new Dictionary<string, string>
+            {
+                ["Range"] = "Edict Range", ["Duration"] = "Law Duration",
+                ["Area"]  = "Order Field",  ["Power"]   = "Command Force",
+            },
+            new Dictionary<string, AbilityDef>
+            {
+                ["Edict"]          = new(2, "Command target to follow one specific rule; violations cause 1d6 damage."),
+                ["Binding Contract"]= new(2, "Magical contract; violations deal 2d6 damage to the breaker per purchase."),
+                ["Order Field"]    = new(2, "No creature in area can act deceptively or chaotically per purchase."),
+                ["Suppress"]       = new(1, "Suppress one magical effect in area per purchase."),
+                ["Impose"]         = new(2, "Force target to take one specific action on their next turn."),
+                ["Law Ward"]       = new(2, "Create a ward that only lawful creatures can pass through."),
+                ["Immutable Law"]  = new(3, "Declare one rule; all in area must obey it as physical compulsion."),
+                ["Truth Compel"]   = new(3, "Target cannot speak falsehoods for the duration; no saving throw."),
+                ["Sentence"]       = new(3, "Magical judgment; target is incapacitated pending your verdict."),
+                ["Divine Law"]     = new(4, "Declare one absolute law; becomes physical reality for 1 hour."),
             }),
     };
 
@@ -513,51 +936,82 @@ public static class GameData
     public static readonly IReadOnlyDictionary<(string, string), string> SchoolConnections =
         new Dictionary<(string, string), string>
         {
-            [("Evocation","Transmutation")]  = "Catalytic Surge — damage also reshapes targets structurally",
-            [("Evocation","Necromancy")]      = "Soul Scorch — energy damage drains life force simultaneously",
-            [("Evocation","Conjuration")]     = "Elemental Calling — summon beings of your damage type",
-            [("Evocation","Space")]           = "Rift Blast — teleport projectiles through micro-portals",
-            [("Evocation","Abjuration")]      = "Spell Absorb — absorb incoming energy to power your blast",
-            [("Evocation","Illusion")]        = "Phantom Fire — illusory damage that still burns the mind",
-            [("Evocation","Time")]            = "Temporal Detonation — delay a blast to trigger later",
-            [("Evocation","Enchantment")]     = "Awe Strike — raw power forces a fear save on the target",
-            [("Evocation","Divination")]      = "Guided Missile — divination locks perfect aim onto targets",
-            [("Transmutation","Time")]        = "Temporal Morph — reshape a target across multiple time states",
-            [("Transmutation","Space")]       = "Phase Shift — transmute the spatial coordinates of an object",
-            [("Transmutation","Necromancy")]  = "Corpse Alchemy — animate dead by transmuting their matter",
-            [("Transmutation","Illusion")]    = "Mimic Matter — illusions that fool even magical detection",
-            [("Transmutation","Enchantment")] = "Mind over Matter — reshape self to affect mental state",
-            [("Transmutation","Divination")]  = "Material Truth — read an object's full history by touch",
-            [("Transmutation","Conjuration")] = "Forge Summons — conjure and transmute simultaneously",
-            [("Transmutation","Abjuration")]  = "Living Ward — transform flesh into a magical barrier",
-            [("Enchantment","Illusion")]      = "Phantasmal Compulsion — illusion plants commands as memory",
-            [("Enchantment","Time")]          = "Memory Weave — rewrite recollections with temporal precision",
-            [("Enchantment","Necromancy")]    = "Soul Binding — bind a spirit's will directly to a command",
-            [("Enchantment","Divination")]    = "Mind Probe — read and subtly influence surface thoughts",
-            [("Enchantment","Space")]         = "Compel Step — enchanted target teleports on command",
-            [("Enchantment","Conjuration")]   = "Loyal Summons — summoned entity is permanently charmed",
-            [("Enchantment","Abjuration")]    = "Psychic Ward — ward fueled by the minds of those it protects",
-            [("Space","Conjuration")]         = "Dimensional Gate — summon directly from across any plane",
-            [("Space","Time")]                = "Chrono-Fold — teleport through both space and time at once",
-            [("Space","Abjuration")]          = "Null Space — imprison a target in a sealed pocket dimension",
-            [("Space","Necromancy")]          = "Death Step — step between life and death as spatial planes",
-            [("Space","Divination")]          = "Spatial Scry — see any location you can spatially pinpoint",
-            [("Space","Illusion")]            = "Mirror Realm — spatial pocket disguised as empty space",
-            [("Divination","Time")]           = "True Sight of Ages — perceive past and future simultaneously",
-            [("Divination","Necromancy")]     = "Speak with Dead — commune with souls in the afterlife",
-            [("Divination","Illusion")]       = "False Oracle — your divination misleads other seers instead",
-            [("Divination","Conjuration")]    = "Scry and Call — summon directly to your scrying focus",
-            [("Divination","Abjuration")]     = "Arcane Lock — detect and permanently seal magical intrusions",
-            [("Time","Necromancy")]           = "Decay Pulse — accelerate aging of targets to crumbling dust",
-            [("Time","Abjuration")]           = "Temporal Ward — rewind damage suffered within the last round",
-            [("Time","Illusion")]             = "Echo Image — project an image of yourself from the past",
-            [("Time","Conjuration")]          = "Summon From Past — call a creature from a previous moment",
-            [("Necromancy","Conjuration")]    = "Undead Summons — summon pre-raised undead from storage",
-            [("Necromancy","Illusion")]       = "Death Mirage — illusion so vivid it can kill through belief",
-            [("Necromancy","Abjuration")]     = "Corpse Ward — animate a corpse specifically as a shield",
-            [("Conjuration","Illusion")]      = "Dream Manifest — conjure matter from within a living illusion",
-            [("Conjuration","Abjuration")]    = "Ward Circle — banish summoned entities on contact with ward",
-            [("Illusion","Abjuration")]       = "Mirror Ward — ward reflects images, confusing attackers",
+            // ── Dark Magic (within-theme) ─────────────────────────
+            [("Blood","Death")]    = "Sanguine Reaping — each hit drains life force and hemorrhages simultaneously",
+            [("Blood","Shadow")]   = "Crimson Veil — blood spray forms an obscuring cloud of dark vapour",
+            [("Blood","Undeath")]  = "Vitae Tide — blood animated corpses rise stronger and hungrier",
+            [("Blood","Curse")]    = "Corrupted Vein — curses spread through the target's own bloodstream",
+            [("Death","Shadow")]   = "Wraith Form — death energy given shadow; caster becomes partially incorporeal",
+            [("Death","Undeath")]  = "Perfected Undead — risen dead are more powerful and fully intelligent",
+            [("Death","Curse")]    = "Doom Mark — death and curse fuse; marked target cannot be saved from death",
+            [("Shadow","Undeath")] = "Shadow Horde — undead move and attack through shadows silently",
+            [("Shadow","Curse")]   = "Haunting Hex — curse follows through darkness; cannot be avoided by light",
+            [("Undeath","Curse")]  = "Blighted Corpse — risen undead carry and spread curses on their attacks",
+
+            // ── Light Magic (within-theme) ────────────────────────
+            [("Healing","Shielding")]  = "Regenerative Ward — shields restore HP to those within them each round",
+            [("Healing","Banishment")] = "Purge and Mend — banishment expels the wound along with the spirit",
+            [("Healing","Radiance")]   = "Luminous Restoration — healing also radiates light, damaging undead nearby",
+            [("Healing","Revelation")] = "Diagnostic Vision — see exact injuries and ailments before healing",
+            [("Shielding","Banishment")]= "Sacred Barrier — ward automatically triggers banishment on contact",
+            [("Shielding","Radiance")] = "Mirror Shield — ward reflects radiant energy as a blinding flash",
+            [("Shielding","Revelation")]= "Clarity Field — ward strips illusions and reveals all within its radius",
+            [("Banishment","Radiance")]= "Divine Condemnation — banishment fueled by radiant light scorches as it exiles",
+            [("Banishment","Revelation")]= "True Exile — revelation confirms target is otherworldly before banishing",
+            [("Radiance","Revelation")]= "Solar Truth — radiant light strips deception from any it touches",
+
+            // ── Nature Magic (within-theme) ───────────────────────
+            [("Elemental","Plants")]  = "Storm Bloom — plants grow and wield elemental power on command",
+            [("Elemental","Animals")] = "Primal Bond — summoned animals infused with elemental energy",
+            [("Elemental","Aura")]    = "Elemental Resonance — aura radiates chosen element to all nearby",
+            [("Elemental","Storm")]   = "Primal Tempest — unleash all four elements in a catastrophic storm",
+            [("Plants","Animals")]    = "Living Forest — plants and animals work in concert as one ecosystem",
+            [("Plants","Aura")]       = "Root Aura — aura extends through root networks across entire area",
+            [("Plants","Storm")]      = "Seed Storm — storm scatters and instantly grows tangling plant life",
+            [("Animals","Aura")]      = "Pack Aura — aura empowers all allied beasts in its radius",
+            [("Animals","Storm")]     = "Wild Hunt — animals ride the storm, moving at double speed",
+            [("Aura","Storm")]        = "Tempest Field — storm and aura merge; electricity arcs through the field",
+
+            // ── Planar Magic (within-theme) ───────────────────────
+            [("Time","Space")]    = "Chrono-Fold — teleport through both space and time simultaneously",
+            [("Time","Summon")]   = "Summon From Past — call a creature or object from a previous moment",
+            [("Time","Dream")]    = "Eternal Dreaming — trapped in a dream that replays forever",
+            [("Time","Void")]     = "Decay Pulse — accelerate time to crumble targets to dust",
+            [("Space","Summon")]  = "Dimensional Gate — summon directly from across any plane",
+            [("Space","Dream")]   = "Mirror Realm — pocket dimension disguised as an empty dream space",
+            [("Space","Void")]    = "Null Space — imprison a target in a folded void pocket",
+            [("Summon","Dream")]  = "Dream Manifest — conjure matter pulled from within a shared dream",
+            [("Summon","Void")]   = "Void Caller — summon entities native to the void between planes",
+            [("Dream","Void")]    = "Dreamless Void — target enters a void sleep with no dreams; helpless",
+
+            // ── Arcane Magic (within-theme) ───────────────────────
+            [("Names","Leyline")]   = "Named Line — leyline responds only to one who speaks its true name",
+            [("Names","Eldritch")]  = "True Horror — speak the true name of an eldritch entity to bind it",
+            [("Names","Chaos")]     = "Unnamed Chaos — strip names from reality; all order collapses",
+            [("Names","Law")]       = "True Name Seal — law enforced through the binding power of true names",
+            [("Leyline","Eldritch")]= "Eldritch Tap — draw eldritch power from a corrupted leyline node",
+            [("Leyline","Chaos")]   = "Surge Line — sabotaged leyline erupts in random wild magic surges",
+            [("Leyline","Law")]     = "Law Line — leyline energy enforces an edict across its entire length",
+            [("Eldritch","Chaos")]  = "Unravelling — eldritch and chaos fuse; reality dissolves in the area",
+            [("Eldritch","Law")]    = "Forbidden Edict — an eldritch entity bound to enforce one absolute law",
+            [("Chaos","Law")]       = "Entropic Order — law and chaos war in the area; unpredictable results",
+
+            // ── Cross-theme synergies ─────────────────────────────
+            [("Blood","Healing")]    = "Life Exchange — blood magic siphoned to fuel healing of allies",
+            [("Death","Summon")]     = "Undead Summons — summon pre-raised undead from a stored cache",
+            [("Shadow","Dream")]     = "Nightmare Realm — shadow pours into the dream plane; night terrors manifest",
+            [("Curse","Law")]        = "Cursed Edict — law binds a curse permanently; no saving throw possible",
+            [("Undeath","Time")]     = "Ageless Undead — risen dead are frozen in time; cannot be re-killed",
+            [("Radiance","Storm")]   = "Divine Thunder — lightning strikes carry radiant energy; destroys undead",
+            [("Revelation","Names")] = "True Naming — revelation reveals the true name; naming seals the power",
+            [("Elemental","Chaos")]  = "Primal Chaos — elemental forces erupt randomly in all four types at once",
+            [("Aura","Leyline")]     = "Ley Aura — aura draws from leyline energy; limitless, self-sustaining",
+            [("Plants","Void")]      = "Entropy Growth — void-touched plants drain life from all around them",
+            [("Animals","Time")]     = "Ancient Beast — summon a primordial animal ancestor of vast power",
+            [("Shielding","Law")]    = "Iron Edict — ward enforced by law magic; violation punishes the attacker",
+            [("Banishment","Void")]  = "Absolute Annihilation — banish to void; target ceases to exist entirely",
+            [("Eldritch","Dream")]   = "Cosmic Nightmare — eldritch entities cross into and corrupt the dream plane",
+            [("Leyline","Space")]    = "Dimensional Ley — leylines used as instant-travel conduits across the world",
         };
 
     // ── Global modifiers ─────────────────────────────────────────
@@ -680,6 +1134,14 @@ public static class GameData
     {
         if (SchoolConnections.ContainsKey((a, b))) return (a, b);
         if (SchoolConnections.ContainsKey((b, a))) return (b, a);
+        return null;
+    }
+
+    // ── Helper: theme name for a school ──────────────────────────
+    public static string? SchoolThemeName(string school)
+    {
+        foreach (var (theme, list) in SchoolThemes)
+            if (list.Contains(school)) return theme;
         return null;
     }
 

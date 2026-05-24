@@ -12,8 +12,8 @@ public class MagicCircleCanvas : FrameworkElement
     // ── Constants ────────────────────────────────────────────────
     private const double OuterR     = 370.0;
     private const double CenterR    = 96.0;
-    private const double NodeRPri   = 50.0;
-    private const double NodeRSec   = 38.0;
+    private const double NodeRPri   = 24.0;
+    private const double NodeRSec   = 20.0;
     // Modifier ring: orbit and circle radius are R-relative, defined in DrawModRing
     private const string BgHex      = "#1a1208";
 
@@ -563,13 +563,21 @@ public class MagicCircleCanvas : FrameworkElement
     //  LAYER 2 — OUTER FRAME
     // ════════════════════════════════════════════════════════════
 
+    // Theme centres are 72° apart; 5 schools within each theme spread ±20° at 10° steps.
+    private static readonly string[] _themeNames  = ["Dark","Light","Nature","Planar","Arcane"];
+    private static readonly double[] _themeAngles = [0.0, 72.0, 144.0, 216.0, 288.0];
+    private static readonly double[] _themeOffsets = [-20.0, -10.0, 0.0, 10.0, 20.0];
+
     private Dictionary<string, (double x, double y)> ComputeNodePositions(double R)
     {
         var pos = new Dictionary<string, (double, double)>();
-        var list = GameData.SchoolOrder;
         double nodeR = R * 0.82;
-        for (int i = 0; i < list.Count; i++)
-            pos[list[i]] = Wpt(0, 0, nodeR, i * (360.0 / list.Count));
+        for (int t = 0; t < _themeNames.Length; t++)
+        {
+            var schools = GameData.SchoolThemes[_themeNames[t]];
+            for (int s = 0; s < schools.Count; s++)
+                pos[schools[s]] = Wpt(0, 0, nodeR, _themeAngles[t] + _themeOffsets[s]);
+        }
         return pos;
     }
 
@@ -598,20 +606,34 @@ public class MagicCircleCanvas : FrameworkElement
         RingW(0, 0, schoolR,                   ink2, 2);
         RingW(0, 0, schoolR + NodeRSec * 1.40, ink2, 1);
 
-        var list = GameData.SchoolOrder;
-        int n    = list.Count;
-        var spts = Enumerable.Range(0, n).Select(i => Wpt(0, 0, schoolR, i * (360.0 / n))).ToArray();
-        for (int i = 0; i < n; i++)
-            for (int j = i + 2; j < n - 1; j++)
-                LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, ink2, 0.07);
-
-        for (int i = 0; i < n; i++)
+        // Draw within-theme chord lines (connect adjacent + skip-one pairs per theme)
+        for (int t = 0; t < _themeNames.Length; t++)
         {
-            double a  = i * (360.0 / n);
-            var (dx, dy) = Wpt(0, 0, R * 0.950, a);
-            string c2    = GameData.Schools[list[i]].Color;
-            string fill  = active.Contains(list[i]) ? c2 : ColorHelper.Blend(BgHex, c2, 0.30);
-            TextW(dx, dy, "◆", fill, 5);
+            var schools = GameData.SchoolThemes[_themeNames[t]];
+            var spts    = schools.Select(sc => pos[sc]).ToArray();
+            for (int i = 0; i < spts.Length; i++)
+                for (int j = i + 1; j < spts.Length; j++)
+                    LineWF(spts[i].x, spts[i].y, spts[j].x, spts[j].y, ink2, 0.09);
+        }
+        // Draw cross-theme lines between theme centres only (faint)
+        for (int t1 = 0; t1 < _themeNames.Length; t1++)
+        for (int t2 = t1 + 1; t2 < _themeNames.Length; t2++)
+        {
+            var (cx1, cy1) = Wpt(0, 0, schoolR, _themeAngles[t1]);
+            var (cx2, cy2) = Wpt(0, 0, schoolR, _themeAngles[t2]);
+            LineWF(cx1, cy1, cx2, cy2, ink2, 0.04);
+        }
+
+        // Diamond markers at each school's actual position
+        foreach (var (school, (sx, sy)) in pos)
+        {
+            var (dx, dy) = Wpt(sx, sy, NodeRSec * 1.55, 0); // just above the circle
+            // Use direction from origin to place the diamond outward
+            double ang = Math.Atan2(sy, sx) * 180.0 / Math.PI + 90.0;
+            var (mx, my) = Wpt(0, 0, schoolR + NodeRSec * 1.45, ang);
+            string c2   = GameData.Schools[school].Color;
+            string fill = active.Contains(school) ? c2 : ColorHelper.Blend(BgHex, c2, 0.30);
+            TextW(mx, my, "◆", fill, 5);
         }
 
         if (!string.IsNullOrEmpty(s.Name))
