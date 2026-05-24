@@ -6,11 +6,12 @@ namespace SpellForge.Models;
 
 public partial class Spell : ObservableObject
 {
-    [ObservableProperty] private string _name        = "Unnamed Spell";
-    [ObservableProperty] private string _description = "";
-    /// <summary>Which attrition grade this spell applies on a successful hit.
-    /// One of the names in <see cref="GameData.AttritionTypes"/> (default "None").</summary>
+    [ObservableProperty] private string _name          = "Unnamed Spell";
+    [ObservableProperty] private string _description   = "";
+    /// <summary>Which attrition grade this spell applies on a successful hit.</summary>
     [ObservableProperty] private string _attritionType = "None";
+    /// <summary>Explicitly designated primary school.  Empty = none chosen.</summary>
+    [ObservableProperty] private string _primarySchool = "";
 
     // school → {abilityName → count}
     public Dictionary<string, Dictionary<string, int>> SchoolAbilities { get; set; } = new();
@@ -63,6 +64,20 @@ public partial class Spell : ObservableObject
                 if (hasAbility || hasRingMod) result.Add(school);
             }
             return result;
+        }
+    }
+
+    /// <summary>The school that renders in the centre of the magic circle.
+    /// Returns <see cref="PrimarySchool"/> if it is currently active; otherwise empty.</summary>
+    [JsonIgnore]
+    public string PrimarySchoolResolved
+    {
+        get
+        {
+            var all = AllSchools;
+            if (!string.IsNullOrEmpty(PrimarySchool) && all.Contains(PrimarySchool))
+                return PrimarySchool;
+            return "";
         }
     }
 
@@ -324,6 +339,7 @@ public partial class Spell : ObservableObject
         OnPropertyChanged(nameof(RingModsRemaining));
         OnPropertyChanged(nameof(ValidationWarnings));
         OnPropertyChanged(nameof(IsValid));
+        OnPropertyChanged(nameof(PrimarySchoolResolved));
     }
 }
 

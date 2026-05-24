@@ -10,13 +10,12 @@ namespace SpellForge.Views.Controls;
 public class MagicCircleCanvas : FrameworkElement
 {
     // ── Constants ────────────────────────────────────────────────
-    private const double OuterR   = 370.0;
-    private const double CenterR  = 96.0;
-    private const double NodeRPri = 50.0;
-    private const double NodeRSec = 38.0;
-    private const double ModOrbit = 62.0;
-    private const double ModCR    = 19.0;
-    private const string BgHex    = "#1a1208";
+    private const double OuterR     = 370.0;
+    private const double CenterR    = 96.0;
+    private const double NodeRPri   = 50.0;
+    private const double NodeRSec   = 38.0;
+    // Modifier ring: orbit and circle radius are R-relative, defined in DrawModRing
+    private const string BgHex      = "#1a1208";
 
     // ── Global zoom actions ──────────────────────────────────────
     public static Action? GlobalZoomIn;
@@ -400,6 +399,7 @@ public class MagicCircleCanvas : FrameworkElement
         DrawOuterFrame(R, pos);
         DrawMainGeometry(R);
         DrawElementRing(R);
+        DrawModRing(R);       // modifier circles on middle ring (R×0.38 track)
         DrawSchoolModules(pos);
         DrawCenterHub();
         DrawDrawbackRings();
@@ -898,12 +898,35 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawSchoolModules(Dictionary<string, (double x, double y)> pos)
     {
-        var active = new HashSet<string>(Spell!.AllSchools);
+        var s       = Spell!;
+        var active  = new HashSet<string>(s.AllSchools);
+        string primary = s.PrimarySchoolResolved;
+
         foreach (var (school, pt) in pos)
-            DrawModule(pt.x, pt.y, school, active);
+        {
+            if (school == primary)
+            {
+                // Ghost outline at orbit so the user can see which slot it "belongs to"
+                var sd = GameData.Schools[school];
+                double ghostR = NodeRPri * s.CircleSizes.GetValueOrDefault(school, 1.0);
+                RingWF(pt.x, pt.y, ghostR, sd.Color, 0.15, 1, true);
+                TextWF(pt.x, pt.y, sd.Symbol, sd.Color, 0.22,
+                       Math.Max(7, (int)(ghostR * 0.44)));
+                // No hit at orbit for primary — interaction is at center
+            }
+            else
+            {
+                DrawModule(pt.x, pt.y, school, active, isPrimary: false);
+            }
+        }
+
+        // Draw the designated primary school at the centre of the circle
+        if (!string.IsNullOrEmpty(primary))
+            DrawModule(0, 0, primary, active, isPrimary: true);
     }
 
-    private void DrawModule(double wx, double wy, string school, HashSet<string> activeSet)
+    private void DrawModule(double wx, double wy, string school, HashSet<string> activeSet,
+                            bool isPrimary = false)
     {
         var s     = Spell!;
         var sd    = GameData.Schools[school];
@@ -918,9 +941,31 @@ public class MagicCircleCanvas : FrameworkElement
             ? abD.Values.Sum() : 0;
         int rmTotal  = s.RingMods.TryGetValue(school, out var rmD)
             ? rmD.Values.Sum() : 0;
-        Hit(wx, wy, r,
-            $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}",
-            $"Circle Stats\nAbilities: {abBought}  ·  Ring mods: {rmTotal}/12\n{(cap ? "⚜ Capstone Active!" : "Capstone: fill all 4 ring mods to 3")}");
+
+        string statsRight = $"Circle Stats\nAbilities: {abBought}  ·  Ring mods: {rmTotal}/12\n" +
+                            $"{(cap ? "⚜ Capstone Active!" : "Capstone: fill all 4 ring mods to 3")}";
+
+        if (isPrimary)
+        {
+            // Primary school sits at centre: click to clear designation
+            Hit(wx, wy, r,
+                $"★ {sd.Symbol}  {school}  [PRIMARY]\n{sd.Desc}\nLeft-click: remove from centre",
+                statsRight,
+                () => MutateSpell(sp => sp.PrimarySchool = ""));
+
+            // Prominent "primary" golden glow ring
+            RingWF(wx, wy, r * 1.55, "#FFD700", 0.30, 2, true);
+            RingW(wx, wy,  r * 1.42, "#FFD700", 1);
+        }
+        else
+        {
+            // Orbit school: left-click active school to designate as primary
+            string clickHint = act ? "\nLeft-click: move to centre as Primary School" : "";
+            Hit(wx, wy, r,
+                $"◆ {sd.Symbol}  {school}\n{(act ? "Active" : "Inactive — buy abilities or ring mods to activate")}\n{sd.Desc}{clickHint}",
+                statsRight,
+                act ? () => MutateSpell(sp => sp.PrimarySchool = school) : null);
+        }
 
         if (cap && act)
         {
@@ -1072,8 +1117,14 @@ public class MagicCircleCanvas : FrameworkElement
             TextW(wx, wy + r * 1.52, $"⚜ {cd.Name} ⚜", capC, 5);
         }
 
-        TextW(wx, wy + r + 10, school,
-              act ? ColorHelper.Blend(c, "#e8d8a0", 0.50) : ColorHelper.Blend(BgHex, c, 0.22), 6);
+        // Label: below the circle normally; above the hub ring when centred
+        double labelY = isPrimary ? -(CenterR + 14) : wy + r + 10;
+        double labelX = isPrimary ? 0               : wx;
+        string labelC = isPrimary
+            ? ColorHelper.Blend(c, "#FFD700", 0.55)
+            : act ? ColorHelper.Blend(c, "#e8d8a0", 0.50)
+                  : ColorHelper.Blend(BgHex, c, 0.22);
+        TextW(labelX, labelY, isPrimary ? $"★ {school}" : school, labelC, 6);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -1094,10 +1145,8 @@ public class MagicCircleCanvas : FrameworkElement
         {
             var (x1, y1) = Wpt(0, 0, r * 0.30, i * seg);
             var (x2, y2) = Wpt(0, 0, r * 0.92, i * seg);
-            LineWF(x1, y1, x2, y2, "#aaaacc", 0.22);
+            LineWF(x1, y1, x2, y2, "#aaaacc", 0.12);
         }
-
-        DrawModCircles();
 
         var s   = Spell!;
         int pts = s.TotalPoints;
@@ -1137,39 +1186,49 @@ public class MagicCircleCanvas : FrameworkElement
         }
     }
 
-    private void DrawModCircles()
+    // ════════════════════════════════════════════════════════════
+    //  MODIFIER RING  (middle ring at R×0.38)
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawModRing(double R)
     {
+        double orbit = R * 0.38;   // rides the faint inner geometry ring at this fraction
+        double modCR = 22.0;       // world-space circle radius for each category circle
+
         var s    = Spell!;
         var cats = GameData.CatColors.Keys.ToList();
         int n    = cats.Count;
         double seg = 360.0 / n;
 
+        // Faint dashed track ring — the circles sit on this
+        RingWF(0, 0, orbit, "#aaaacc", 0.14, 1, true);
+
         for (int i = 0; i < n; i++)
         {
             string cat   = cats[i];
             double angle = i * seg + seg / 2;
-            var (cx, cy) = Wpt(0, 0, ModOrbit, angle);
+            var (cx, cy) = Wpt(0, 0, orbit, angle);
             string gc    = GameData.CatColors[cat];
             var catMods  = GameData.DefaultGlobalMods.Where(kv => kv.Value.Cat == cat).ToList();
             bool hasAct  = catMods.Any(kv => s.GlobalMods.TryGetValue(kv.Key, out int v) && v > 0);
 
-            CircleW(cx, cy, ModCR, Br(gc, hasAct ? 0.12 : 0.05));
-            RingW(cx, cy, ModCR, ColorHelper.Blend(BgHex, gc, hasAct ? 0.60 : 0.30), hasAct ? 2 : 1);
-            RingWF(cx, cy, ModCR * 0.68, gc, 0.18);
+            CircleW(cx, cy, modCR, Br(gc, hasAct ? 0.13 : 0.05));
+            RingW(cx, cy, modCR, ColorHelper.Blend(BgHex, gc, hasAct ? 0.65 : 0.30), hasAct ? 2 : 1);
+            RingWF(cx, cy, modCR * 0.68, gc, 0.18);
 
             for (int k = 0; k < 4; k++)
             {
-                var (p1x, p1y) = Wpt(cx, cy, ModCR * 0.12, angle + k * 90);
-                var (p2x, p2y) = Wpt(cx, cy, ModCR * 0.62, angle + k * 90);
+                var (p1x, p1y) = Wpt(cx, cy, modCR * 0.12, angle + k * 90);
+                var (p2x, p2y) = Wpt(cx, cy, modCR * 0.62, angle + k * 90);
                 LineWF(p1x, p1y, p2x, p2y, gc, 0.18);
             }
 
             string baseRune = GameData.ModRunes[cat][0];
             TextW(cx, cy, baseRune,
                   hasAct ? ColorHelper.Blend(gc, "#ffffff", 0.75) : ColorHelper.Blend(BgHex, gc, 0.45),
-                  Math.Max(6, (int)(ModCR * 0.50)), isFixed: true);
+                  Math.Max(6, (int)(modCR * 0.50)), isFixed: true);
 
-            Hit(cx, cy, ModCR,
+            Hit(cx, cy, modCR,
                 $"■ {cat} Modifiers\n" +
                 string.Join("\n", catMods.Select(kv =>
                     $"  {kv.Key} ({kv.Value.Cost} pt, max {kv.Value.Max})")),
@@ -1177,7 +1236,7 @@ public class MagicCircleCanvas : FrameworkElement
 
             int nm = catMods.Count;
             if (nm == 0) continue;
-            double nodeR = ModCR * 0.82;
+            double nodeR = modCR * 0.82;
             for (int j = 0; j < nm; j++)
             {
                 var (rx, ry) = Wpt(cx, cy, nodeR, j * (360.0 / nm));
@@ -1195,13 +1254,13 @@ public class MagicCircleCanvas : FrameworkElement
                     else
                     {
                         CircleW(rx, ry, 3, Br(gc, 0.65));
-                        TextWB(rx, ry, rune, gc, "#ffffff", 0.80, Math.Max(5, (int)(ModCR * 0.30)), isFixed: true);
+                        TextWB(rx, ry, rune, gc, "#ffffff", 0.80, Math.Max(5, (int)(modCR * 0.30)), isFixed: true);
                     }
                 }
                 else
                 {
                     CircleW(rx, ry, 2, Br(gc, 0.14));
-                    TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(ModCR * 0.26)), isFixed: true);
+                    TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(modCR * 0.26)), isFixed: true);
                 }
                 string modLeft = modDrawback
                     ? $"◈ {capModKey}  [{cat}]  ⚠ Drawback\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}\nRefunds −{capModDef.Cost} pt  ·  Right-click to remove"
