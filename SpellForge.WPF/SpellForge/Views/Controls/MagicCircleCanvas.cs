@@ -50,7 +50,10 @@ public class MagicCircleCanvas : FrameworkElement
     private bool   _panMoved;
 
     // ── Hit testing ──────────────────────────────────────────────
-    private record HitRegion(Point Center, double Radius, string Left, string Right, Action? OnClick, Action? OnRightClick = null);
+    // World-space coords are stored so FindHit always recomputes the screen
+    // position from the current _ox/_oy/_zoom — eliminates stale hits after
+    // zoom/pan before the next OnRender fires.
+    private record HitRegion(double Wx, double Wy, double WorldR, string Left, string Right, Action? OnClick, Action? OnRightClick = null);
     private readonly List<HitRegion> _hits = new();
     private string? _hoverLeft;
     private string? _hoverRight;
@@ -110,16 +113,19 @@ public class MagicCircleCanvas : FrameworkElement
     }
 
     private void Hit(double wx, double wy, double worldR, string left, string right = "", Action? onClick = null, Action? onRightClick = null)
-    {
-        var sc = Tc(wx, wy);
-        _hits.Add(new HitRegion(sc, Math.Max(worldR * _zoom, 12), left, right, onClick, onRightClick));
-    }
+        => _hits.Add(new HitRegion(wx, wy, worldR, left, right, onClick, onRightClick));
 
     // Return the smallest (most specific) matching region so pip hits
     // always win over the larger school-circle hit that contains them.
+    // Screen position is computed here from current _ox/_oy/_zoom so the
+    // result is always correct even if OnRender hasn't fired since a zoom/pan.
     private HitRegion? FindHit(Point p) =>
-        _hits.Where(h => (p - h.Center).Length <= h.Radius + 4)
-             .MinBy(h => h.Radius);
+        _hits.Where(h => {
+            var sc = Tc(h.Wx, h.Wy);
+            double sr = Math.Max(h.WorldR * _zoom, 12);
+            return (p - sc).Length <= sr + 4;
+        })
+        .MinBy(h => h.WorldR);
 
     // ── Mouse ────────────────────────────────────────────────────
     protected override void OnMouseWheel(MouseWheelEventArgs e)
