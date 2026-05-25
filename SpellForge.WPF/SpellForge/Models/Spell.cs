@@ -23,12 +23,6 @@ public partial class Spell : ObservableObject
     public ObservableCollection<string> CustomEffects { get; set; } = new();
     // school → size multiplier (0.4–2.2)
     public Dictionary<string, double> CircleSizes { get; set; } = new();
-    // element name → null (inactive), "" (active no subtype), or subtype string
-    public Dictionary<string, string?> Elements { get; set; } = new();
-    // element name → {nodeName → count}
-    public Dictionary<string, Dictionary<string, int>> ElementNodes { get; set; } = new();
-    // "el1,el2" → {nodeName → count}
-    public Dictionary<string, Dictionary<string, int>> SubelementNodes { get; set; } = new();
     // drawback key → negative mod name
     public Dictionary<string, string> DrawbackBuys { get; set; } = new();
     // user-added negative mods
@@ -37,8 +31,6 @@ public partial class Spell : ObservableObject
     public Dictionary<string, CapstoneDef> CustomCapstones { get; set; } = new();
     // user-added custom global modifier definitions
     public Dictionary<string, ModDef> CustomMods { get; set; } = new();
-    // per-element text overrides (modification label + description)
-    public Dictionary<string, ElementOverride> CustomElementDescs { get; set; } = new();
     // if-then conditions
     public ObservableCollection<ConditionEntry> IfThenConditions { get; set; } = new();
     // when-then conditions
@@ -46,7 +38,6 @@ public partial class Spell : ObservableObject
 
     // ── Rule constants ────────────────────────────────────────────
     public const int MaxSchools  = 3;
-    public const int MaxElements = 3;   // already enforced in UI; mirrored here for validation
 
     // ── Derived properties ────────────────────────────────────────
     [JsonIgnore]
@@ -122,9 +113,6 @@ public partial class Spell : ObservableObject
             int sc = AllSchools.Count;
             if (sc > MaxSchools)
                 w.Add($"Too many schools  ({sc} active / {MaxSchools} max)");
-            int el = Elements.Values.Count(v => v != null);
-            if (el > MaxElements)
-                w.Add($"Too many elements  ({el} active / {MaxElements} max)");
             int rm = TotalRingMods;
             if (rm > RingModCap)
                 w.Add($"Ring mods exceed cap  ({rm} used / {RingModCap} allowed at base level)");
@@ -149,12 +137,6 @@ public partial class Spell : ObservableObject
             foreach (var groups in RingMods.Values)
                 foreach (var cnt in groups.Values)
                     if (cnt > 0) n++;
-            foreach (var val in Elements.Values)
-                if (val != null) n++;
-            foreach (var nodes in ElementNodes.Values)
-                n += nodes.Values.Count(c => c > 0);
-            foreach (var nodes in SubelementNodes.Values)
-                n += nodes.Values.Count(c => c > 0);
             return n;
         }
     }
@@ -212,32 +194,6 @@ public partial class Spell : ObservableObject
             }
             foreach (var groups in RingMods.Values)
                 foreach (var cnt in groups.Values) pts += cnt;
-            foreach (var (el, val) in Elements)
-            {
-                if (val == null) continue;
-                pts += 2;
-                if (val.Length > 0) pts += 1; // subtype
-            }
-            foreach (var (el, nodes) in ElementNodes)
-            {
-                if (!GameData.Elements.TryGetValue(el, out var ed)) continue;
-                foreach (var (nname, cnt) in nodes)
-                {
-                    var nd = ed.Nodes.FirstOrDefault(x => x.Name == nname);
-                    if (nd != null) pts += nd.Cost * cnt;
-                }
-            }
-            foreach (var (pairKey, nodes) in SubelementNodes)
-            {
-                var parts = pairKey.Split(',');
-                if (parts.Length != 2) continue;
-                if (!GameData.SubelementNodes.TryGetValue((parts[0], parts[1]), out var defs)) continue;
-                foreach (var (nname, cnt) in nodes)
-                {
-                    var nd = defs.FirstOrDefault(x => x.Name == nname);
-                    if (nd != null) pts += nd.Cost * cnt;
-                }
-            }
             // ── Subtract drawback refunds ─────────────────────────
             int grossPts = pts;
             foreach (var key in DrawbackBuys.Keys)
@@ -265,30 +221,6 @@ public partial class Spell : ObservableObject
                 }
                 else if (key.StartsWith("ringmod/"))
                     pts -= 1;
-                else if (key.StartsWith("elemnode/"))
-                {
-                    var kparts = key.Split('/', 3);
-                    if (kparts.Length == 3 &&
-                        GameData.Elements.TryGetValue(kparts[1], out var eld))
-                    {
-                        var nd = eld.Nodes.FirstOrDefault(x => x.Name == kparts[2]);
-                        if (nd != null) pts -= nd.Cost;
-                    }
-                }
-                else if (key.StartsWith("subelemnode/"))
-                {
-                    var kparts   = key.Split('/', 3);
-                    if (kparts.Length == 3)
-                    {
-                        var subParts = kparts[1].Split(',');
-                        if (subParts.Length == 2 &&
-                            GameData.SubelementNodes.TryGetValue((subParts[0], subParts[1]), out var defs))
-                        {
-                            var nd = defs.FirstOrDefault(x => x.Name == kparts[2]);
-                            if (nd != null) pts -= nd.Cost;
-                        }
-                    }
-                }
             }
             // Enforce 50% cap: drawbacks can refund at most half of gross cost
             int maxRefund = Math.Max(0, grossPts / 2);
