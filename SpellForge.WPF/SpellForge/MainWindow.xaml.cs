@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using SpellForge.Models;
 using SpellForge.ViewModels;
 using SpellForge.Views.Controls;
 
@@ -21,12 +22,71 @@ public partial class MainWindow : Window
 
     private void PopulateSchoolTabs(SpellViewModel vm)
     {
-        foreach (var schoolVm in vm.SchoolViewModels)
+        var panelBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0d0d1a"));
+
+        foreach (var (domainName, schools) in GameData.SchoolDomains)
         {
+            var di          = GameData.DomainInfo[domainName];
+            var domainColor = (Color)ColorConverter.ConvertFromString(di.Color);
+
+            // ── Domain tab header: symbol + name in domain colour ──
+            var domainHeader = new TextBlock
+            {
+                Text       = $"{di.Symbol}  {domainName}",
+                Foreground = new SolidColorBrush(domainColor),
+                FontSize   = 11,
+                Padding    = new Thickness(0, 1, 0, 1),
+            };
+
+            // ── One Expander per school inside the domain ──────────
+            var stack = new StackPanel { Margin = new Thickness(2) };
+            foreach (var schoolName in schools)
+            {
+                var schoolVm    = vm.SchoolViewModels.First(s => s.Name == schoolName);
+                var schoolColor = (Color)ColorConverter.ConvertFromString(schoolVm.Color);
+                var dimColor    = Color.FromArgb(0x44, schoolColor.R, schoolColor.G, schoolColor.B);
+
+                var expHeader = new StackPanel { Orientation = Orientation.Horizontal };
+                expHeader.Children.Add(new TextBlock
+                {
+                    Text       = schoolVm.Symbol,
+                    Foreground = new SolidColorBrush(schoolColor),
+                    FontSize   = 13,
+                    Width      = 22,
+                    TextAlignment = System.Windows.TextAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                expHeader.Children.Add(new TextBlock
+                {
+                    Text       = schoolName,
+                    Foreground = new SolidColorBrush(schoolColor),
+                    FontSize   = 11,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+
+                var expander = new Expander
+                {
+                    Header          = expHeader,
+                    Content         = new SchoolPanel { DataContext = schoolVm },
+                    IsExpanded      = false,
+                    Background      = panelBg,
+                    BorderBrush     = new SolidColorBrush(dimColor),
+                    BorderThickness = new Thickness(0, 0, 0, 1),
+                    Margin          = new Thickness(0, 0, 0, 1),
+                };
+                stack.Children.Add(expander);
+            }
+
             var tab = new TabItem
             {
-                Header  = schoolVm.Name,
-                Content = new SchoolPanel { DataContext = schoolVm },
+                Header  = domainHeader,
+                Content = new ScrollViewer
+                {
+                    Content                       = stack,
+                    VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    Background                    = panelBg,
+                },
             };
             LeftTabs.Items.Add(tab);
         }

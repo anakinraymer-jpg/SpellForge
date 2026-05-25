@@ -575,26 +575,24 @@ public class MagicCircleCanvas : FrameworkElement
     //  LAYER 2 — OUTER FRAME
     // ════════════════════════════════════════════════════════════
 
-    // Theme centres are 72° apart; 5 schools within each theme spread ±20° at 10° steps.
-    private static readonly string[] _themeNames  = ["Dark","Light","Nature","Planar","Arcane"];
-    private static readonly double[] _themeAngles = [0.0, 72.0, 144.0, 216.0, 288.0];
-    private static readonly double[] _themeOffsets = [-20.0, -10.0, 0.0, 10.0, 20.0];
+    // Domain centres are 72° apart; 5 schools within each domain spread ±20° at 10° steps.
+    private static readonly string[] _domainNames   = ["Dark","Light","Nature","Planar","Arcane"];
+    private static readonly double[] _domainAngles  = [0.0, 72.0, 144.0, 216.0, 288.0];
+    private static readonly double[] _domainOffsets = [-20.0, -10.0, 0.0, 10.0, 20.0];
 
-    // Representative color and symbol for each theme
-    private static readonly string[] _themeColors  =
-        ["#bb1133", "#ccbb33", "#338833", "#3355bb", "#4488aa"];
-    private static readonly string[] _themeSymbols =
-        ["☠", "✦", "⚘", "⌛", "ᚠ"];
+    // Color and symbol per domain — sourced from GameData.DomainInfo
+    private static string DomainColor(int t)  => GameData.DomainInfo[_domainNames[t]].Color;
+    private static string DomainSymbol(int t) => GameData.DomainInfo[_domainNames[t]].Symbol;
 
     private Dictionary<string, (double x, double y)> ComputeNodePositions(double R)
     {
         var pos = new Dictionary<string, (double, double)>();
         double nodeR = R * 0.82;
-        for (int t = 0; t < _themeNames.Length; t++)
+        for (int t = 0; t < _domainNames.Length; t++)
         {
-            var schools = GameData.SchoolThemes[_themeNames[t]];
+            var schools = GameData.SchoolDomains[_domainNames[t]];
             for (int s = 0; s < schools.Count; s++)
-                pos[schools[s]] = Wpt(0, 0, nodeR, _themeAngles[t] + _themeOffsets[s]);
+                pos[schools[s]] = Wpt(0, 0, nodeR, _domainAngles[t] + _domainOffsets[s]);
         }
         return pos;
     }
@@ -611,14 +609,14 @@ public class MagicCircleCanvas : FrameworkElement
 
         double schoolR = R * 0.82;
 
-        // ── Theme sector fills (drawn first, behind rings) ────────
-        for (int t = 0; t < _themeNames.Length; t++)
+        // ── Domain sector fills (drawn first, behind rings) ───────
+        for (int t = 0; t < _domainNames.Length; t++)
         {
-            string tc   = _themeColors[t];
-            double tA   = _themeAngles[t];
+            string tc   = DomainColor(t);
+            double tA   = _domainAngles[t];
             double aS   = tA - 24.0;
             const double span = 48.0;
-            bool anyActive = GameData.SchoolThemes[_themeNames[t]].Any(sc => active.Contains(sc));
+            bool anyActive = GameData.SchoolDomains[_domainNames[t]].Any(sc => active.Contains(sc));
 
             // Faint wedge fill in the school ring zone for this theme
             WedgeWF(0, 0, schoolR * 0.93, schoolR + NodeRSec * 2.0, aS, aS + span, tc,
@@ -627,11 +625,11 @@ public class MagicCircleCanvas : FrameworkElement
             // Colored arc on the outer label ring
             ArcRingWF(0, 0, schoolR + NodeRSec * 1.85, aS, span, tc, anyActive ? 0.80 : 0.40, 2);
 
-            // Theme label in arc text
-            ArcTextW(0, 0, schoolR + NodeRSec * 2.60, _themeNames[t].ToUpper(),
+            // Domain label in arc text
+            ArcTextW(0, 0, schoolR + NodeRSec * 2.60, _domainNames[t].ToUpper(),
                      tA, tc, anyActive ? 5.5 : 4.5, 5.2);
 
-            // Theme separator radial lines at sector edges
+            // Domain separator radial lines at sector edges
             foreach (double boundary in new[] { aS, aS + span })
             {
                 var (bx1, by1) = Wpt(0, 0, schoolR * 0.92, boundary);
@@ -652,7 +650,7 @@ public class MagicCircleCanvas : FrameworkElement
             double r1 = R * (i % 6 == 0 ? 0.956 : 0.966);
             var (x1, y1) = Wpt(0, 0, r1,        a);
             var (x2, y2) = Wpt(0, 0, R * 0.978, a);
-            string tickC = ThemeColorAt(a, ink2);
+            string tickC = DomainColorAt(a, ink2);
             LineW(x1, y1, x2, y2, tickC, sw);
         }
 
@@ -677,14 +675,14 @@ public class MagicCircleCanvas : FrameworkElement
         DrawConnectionLines(pos);
     }
 
-    // Returns the theme color if angleDeg falls within any 48° theme sector, else fallback.
-    private static string ThemeColorAt(double angleDeg, string fallback)
+    // Returns the domain color if angleDeg falls within any 48° domain sector, else fallback.
+    private static string DomainColorAt(double angleDeg, string fallback)
     {
         angleDeg = ((angleDeg % 360) + 360) % 360;
-        for (int t = 0; t < _themeAngles.Length; t++)
+        for (int t = 0; t < _domainAngles.Length; t++)
         {
-            double diff = Math.Abs(((angleDeg - _themeAngles[t] + 540) % 360) - 180);
-            if (diff <= 24.0) return _themeColors[t];
+            double diff = Math.Abs(((angleDeg - _domainAngles[t] + 540) % 360) - 180);
+            if (diff <= 24.0) return DomainColor(t);
         }
         return fallback;
     }
@@ -742,10 +740,10 @@ public class MagicCircleCanvas : FrameworkElement
         var asc   = Spell!.AllSchools;
         double webR = R * 0.48;
 
-        // Which themes are active?
-        var activeTheme = new bool[5];
-        for (int t = 0; t < _themeNames.Length; t++)
-            activeTheme[t] = GameData.SchoolThemes[_themeNames[t]].Any(asc.Contains);
+        // Which domains are active?
+        var activeDomain = new bool[5];
+        for (int t = 0; t < _domainNames.Length; t++)
+            activeDomain[t] = GameData.SchoolDomains[_domainNames[t]].Any(asc.Contains);
 
         // Blend of all active school colors → neutral geometry tint
         string blendC = asc.Count > 0
@@ -756,8 +754,8 @@ public class MagicCircleCanvas : FrameworkElement
         // Outer glow boundary ring
         RingWF(0, 0, R * 0.50, blendC, 0.16);
 
-        // ── 5-point pentagram — vertices align with theme centres ──
-        var verts = _themeAngles.Select(a => Wpt(0, 0, webR, a)).ToArray();
+        // ── 5-point pentagram — vertices align with domain centres ──
+        var verts = _domainAngles.Select(a => Wpt(0, 0, webR, a)).ToArray();
 
         // Pentagon filled backdrop
         PolyW(verts, Br(blendC, 0.04));
@@ -766,8 +764,8 @@ public class MagicCircleCanvas : FrameworkElement
         for (int i = 0; i < 5; i++)
         for (int j = i + 1; j < 5; j++)
         {
-            string edgeC = ColorHelper.Blend(_themeColors[i], _themeColors[j], 0.5);
-            bool either  = activeTheme[i] || activeTheme[j];
+            string edgeC = ColorHelper.Blend(DomainColor(i), DomainColor(j), 0.5);
+            bool either  = activeDomain[i] || activeDomain[j];
             LineWF(verts[i].x, verts[i].y, verts[j].x, verts[j].y, edgeC, either ? 0.16 : 0.06);
         }
 
@@ -775,7 +773,7 @@ public class MagicCircleCanvas : FrameworkElement
         for (int i = 0; i < 5; i++)
         {
             int j = (i + 1) % 5;
-            string edgeC = ColorHelper.Blend(_themeColors[i], _themeColors[j], 0.5);
+            string edgeC = ColorHelper.Blend(DomainColor(i), DomainColor(j), 0.5);
             LineWF(verts[i].x, verts[i].y, verts[j].x, verts[j].y, edgeC, 0.28);
         }
 
@@ -787,11 +785,11 @@ public class MagicCircleCanvas : FrameworkElement
         PolyNW(0, 0, R * 0.42, 3,     stroke: PnF(blendC, 0.22, 1));
         PolyNW(0, 0, R * 0.42, 3, 60, stroke: PnF(blendC, 0.16, 1, true));
 
-        // ── Theme vertex markers — glow when theme is active ──────
+        // ── Domain vertex markers — glow when domain is active ────
         for (int t = 0; t < 5; t++)
         {
-            string tc  = _themeColors[t];
-            bool   act = activeTheme[t];
+            string tc  = DomainColor(t);
+            bool   act = activeDomain[t];
             // Vertex dot
             CircleW(verts[t].x, verts[t].y, act ? 5.0 : 2.0, Br(tc, act ? 0.92 : 0.28));
             if (act)
@@ -799,7 +797,7 @@ public class MagicCircleCanvas : FrameworkElement
                 // Glow halo + theme symbol
                 RingWF(verts[t].x, verts[t].y, 9.0, tc, 0.50, 1);
                 RingWF(verts[t].x, verts[t].y, 14.0, tc, 0.18, 1, true);
-                TextWF(verts[t].x, verts[t].y, _themeSymbols[t], tc, 0.85, 6);
+                TextWF(verts[t].x, verts[t].y, DomainSymbol(t), tc, 0.85, 6);
             }
         }
     }

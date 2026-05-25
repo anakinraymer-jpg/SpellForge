@@ -23,6 +23,7 @@ public record LevelEntry(int Lo, int Hi, string Name, string Color);
 
 /// <summary>One of the five attrition grades (severity 0–4).</summary>
 public record AttritionDef(string Name, string Symbol, string Desc, string Color, int Severity);
+public record DomainDef(string Symbol, string Color);
 
 public static class GameData
 {
@@ -376,8 +377,19 @@ public static class GameData
         };
 
     // ── Schools ───────────────────────────────────────────────────
-    /// <summary>Theme name → ordered list of its 5 school names.</summary>
-    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> SchoolThemes =
+    /// <summary>Domain symbol + accent color for each of the 5 domains.</summary>
+    public static readonly IReadOnlyDictionary<string, DomainDef> DomainInfo =
+        new Dictionary<string, DomainDef>
+        {
+            ["Dark"]   = new("☠",  "#bb1133"),
+            ["Light"]  = new("✦",  "#ccbb33"),
+            ["Nature"] = new("⚘",  "#338833"),
+            ["Planar"] = new("⌛",  "#3355bb"),
+            ["Arcane"] = new("ᚠ",  "#4488aa"),
+        };
+
+    /// <summary>Domain name → ordered list of its 5 school names.</summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> SchoolDomains =
         new Dictionary<string, IReadOnlyList<string>>
         {
             ["Dark"]   = ["Blood","Death","Shadow","Undeath","Curse"],
@@ -936,7 +948,7 @@ public static class GameData
     public static readonly IReadOnlyDictionary<(string, string), string> SchoolConnections =
         new Dictionary<(string, string), string>
         {
-            // ── Dark Magic (within-theme) ─────────────────────────
+            // ── Dark Magic (within-domain) ─────────────────────────
             [("Blood","Death")]    = "Sanguine Reaping — each hit drains life force and hemorrhages simultaneously",
             [("Blood","Shadow")]   = "Crimson Veil — blood spray forms an obscuring cloud of dark vapour",
             [("Blood","Undeath")]  = "Vitae Tide — blood animated corpses rise stronger and hungrier",
@@ -948,7 +960,7 @@ public static class GameData
             [("Shadow","Curse")]   = "Haunting Hex — curse follows through darkness; cannot be avoided by light",
             [("Undeath","Curse")]  = "Blighted Corpse — risen undead carry and spread curses on their attacks",
 
-            // ── Light Magic (within-theme) ────────────────────────
+            // ── Light Magic (within-domain) ────────────────────────
             [("Healing","Shielding")]  = "Regenerative Ward — shields restore HP to those within them each round",
             [("Healing","Banishment")] = "Purge and Mend — banishment expels the wound along with the spirit",
             [("Healing","Radiance")]   = "Luminous Restoration — healing also radiates light, damaging undead nearby",
@@ -960,7 +972,7 @@ public static class GameData
             [("Banishment","Revelation")]= "True Exile — revelation confirms target is otherworldly before banishing",
             [("Radiance","Revelation")]= "Solar Truth — radiant light strips deception from any it touches",
 
-            // ── Nature Magic (within-theme) ───────────────────────
+            // ── Nature Magic (within-domain) ───────────────────────
             [("Elemental","Plants")]  = "Storm Bloom — plants grow and wield elemental power on command",
             [("Elemental","Animals")] = "Primal Bond — summoned animals infused with elemental energy",
             [("Elemental","Aura")]    = "Elemental Resonance — aura radiates chosen element to all nearby",
@@ -972,7 +984,7 @@ public static class GameData
             [("Animals","Storm")]     = "Wild Hunt — animals ride the storm, moving at double speed",
             [("Aura","Storm")]        = "Tempest Field — storm and aura merge; electricity arcs through the field",
 
-            // ── Planar Magic (within-theme) ───────────────────────
+            // ── Planar Magic (within-domain) ───────────────────────
             [("Time","Space")]    = "Chrono-Fold — teleport through both space and time simultaneously",
             [("Time","Summon")]   = "Summon From Past — call a creature or object from a previous moment",
             [("Time","Dream")]    = "Eternal Dreaming — trapped in a dream that replays forever",
@@ -984,7 +996,7 @@ public static class GameData
             [("Summon","Void")]   = "Void Caller — summon entities native to the void between planes",
             [("Dream","Void")]    = "Dreamless Void — target enters a void sleep with no dreams; helpless",
 
-            // ── Arcane Magic (within-theme) ───────────────────────
+            // ── Arcane Magic (within-domain) ───────────────────────
             [("Names","Leyline")]   = "Named Line — leyline responds only to one who speaks its true name",
             [("Names","Eldritch")]  = "True Horror — speak the true name of an eldritch entity to bind it",
             [("Names","Chaos")]     = "Unnamed Chaos — strip names from reality; all order collapses",
@@ -996,7 +1008,7 @@ public static class GameData
             [("Eldritch","Law")]    = "Forbidden Edict — an eldritch entity bound to enforce one absolute law",
             [("Chaos","Law")]       = "Entropic Order — law and chaos war in the area; unpredictable results",
 
-            // ── Cross-theme synergies ─────────────────────────────
+            // ── Cross-domain synergies ─────────────────────────────
             [("Blood","Healing")]    = "Life Exchange — blood magic siphoned to fuel healing of allies",
             [("Death","Summon")]     = "Undead Summons — summon pre-raised undead from a stored cache",
             [("Shadow","Dream")]     = "Nightmare Realm — shadow pours into the dream plane; night terrors manifest",
@@ -1137,11 +1149,11 @@ public static class GameData
         return null;
     }
 
-    // ── Helper: theme name for a school ──────────────────────────
-    public static string? SchoolThemeName(string school)
+    // ── Helper: domain name for a school ─────────────────────────
+    public static string? SchoolDomainName(string school)
     {
-        foreach (var (theme, list) in SchoolThemes)
-            if (list.Contains(school)) return theme;
+        foreach (var (domain, list) in SchoolDomains)
+            if (list.Contains(school)) return domain;
         return null;
     }
 
