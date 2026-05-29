@@ -30,6 +30,8 @@ public static class GameData
     {
         ["Range"]    = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
         ["Duration"] = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
+        ["Origin"]   = ["ᛟ","ᚩ","ᛞ","ᚾ","⊙","◎"],
+        ["Targets"]  = ["ᛏ","ᛁ","ᚹ","⊕","◉","✦"],
         // Shape is the global mod category displayed in hub/mod ring
         ["Shape"]    = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
         // Area is a ring-mod group on each school — runes needed for DrawModule
@@ -42,6 +44,8 @@ public static class GameData
     {
         ["Range"]    = "#ff6060",
         ["Duration"] = "#60ee88",
+        ["Origin"]   = "#cc88ff",
+        ["Targets"]  = "#44ddcc",
         ["Shape"]    = "#6088ff",
     };
 
@@ -878,6 +882,10 @@ public static class GameData
             ["Duration: Day"]        = new("Duration",  7, 1, "The spell effect lasts for one day."),
             ["Duration: Year"]       = new("Duration", 10, 1, "The spell effect lasts one year."),
             ["Duration: Permanent"]  = new("Duration", 15, 1, "The spell effect is permanent."),
+            ["Origin: Self"]         = new("Origin",   0, 1, "Spell originates from the caster."),
+            ["Origin: Else"]         = new("Origin",   2, 1, "Spell originates from a location other than the caster."),
+            ["Targets"]              = new("Targets",  0, 1, "First target selection is free."),
+            ["Targets: Additional"]  = new("Targets",  2,10, "Each additional target. 2 pts per purchase."),
             ["Shape: Area"]     = new("Shape", 1, 10, "Spherical area. Each point = 10 ft radius (1pt=10ft, 2pt=20ft…)."),
             ["Shape: Line"]     = new("Shape", 1, 10, "Line from caster. Each point = 30 ft length (1pt=30ft, 2pt=60ft…)."),
             ["Shape: Cone"]     = new("Shape", 1, 10, "Cone from caster. Each point = 15 ft length (1pt=15ft, 2pt=30ft…)."),

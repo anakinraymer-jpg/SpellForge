@@ -38,6 +38,8 @@
                 <ComboBox x:Name="CatBox" SelectedIndex="0">
                     <ComboBoxItem Content="Range"/>
                     <ComboBoxItem Content="Duration"/>
+                    <ComboBoxItem Content="Origin"/>
+                    <ComboBoxItem Content="Targets"/>
                     <ComboBoxItem Content="Shape"/>
                 </ComboBox>
             </StackPanel>
