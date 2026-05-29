@@ -1191,21 +1191,19 @@ public class MagicCircleCanvas : FrameworkElement
 
     private void DrawModRing(double R)
     {
-        double orbit = R * 0.38;   // rides the faint inner geometry ring at this fraction
+        // Circles sit on the pentagon corners (same orbit as inner geometry web)
+        double orbit = R * 0.48;
         double modCR = 22.0;       // world-space circle radius for each category circle
 
         var s    = Spell!;
         var cats = GameData.CatColors.Keys.ToList();
-        int n    = cats.Count;
-        double seg = 360.0 / n;
-
-        // Faint dashed track ring — the circles sit on this
-        RingWF(0, 0, orbit, "#aaaacc", 0.14, 1, true);
+        int n    = cats.Count;     // must equal 5 — one per pentagon corner
 
         for (int i = 0; i < n; i++)
         {
             string cat   = cats[i];
-            double angle = i * seg + seg / 2;
+            // Use the pentagon corner angles directly (CatColors order matches corner order)
+            double angle = i < _domainAngles.Length ? _domainAngles[i] : i * (360.0 / n);
             var (cx, cy) = Wpt(0, 0, orbit, angle);
             string gc    = GameData.CatColors[cat];
             var catMods  = GameData.DefaultGlobalMods.Where(kv => kv.Value.Cat == cat).ToList();

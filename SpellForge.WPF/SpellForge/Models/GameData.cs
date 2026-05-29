@@ -40,13 +40,15 @@ public static class GameData
         ["Power"]    = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
     };
 
+    // Order matches pentagon corner layout: top → clockwise
+    // Origin (top), Targets (upper-right), Shape (lower-right), Range (lower-left), Duration (upper-left)
     public static readonly IReadOnlyDictionary<string, string> CatColors = new Dictionary<string, string>
     {
-        ["Range"]    = "#ff6060",
-        ["Duration"] = "#60ee88",
         ["Origin"]   = "#cc88ff",
         ["Targets"]  = "#44ddcc",
         ["Shape"]    = "#6088ff",
+        ["Range"]    = "#ff6060",
+        ["Duration"] = "#60ee88",
     };
 
     // ── Attrition types (severity 0 → 4) ───────────────────────
