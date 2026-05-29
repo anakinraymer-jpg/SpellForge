@@ -417,6 +417,7 @@ public class MagicCircleCanvas : FrameworkElement
         var pos = ComputeNodePositions(R);
         DrawOuterFrame(R, pos);
         DrawMainGeometry(R);
+        DrawLevelPips(R);     // level pip ring at R×0.64
         DrawModRing(R);       // modifier circles on middle ring (R×0.38 track)
         DrawSchoolModules(pos);
         DrawCenterHub();
@@ -798,6 +799,72 @@ public class MagicCircleCanvas : FrameworkElement
                 RingWF(verts[t].x, verts[t].y, 14.0, tc, 0.18, 1, true);
                 TextWF(verts[t].x, verts[t].y, DomainSymbol(t), tc, 0.85, 6);
             }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  LAYER 4 — LEVEL PIP RING
+    // ════════════════════════════════════════════════════════════
+
+    private void DrawLevelPips(double R)
+    {
+        var s      = Spell!;
+        int pts    = s.TotalPoints;
+        int lvlIdx = Math.Min(GameData.LevelTable.Count - 1,
+                              GameData.LevelTable.TakeWhile(e => e.Hi < pts).Count());
+
+        int    n       = GameData.LevelTable.Count;   // 15: Cantrip → Omnipotent
+        double orbit   = R * 0.64;
+        double pipR    = 5.5;                         // world-space radius of each pip
+        double seg     = 360.0 / n;
+        double start   = -90.0;                       // first pip at 12 o'clock
+
+        // Faint dashed track ring
+        RingWF(0, 0, orbit, "#7788aa", 0.12, 1, true);
+
+        for (int i = 0; i < n; i++)
+        {
+            var    entry  = GameData.LevelTable[i];
+            double angle  = start + i * seg;
+            var    (px, py) = Wpt(0, 0, orbit, angle);
+
+            bool reached = i <= lvlIdx;
+            bool current = i == lvlIdx;
+            string color = entry.Color;
+
+            if (current)
+            {
+                // Current level — bright fill + double glow halo
+                RingWF(px, py, pipR * 2.2, color, 0.18, 1, true);
+                RingWF(px, py, pipR * 1.5, color, 0.40);
+                CircleW(px, py, pipR,       Br(color, 0.90));
+                RingW(px, py,   pipR,       color, 1.5);
+            }
+            else if (reached)
+            {
+                // Reached — solid fill, level color
+                CircleW(px, py, pipR, Br(color, 0.55));
+                RingW(px, py,   pipR, ColorHelper.Blend(BgHex, color, 0.75), 1.0);
+            }
+            else
+            {
+                // Not yet — ghost ring only
+                CircleW(px, py, pipR * 0.65, Br(BgHex, 1.0));
+                RingWF(px, py,  pipR * 0.65, color, 0.18);
+            }
+
+            // Hover hit-region
+            int    dice   = i;                   // Cantrip = 0d6, 1st = 1d6, …
+            string diceStr = dice == 0 ? "no dice" : $"{dice}d6";
+            string status  = current ? "◀ current level"
+                           : reached ? "✓ reached"
+                                     : $"need {entry.Lo - pts} more pt{(entry.Lo - pts == 1 ? "" : "s")}";
+            string tipLeft = $"{entry.Name}  ·  {diceStr}\n" +
+                             $"Range: {entry.Lo}–{(entry.Hi >= 999 ? "∞" : entry.Hi.ToString())} pts\n" +
+                             status;
+            Hit(px, py, current ? pipR * 1.5 : pipR,
+                tipLeft,
+                $"Level Progression\nCurrent: {s.LevelName}  ·  {pts} pt{(pts == 1 ? "" : "s")}\nDamage dice: {diceStr}");
         }
     }
 
