@@ -860,12 +860,12 @@ public static class GameData
     public static readonly IReadOnlyDictionary<string, ModDef> DefaultGlobalMods =
         new Dictionary<string, ModDef>
         {
-            ["Range: Touch"]         = new("Range",    0, 1, "Requires physical contact."),
-            ["Range: Close 10ft"]    = new("Range",    1, 1, "Short weapon-reach range."),
-            ["Range: Medium 60ft"]   = new("Range",    2, 1, "Standard tactical combat range."),
-            ["Range: Long 300ft"]    = new("Range",    3, 1, "Extreme battlefield range."),
-            ["Range: Sight"]         = new("Range",    4, 1, "Anywhere you can directly see."),
-            ["Range: Planar"]        = new("Range",    5, 1, "Can cross planar boundaries."),
+            ["Range: Touch"]    = new("Range",  1, 1, "Within reach."),
+            ["Range: Near"]     = new("Range",  2, 1, "Within 30 feet."),
+            ["Range: Far"]      = new("Range",  3, 1, "Within 60 feet."),
+            ["Range: Distant"]  = new("Range",  4, 1, "Within 120 feet."),
+            ["Range: Scene"]    = new("Range",  5, 1, "Anywhere within a scene."),
+            ["Range: Known"]    = new("Range", 15, 1, "Anywhere you know."),
             ["Duration: Instant"]    = new("Duration", 0, 1, "Single moment; no persistent magic."),
             ["Duration: 1 Round"]    = new("Duration", 1, 1, "Lasts until your next turn."),
             ["Duration: Concentration"] = new("Duration", 1, 1, "Maintained as long as you concentrate."),
