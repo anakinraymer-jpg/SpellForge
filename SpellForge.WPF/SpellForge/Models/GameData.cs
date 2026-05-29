@@ -31,6 +31,8 @@ public static class GameData
         ["Range"]    = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
         ["Duration"] = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
         ["Area"]     = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
+        // Power is a ring-mod group on each school — runes needed for DrawModule
+        ["Power"]    = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
     };
 
     public static readonly IReadOnlyDictionary<string, string> CatColors = new Dictionary<string, string>
