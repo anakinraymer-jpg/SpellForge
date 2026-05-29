@@ -24,7 +24,20 @@ public partial class GlobalModRowVM : ObservableObject
 
     [ObservableProperty] private int _count;
 
-    partial void OnCountChanged(int value) => OnPropertyChanged(nameof(CountDisplay));
+    partial void OnCountChanged(int value)
+    {
+        OnPropertyChanged(nameof(CountDisplay));
+        OnPropertyChanged(nameof(SizeLabel));
+    }
+
+    /// <summary>Current computed size for stackable Shape mods; empty string for all others.</summary>
+    public string SizeLabel => _name switch
+    {
+        "Shape: Area" when Count > 0 => $"({Count * 10} ft radius)",
+        "Shape: Line" when Count > 0 => $"({Count * 30} ft)",
+        "Shape: Cone" when Count > 0 => $"({Count * 15} ft)",
+        _                            => "",
+    };
 
     public string CountDisplay
     {

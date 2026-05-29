@@ -1194,10 +1194,11 @@ public class MagicCircleCanvas : FrameworkElement
                     CircleW(rx, ry, 2, Br(gc, 0.14));
                     TextWF(rx, ry, rune, gc, 0.35, Math.Max(5, (int)(modCR * 0.26)), isFixed: true);
                 }
+                string sizeLabel = ShapeSizeLabel(capModKey, capModCnt);
                 string modLeft = modDrawback
-                    ? $"◈ {capModKey}  [{cat}]  ⚠ Drawback\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}\nRefunds −{capModDef.Cost} pt  ·  Right-click to remove"
+                    ? $"◈ {capModKey}  [{cat}]  ⚠ Drawback\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}{sizeLabel}\n{capModDef.Desc}\nRefunds −{capModDef.Cost} pt  ·  Right-click to remove"
                     : cnt > 0
-                        ? $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}\nRight-click: mark as drawback (−{capModDef.Cost} pt)"
+                        ? $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}{sizeLabel}\n{capModDef.Desc}\nRight-click: mark as drawback (−{capModDef.Cost} pt)"
                         : $"◈ {capModKey}  [{cat}]\nCost: {capModDef.Cost} pt  ·  Owned: {capModCnt}/{capModDef.Max}\n{capModDef.Desc}";
                 Action? modRC = cnt > 0
                     ? () => MutateSpell(sp => {
@@ -1218,6 +1219,16 @@ public class MagicCircleCanvas : FrameworkElement
             }
         }
     }
+
+    /// <summary>Returns a parenthesised current-size string for stackable Shape mods (e.g. "(30 ft radius)"),
+    /// or an empty string for any other mod or when count is zero.</summary>
+    private static string ShapeSizeLabel(string modKey, int count) => count <= 0 ? "" : modKey switch
+    {
+        "Shape: Area" => $"  ({count * 10} ft radius)",
+        "Shape: Line" => $"  ({count * 30} ft)",
+        "Shape: Cone" => $"  ({count * 15} ft)",
+        _             => "",
+    };
 
     // ── Level icons ───────────────────────────────────────────────
     private void DrawFistW(double wx, double wy, double r, string color)

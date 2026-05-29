@@ -45,6 +45,11 @@
                                                                Foreground="{Binding CatColorBrush}"
                                                                Margin="6,0,0,0"
                                                                VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding SizeLabel}"
+                                                               FontSize="9" FontStyle="Italic"
+                                                               Foreground="{Binding CatColorBrush}"
+                                                               Margin="5,0,0,0"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
 
                                                 <!-- Decrement -->
