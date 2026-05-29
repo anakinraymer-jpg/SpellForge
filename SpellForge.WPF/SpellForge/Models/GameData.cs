@@ -30,6 +30,9 @@ public static class GameData
     {
         ["Range"]    = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
         ["Duration"] = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
+        // Shape is the global mod category displayed in hub/mod ring
+        ["Shape"]    = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
+        // Area is a ring-mod group on each school — runes needed for DrawModule
         ["Area"]     = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
         // Power is a ring-mod group on each school — runes needed for DrawModule
         ["Power"]    = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
@@ -39,7 +42,7 @@ public static class GameData
     {
         ["Range"]    = "#ff6060",
         ["Duration"] = "#60ee88",
-        ["Area"]     = "#6088ff",
+        ["Shape"]    = "#6088ff",
     };
 
     // ── Attrition types (severity 0 → 4) ───────────────────────
@@ -874,14 +877,9 @@ public static class GameData
             ["Duration: 1 Hour"]     = new("Duration", 4, 1, "Long-lasting enhancement."),
             ["Duration: 8 Hours"]    = new("Duration", 5, 1, "Persists through a full rest."),
             ["Duration: Permanent"]  = new("Duration", 7, 1, "Persists until dispelled."),
-            ["Area: Single Target"]  = new("Area",     0, 1, "Affects exactly one creature."),
-            ["Area: Cone 15ft"]      = new("Area",     1, 1, "15-foot cone from caster."),
-            ["Area: Line 30ft"]      = new("Area",     1, 1, "30-foot line, 5 feet wide."),
-            ["Area: Burst 10ft"]     = new("Area",     2, 1, "10-foot radius sphere."),
-            ["Area: Burst 30ft"]     = new("Area",     3, 1, "30-foot radius sphere."),
-            ["Area: Multi-Target"]   = new("Area",     2, 5, "Choose up to 3 targets. Each purchase adds 2 more."),
-            ["Area: Aura Self"]      = new("Area",     2, 3, "Radiates 10ft from caster. Each purchase adds 10ft."),
-            ["Area: Zone 60ft"]      = new("Area",     4, 1, "60-foot radius sphere."),
+            ["Shape: Area"]     = new("Shape", 1, 10, "Spherical area. Each point = 10 ft radius (1pt=10ft, 2pt=20ft…)."),
+            ["Shape: Line"]     = new("Shape", 1, 10, "Line from caster. Each point = 30 ft length (1pt=30ft, 2pt=60ft…)."),
+            ["Shape: Cone"]     = new("Shape", 1, 10, "Cone from caster. Each point = 15 ft length (1pt=15ft, 2pt=30ft…)."),
         };
 
     // ── Negative modifiers ────────────────────────────────────────

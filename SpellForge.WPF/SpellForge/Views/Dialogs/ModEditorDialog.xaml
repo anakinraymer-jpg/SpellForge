@@ -38,7 +38,7 @@
                 <ComboBox x:Name="CatBox" SelectedIndex="0">
                     <ComboBoxItem Content="Range"/>
                     <ComboBoxItem Content="Duration"/>
-                    <ComboBoxItem Content="Area"/>
+                    <ComboBoxItem Content="Shape"/>
                 </ComboBox>
             </StackPanel>
 
