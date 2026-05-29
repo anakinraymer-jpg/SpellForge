@@ -28,20 +28,16 @@ public static class GameData
 
     public static readonly IReadOnlyDictionary<string, string[]> ModRunes = new Dictionary<string, string[]>
     {
-        ["Range"]     = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
-        ["Duration"]  = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
-        ["Area"]      = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
-        ["Power"]     = ["ᛒ","ᛗ","ᚾ","ᛜ","ᚺ","⊗"],
-        ["Casting"]   = ["ᛇ","ᚲ","ᚢ","ᛦ","ᛡ","⊛"],
-        ["Special"]   = ["ᛥ","ᛣ","ᛤ","ᛢ","ᛰ","⊚"],
-        ["Attrition"] = ["⊖","⚸","⚙","☠","✸","⊗"],
+        ["Range"]    = ["ᚱ","ᚠ","ᛁ","ᛏ","ᛊ","⊕"],
+        ["Duration"] = ["ᛞ","ᛟ","ᚦ","ᛖ","ᚹ","⊙"],
+        ["Area"]     = ["ᚨ","ᚷ","ᛃ","ᛈ","ᛚ","◎"],
     };
 
     public static readonly IReadOnlyDictionary<string, string> CatColors = new Dictionary<string, string>
     {
-        ["Range"]     = "#ff6060", ["Duration"]  = "#60ee88", ["Area"]    = "#6088ff",
-        ["Power"]     = "#ffd060", ["Casting"]   = "#ff88ff", ["Special"] = "#88ffff",
-        ["Attrition"] = "#ff7744",
+        ["Range"]    = "#ff6060",
+        ["Duration"] = "#60ee88",
+        ["Area"]     = "#6088ff",
     };
 
     // ── Attrition types (severity 0 → 4) ───────────────────────
@@ -884,41 +880,6 @@ public static class GameData
             ["Area: Multi-Target"]   = new("Area",     2, 5, "Choose up to 3 targets. Each purchase adds 2 more."),
             ["Area: Aura Self"]      = new("Area",     2, 3, "Radiates 10ft from caster. Each purchase adds 10ft."),
             ["Area: Zone 60ft"]      = new("Area",     4, 1, "60-foot radius sphere."),
-            ["Power: Weak d4"]       = new("Power",    0, 1, "Minimal effect."),
-            ["Power: Moderate d6"]   = new("Power",    2, 1, "Standard combat-grade power."),
-            ["Power: Strong d8"]     = new("Power",    4, 1, "Above-average effect."),
-            ["Power: Powerful d10"]  = new("Power",    6, 1, "Significant and threatening."),
-            ["Power: Mighty d12"]    = new("Power",    8, 1, "Devastating single-hit power."),
-            ["Power: Epic 2d10"]     = new("Power",   10, 1, "Legendary magnitude."),
-            ["Extra Damage Die"]     = new("Power",    2,10, "Add one additional damage die per purchase."),
-            ["Cast: Free Action"]    = new("Casting",  3, 1, "No action cost; does not consume your Action for the phase."),
-            ["Cast: Hurried"]        = new("Casting",  1, 1, "Cast and move in one phase; all enemies gain +5 to attack for the round."),
-            ["Cast: Standard"]       = new("Casting",  0, 1, "Uses your Action for the phase (normal combat casting)."),
-            ["Cast: Full Round"]     = new("Casting", -1, 1, "Channels across all 5 phases of 1 round; enemies gain +5 to attack while casting."),
-            ["Cast: 1 Min Ritual"]   = new("Casting", -2, 1, "12-round ritual; cannot be interrupted without breaking the spell."),
-            ["Cast: 10 Min Ritual"]  = new("Casting", -3, 1, "120-round deep ritual; range and area doubled on completion."),
-            ["Silent Spell"]         = new("Special",  1, 1, "Removes verbal component."),
-            ["Still Spell"]          = new("Special",  1, 1, "Removes somatic component."),
-            ["Subtle Spell"]         = new("Special",  2, 1, "Both verbal and somatic suppressed."),
-            ["Maximized"]            = new("Special",  2, 1, "All variable effects use maximum value."),
-            ["Empowered"]            = new("Special",  2, 2, "Reroll damage dice; take higher result."),
-            ["Twinned Spell"]        = new("Special",  3, 1, "Target a second creature simultaneously."),
-            ["Heightened DC"]        = new("Special",  2, 3, "Raise saving throw DC by 2 per purchase."),
-            ["Persistent Effect"]    = new("Special",  2, 1, "Dispel checks against it have disadvantage."),
-            ["Selective Targeting"]  = new("Special",  2, 1, "Exclude creatures from area of effect."),
-            ["Triggered Delay"]      = new("Special",  2, 3, "Delay until trigger (up to 24hr per purchase)."),
-            ["Volley"]               = new("Special",  2, 3, "Each purchase adds one additional volley strike."),
-            ["Extended Range"]       = new("Special",  1, 5, "Double the spell's range per purchase."),
-            // ── Attrition modifiers ───────────────────────────────
-            ["Attrition: Escalate"]  = new("Attrition", 2, 4,
-                "Upgrade the spell's attrition type by 1 grade per purchase " +
-                "(None → Basic → Flesh → Equipment → Destroy → Brutal)."),
-            ["Attrition: Controlled"] = new("Attrition", 2, 1,
-                "Target player chooses which slot(s) to lose, regardless of attrition type. " +
-                "Converts random selection into player choice."),
-            ["Attrition: Repeat"]    = new("Attrition", 3, 3,
-                "Apply the spell's attrition an additional time per purchase " +
-                "(each application rolled/resolved separately)."),
         };
 
     // ── Negative modifiers ────────────────────────────────────────

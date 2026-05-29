@@ -39,9 +39,6 @@
                     <ComboBoxItem Content="Range"/>
                     <ComboBoxItem Content="Duration"/>
                     <ComboBoxItem Content="Area"/>
-                    <ComboBoxItem Content="Power"/>
-                    <ComboBoxItem Content="Casting"/>
-                    <ComboBoxItem Content="Special"/>
                 </ComboBox>
             </StackPanel>
 
