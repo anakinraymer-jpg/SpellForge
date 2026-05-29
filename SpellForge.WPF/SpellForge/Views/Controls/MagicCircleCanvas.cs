@@ -854,8 +854,8 @@ public class MagicCircleCanvas : FrameworkElement
             }
 
             // Hover hit-region
-            int    dice   = i;                   // Cantrip = 0d6, 1st = 1d6, …
-            string diceStr = dice == 0 ? "no dice" : $"{dice}d6";
+            int    dice    = i + 1;              // Cantrip = 1d6, 1st = 2d6, …
+            string diceStr = $"{dice}d6";
             string status  = current ? "◀ current level"
                            : reached ? "✓ reached"
                                      : $"need {entry.Lo - pts} more pt{(entry.Lo - pts == 1 ? "" : "s")}";
